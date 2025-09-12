@@ -1,0 +1,202 @@
+const User = require('../models/User');
+
+// Submit verification documents
+const submitVerification = async (req, res) => {
+  try {
+    const user = req.user;
+    const { fullName, dateOfBirth, gender, address, aadhaarFront, aadhaarBack, panCard } = req.body;
+
+    if (user.role !== 'freelancer') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only freelancers can submit verification documents'
+      });
+    }
+
+    // Update user verification documents
+    user.verificationDocuments = {
+      aadhaarFront,
+      aadhaarBack,
+      panCard,
+      address,
+      dateOfBirth: new Date(dateOfBirth),
+      gender
+    };
+    user.verificationStatus = 'pending';
+    user.fullName = fullName;
+    await user.save();
+
+    console.log('✅ Verification documents submitted for user:', user._id);
+
+    res.json({
+      success: true,
+      message: 'Verification documents submitted successfully',
+      status: 'pending',
+      submittedAt: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Verification submission error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit verification documents'
+    });
+  }
+};
+
+// Get verification status
+const getVerificationStatus = async (req, res) => {
+  try {
+    const user = req.user;
+
+    if (user.role !== 'freelancer') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only freelancers can check verification status'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        status: user.verificationStatus,
+        submittedAt: user.updatedAt,
+        documents: user.verificationDocuments
+      }
+    });
+
+  } catch (error) {
+    console.error('Verification status check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check verification status'
+    });
+  }
+};
+
+// Get wallet information
+const getWallet = async (req, res) => {
+  try {
+    const user = req.user;
+
+    res.json({
+      success: true,
+      data: {
+        balance: user.wallet.balance,
+        totalEarnings: user.wallet.totalEarnings,
+        currency: 'INR'
+      }
+    });
+
+  } catch (error) {
+    console.error('Wallet fetch error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch wallet information'
+    });
+  }
+};
+
+// Request withdrawal
+const requestWithdrawal = async (req, res) => {
+  try {
+    const user = req.user;
+    const { amount, upiId } = req.body;
+
+    if (user.wallet.balance < amount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient balance'
+      });
+    }
+
+    // In a real implementation, you'd create a withdrawal request record
+    console.log('💰 Withdrawal request:', { userId: user._id, amount, upiId });
+
+    res.json({
+      success: true,
+      message: 'Withdrawal request submitted successfully',
+      requestId: 'req_' + Date.now()
+    });
+
+  } catch (error) {
+    console.error('Withdrawal request error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit withdrawal request'
+    });
+  }
+};
+
+// Get withdrawal history
+const getWithdrawalHistory = async (req, res) => {
+  try {
+    const user = req.user;
+
+    // In a real implementation, you'd fetch from a withdrawals collection
+    res.json({
+      success: true,
+      data: []
+    });
+
+  } catch (error) {
+    console.error('Withdrawal history error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch withdrawal history'
+    });
+  }
+};
+
+// Get assigned jobs
+const getAssignedJobs = async (req, res) => {
+  try {
+    const user = req.user;
+
+    // In a real implementation, you'd fetch from a jobs collection
+    res.json({
+      success: true,
+      data: []
+    });
+
+  } catch (error) {
+    console.error('Assigned jobs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch assigned jobs'
+    });
+  }
+};
+
+// Mark job as complete
+const markJobComplete = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const user = req.user;
+
+    // In a real implementation, you'd update the job status
+    console.log('✅ Job marked complete:', { jobId, userId: user._id });
+
+    res.json({
+      success: true,
+      message: 'Job marked as complete successfully'
+    });
+
+  } catch (error) {
+    console.error('Mark job complete error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to mark job as complete'
+    });
+  }
+};
+
+module.exports = {
+  submitVerification,
+  getVerificationStatus,
+  getWallet,
+  requestWithdrawal,
+  getWithdrawalHistory,
+  getAssignedJobs,
+  markJobComplete
+};
