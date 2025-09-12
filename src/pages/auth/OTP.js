@@ -24,7 +24,7 @@ const OTP = () => {
   const [roleSelection, setRoleSelection] = useState(null);
   const [showRoleSelection, setShowRoleSelection] = useState(false);
 
-  const { phoneNumber, verificationId } = location.state || {};
+  const { phoneNumber, verificationId, selectedRole } = location.state || {};
 
   const {
     register,
@@ -37,7 +37,7 @@ const OTP = () => {
 
   const otpValue = watch('otp');
 
-  // Redirect if no phone number
+  // Redirect if no phone number or verification ID
   useEffect(() => {
     if (!phoneNumber || !verificationId) {
       navigate('/login');
@@ -73,8 +73,13 @@ const OTP = () => {
       
       const idToken = await userCredential.user.getIdToken();
 
-      // Show role selection for new users
-      setShowRoleSelection(true);
+      // Use the selected role from login page
+      if (selectedRole) {
+        await handleRoleSelection(selectedRole);
+      } else {
+        // Fallback: show role selection if no role was selected
+        setShowRoleSelection(true);
+      }
       
     } catch (error) {
       console.error('Error verifying OTP:', error);
@@ -133,26 +138,34 @@ const OTP = () => {
         setTimeout(() => {
           console.log('🎯 Proceeding with navigation after auth context update');
           
-          // Check if user needs profile setup
-          if (result.needsProfileSetup) {
-            console.log('🎯 User needs profile setup, navigating to profile setup');
-            navigate('/profile-setup', { 
-              state: { 
-                phoneNumber,
-                role,
-                isNewUser: result.isNewUser 
-              } 
-            });
-          } else {
-            console.log('🎯 User does not need profile setup, navigating to dashboard');
-            // Navigate to appropriate dashboard
-            if (role === 'client') {
-              console.log('🎯 Navigating to client dashboard');
+          // Navigate based on role and setup status
+          if (role === 'client') {
+            if (result.needsProfileSetup) {
+              console.log('🎯 Client needs profile setup, navigating to profile setup');
+              navigate('/profile-setup', { 
+                state: { 
+                  phoneNumber,
+                  role,
+                  isNewUser: result.isNewUser 
+                } 
+              });
+            } else {
+              console.log('🎯 Client setup complete, navigating to dashboard');
               navigate('/client/dashboard');
-            } else if (role === 'freelancer') {
-              console.log('🎯 Navigating to freelancer verification');
-              // Check verification status for freelancers
-              navigate('/freelancer/verification');
+            }
+          } else if (role === 'freelancer') {
+            if (result.needsVerification) {
+              console.log('🎯 Freelancer needs verification, navigating to verification');
+              navigate('/freelancer/verification', { 
+                state: { 
+                  phoneNumber,
+                  role,
+                  isNewUser: result.isNewUser 
+                } 
+              });
+            } else {
+              console.log('🎯 Freelancer verification complete, navigating to dashboard');
+              navigate('/freelancer/dashboard');
             }
           }
         }, 300);

@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { freelancerVerificationSchema } from '../../utils/validators';
 import { freelancerService } from '../../api/freelancerService';
+import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
 import { Label } from '../../components/common/Label';
@@ -21,6 +22,7 @@ import {
 
 const FreelancerVerification = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [verificationStatus, setVerificationStatus] = useState(null);
@@ -39,8 +41,14 @@ const FreelancerVerification = () => {
   const watchedFields = watch();
 
   useEffect(() => {
-    checkVerificationStatus();
-  }, []);
+    // Only check verification status if user is authenticated
+    if (isAuthenticated && user) {
+      checkVerificationStatus();
+    } else {
+      // Redirect to login if not authenticated
+      navigate('/login');
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const checkVerificationStatus = async () => {
     try {

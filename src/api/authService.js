@@ -66,7 +66,8 @@ export const authService = {
           fullName: 'Mock User',
           profilePhoto: null,
           isNewUser: true,
-          needsProfileSetup: role === 'client' // Only clients need profile setup
+          needsProfileSetup: true, // Both clients and freelancers need setup
+          needsVerification: role === 'freelancer' // Only freelancers need verification
         };
         
         // Mock JWT token
@@ -84,7 +85,8 @@ export const authService = {
           token: mockToken,
           user: mockUser,
           isNewUser: true,
-          needsProfileSetup: role === 'client' // Only clients need profile setup
+          needsProfileSetup: true, // Both clients and freelancers need setup
+          needsVerification: role === 'freelancer' // Only freelancers need verification
         };
       }
       
@@ -122,7 +124,8 @@ export const authService = {
           fullName: 'Mock User',
           profilePhoto: null,
           isNewUser: true,
-          needsProfileSetup: role === 'client' // Only clients need profile setup
+          needsProfileSetup: true, // Both clients and freelancers need setup
+          needsVerification: role === 'freelancer' // Only freelancers need verification
         };
         
         // Mock JWT token
@@ -140,7 +143,8 @@ export const authService = {
           token: mockToken,
           user: mockUser,
           isNewUser: true,
-          needsProfileSetup: role === 'client' // Only clients need profile setup
+          needsProfileSetup: true, // Both clients and freelancers need setup
+          needsVerification: role === 'freelancer' // Only freelancers need verification
         };
       }
       

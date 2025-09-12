@@ -13,6 +13,7 @@ const Login = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedRole, setSelectedRole] = useState(null);
 
   // Clear any existing auth data on component mount
   useEffect(() => {
@@ -97,11 +98,12 @@ const Login = () => {
         verificationId: confirmationResult.verificationId
       }));
       
-      // Navigate to OTP screen with phone number
+      // Navigate to OTP screen with phone number and selected role
       navigate('/otp', { 
         state: { 
           phoneNumber: formattedPhone,
-          verificationId: confirmationResult.verificationId
+          verificationId: confirmationResult.verificationId,
+          selectedRole: selectedRole
         } 
       });
       
@@ -216,6 +218,39 @@ const Login = () => {
                 </p>
               </div>
 
+              {/* Role Selection */}
+              <div className="space-y-3">
+                <Label>Choose Your Role</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole('client')}
+                    className={`p-3 rounded-lg border-2 text-center transition-all duration-200 ${
+                      selectedRole === 'client'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                    }`}
+                    disabled={loading}
+                  >
+                    <div className="font-semibold text-sm">I'm a Client</div>
+                    <div className="text-xs opacity-75">I want to hire</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole('freelancer')}
+                    className={`p-3 rounded-lg border-2 text-center transition-all duration-200 ${
+                      selectedRole === 'freelancer'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                    }`}
+                    disabled={loading}
+                  >
+                    <div className="font-semibold text-sm">I'm a Freelancer</div>
+                    <div className="text-xs opacity-75">I want to work</div>
+                  </button>
+                </div>
+              </div>
+
               {error && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                   <p className="text-sm text-red-600">{error}</p>
@@ -225,15 +260,15 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className={`w-full font-semibold py-3 px-6 rounded-lg transition-all duration-200 ${
-                  phoneNumber.replace(/\D/g, '').length === 12 && !loading
+                  phoneNumber.replace(/\D/g, '').length === 12 && selectedRole && !loading
                     ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
                 loading={loading}
-                disabled={phoneNumber.replace(/\D/g, '').length !== 12 || loading}
+                disabled={phoneNumber.replace(/\D/g, '').length !== 12 || !selectedRole || loading}
               >
                 {loading ? 'Sending OTP...' : 'Send OTP'}
-                {!loading && phoneNumber.replace(/\D/g, '').length === 12 && <ArrowRight className="w-4 h-4 ml-2" />}
+                {!loading && phoneNumber.replace(/\D/g, '').length === 12 && selectedRole && <ArrowRight className="w-4 h-4 ml-2" />}
               </Button>
             </form>
 
