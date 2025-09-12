@@ -11,6 +11,7 @@ const userRoutes = require('./routes/users');
 const clientRoutes = require('./routes/client');
 const freelancerRoutes = require('./routes/freelancer');
 const adminRoutes = require('./routes/admin');
+const jobRoutes = require('./routes/jobs');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -75,6 +76,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/client', clientRoutes);
 app.use('/api/freelancer', freelancerRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/jobs', jobRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

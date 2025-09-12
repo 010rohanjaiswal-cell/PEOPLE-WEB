@@ -62,7 +62,8 @@ const authenticate = async (req, res) => {
         verificationStatus: user.verificationStatus
       },
       isNewUser: !user.profileSetupCompleted,
-      needsProfileSetup: !user.profileSetupCompleted
+      needsProfileSetup: !user.profileSetupCompleted,
+      needsVerification: user.role === 'freelancer' && (!user.verificationDocuments || !user.verificationDocuments.aadhaarFront)
     });
 
   } catch (error) {

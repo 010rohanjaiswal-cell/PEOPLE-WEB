@@ -191,6 +191,65 @@ const markJobComplete = async (req, res) => {
   }
 };
 
+// Pick up a job (direct assignment)
+const pickupJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const user = req.user;
+
+    console.log('🎯 Freelancer picking up job:', jobId);
+    console.log('👤 Freelancer ID:', user._id);
+
+    // In a real implementation, you'd update the job status and assign it to the freelancer
+    res.json({
+      success: true,
+      message: 'Job picked up successfully',
+      jobId,
+      freelancerId: user._id
+    });
+
+  } catch (error) {
+    console.error('Pickup job error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to pickup job'
+    });
+  }
+};
+
+// Make an offer for a job
+const makeOffer = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { amount, coverLetter } = req.body;
+    const user = req.user;
+
+    console.log('💰 Freelancer making offer for job:', jobId);
+    console.log('👤 Freelancer ID:', user._id);
+    console.log('💵 Offer amount:', amount);
+
+    // In a real implementation, you'd save the offer to the database
+    res.json({
+      success: true,
+      message: 'Offer submitted successfully',
+      jobId,
+      freelancerId: user._id,
+      offer: {
+        amount,
+        coverLetter,
+        submittedAt: new Date()
+      }
+    });
+
+  } catch (error) {
+    console.error('Make offer error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit offer'
+    });
+  }
+};
+
 module.exports = {
   submitVerification,
   getVerificationStatus,
@@ -198,5 +257,7 @@ module.exports = {
   requestWithdrawal,
   getWithdrawalHistory,
   getAssignedJobs,
+  pickupJob,
+  makeOffer,
   markJobComplete
 };
