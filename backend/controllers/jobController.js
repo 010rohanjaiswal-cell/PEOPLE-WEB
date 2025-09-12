@@ -1,4 +1,4 @@
-const Job = require('../models/Job');
+// const Job = require('../models/Job'); // Using mock data for now
 
 // Get available jobs for freelancers
 const getAvailableJobs = async (req, res) => {
