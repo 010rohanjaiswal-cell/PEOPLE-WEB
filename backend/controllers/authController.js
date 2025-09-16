@@ -33,9 +33,12 @@ const authenticate = async (req, res) => {
 
     console.log('📱 Phone number from request:', phoneNumber);
 
-    // Check if user exists
-    let user = await User.findOne({ 
-      phoneNumber: phoneNumber
+    // Check if user exists by either phoneNumber or legacy phone
+    let user = await User.findOne({
+      $or: [
+        { phoneNumber: phoneNumber },
+        { phone: phoneNumber }
+      ]
     });
 
     if (!user) {
@@ -53,9 +56,14 @@ const authenticate = async (req, res) => {
     } else {
       // Update last login and role if changed
       user.lastLogin = new Date();
-      // Backfill legacy 'phone' field if missing to satisfy existing unique index
+      // Backfill legacy 'phone' field only if not conflicting with existing doc
       if (!user.phone) {
-        user.phone = phoneNumber;
+        const phoneConflict = await User.findOne({ phone: phoneNumber, _id: { $ne: user._id } });
+        if (!phoneConflict) {
+          user.phone = phoneNumber;
+        } else {
+          console.warn('⚠️ Skipping setting legacy phone due to conflict with another user');
+        }
       }
       if (user.role !== role) {
         user.role = role;
