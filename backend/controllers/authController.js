@@ -65,10 +65,12 @@ const authenticate = async (req, res) => {
           console.warn('⚠️ Skipping setting legacy phone due to conflict with another user');
         }
       }
+      // Update role but preserve freelancer data priority
       if (user.role !== role) {
         user.role = role;
         console.log('🔄 User role updated to:', role);
       }
+      
       // Backfill required fields if missing to satisfy schema
       if (!user.phoneNumber) {
         user.phoneNumber = phoneNumber;
@@ -76,7 +78,13 @@ const authenticate = async (req, res) => {
       if (!user.fullName) {
         user.fullName = 'New User';
       }
-      if (typeof user.profileSetupCompleted === 'undefined') {
+      
+      // If user has freelancer data (verification docs), they don't need profile setup
+      // Freelancer data takes priority over client profile setup
+      if (user.verificationDocuments && user.verificationDocuments.aadhaarFront) {
+        user.profileSetupCompleted = true;
+        console.log('✅ User has freelancer data, marking profile setup as completed');
+      } else if (typeof user.profileSetupCompleted === 'undefined') {
         user.profileSetupCompleted = false;
       }
       await user.save();

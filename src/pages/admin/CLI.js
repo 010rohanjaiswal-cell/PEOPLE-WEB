@@ -508,9 +508,9 @@ const AdminDashboard = () => {
             <h3 className="text-lg font-semibold">
               Search Results ({searchResults.total} found)
             </h3>
-            {searchResults.clients.length > 0 && searchResults.freelancers.length > 0 && (
-              <div className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                User has both client and freelancer access
+            {searchResults.clients.some(c => c.hasFreelancerData) && (
+              <div className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
+                User has freelancer data (shown in both tabs)
               </div>
             )}
           </div>
@@ -543,6 +543,7 @@ const AdminDashboard = () => {
                             </p>
                             <p className="text-xs text-blue-600 font-medium">
                               Client Account {client.isCurrentRole && '(Current Role)'}
+                              {client.hasFreelancerData && ' • Has Freelancer Data'}
                             </p>
                           </div>
                         </div>

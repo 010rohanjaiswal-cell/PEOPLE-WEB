@@ -175,27 +175,36 @@ const searchUsers = async (req, res) => {
       phone: u.phoneNumber || u.phone 
     })));
 
-    // For role-switching users, show them in both client and freelancer tabs
-    // Check if user has ever been a client or freelancer based on their profile data
+    // For role-switching users, prioritize freelancer data and show in both tabs
     const clients = [];
     const freelancers = [];
 
     users.forEach(user => {
-      // If user has client-related data (posted jobs, etc.) or is currently a client
-      if (user.role === 'client' || user.wallet?.balance > 0 || user.profileSetupCompleted) {
-        clients.push({
-          ...user.toObject(),
-          displayRole: 'client',
-          isCurrentRole: user.role === 'client'
-        });
-      }
+      const userObj = user.toObject();
       
-      // If user has freelancer-related data (verification docs, etc.) or is currently a freelancer
-      if (user.role === 'freelancer' || user.verificationDocuments || user.verificationStatus) {
+      // If user has freelancer data, show them in both tabs with freelancer details
+      if (user.verificationDocuments || user.verificationStatus || user.role === 'freelancer') {
+        // Show in freelancer tab
         freelancers.push({
-          ...user.toObject(),
+          ...userObj,
           displayRole: 'freelancer',
           isCurrentRole: user.role === 'freelancer'
+        });
+        
+        // Also show in client tab with freelancer details (since freelancer has more info)
+        clients.push({
+          ...userObj,
+          displayRole: 'client',
+          isCurrentRole: user.role === 'client',
+          hasFreelancerData: true // Flag to indicate this user has freelancer data
+        });
+      } else {
+        // User only has client data, show only in client tab
+        clients.push({
+          ...userObj,
+          displayRole: 'client',
+          isCurrentRole: user.role === 'client',
+          hasFreelancerData: false
         });
       }
     });
