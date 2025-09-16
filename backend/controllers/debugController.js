@@ -5,6 +5,10 @@ const debugJobs = async (req, res) => {
   try {
     const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
     
+    const myActiveJobs = inMemoryJobs.filter(j => j.clientId === clientId && j.status !== 'completed');
+    const myCompletedJobs = inMemoryJobs.filter(j => j.clientId === clientId && j.status === 'completed');
+    const otherJobs = inMemoryJobs.filter(j => j.clientId !== clientId);
+
     const debugInfo = {
       timestamp: new Date().toISOString(),
       user: {
@@ -27,9 +31,22 @@ const debugJobs = async (req, res) => {
         }))
       },
       filteredJobs: {
-        myActiveJobs: inMemoryJobs.filter(j => j.clientId === clientId && j.status !== 'completed'),
-        myCompletedJobs: inMemoryJobs.filter(j => j.clientId === clientId && j.status === 'completed'),
-        otherJobs: inMemoryJobs.filter(j => j.clientId !== clientId)
+        myActiveJobs: myActiveJobs,
+        myCompletedJobs: myCompletedJobs,
+        otherJobs: otherJobs
+      },
+      filteringDebug: {
+        clientIdType: typeof clientId,
+        clientIdValue: clientId,
+        jobClientIds: inMemoryJobs.map(j => ({ id: j.id, clientId: j.clientId, clientIdType: typeof j.clientId })),
+        comparisonResults: inMemoryJobs.map(j => ({
+          id: j.id,
+          jobClientId: j.clientId,
+          extractedClientId: clientId,
+          isEqual: j.clientId === clientId,
+          strictEqual: j.clientId === clientId,
+          looseEqual: j.clientId == clientId
+        }))
       }
     };
     

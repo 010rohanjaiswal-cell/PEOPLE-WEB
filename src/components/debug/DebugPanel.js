@@ -146,6 +146,32 @@ const DebugPanel = () => {
                 </div>
               </div>
             </div>
+
+            {debugInfo.filteringDebug && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
+                <h4 className="font-semibold text-yellow-800 mb-2">Filtering Debug</h4>
+                <div className="text-sm text-yellow-700 space-y-2">
+                  <div>
+                    <strong>Client ID Type:</strong> {debugInfo.filteringDebug.clientIdType}
+                  </div>
+                  <div>
+                    <strong>Client ID Value:</strong> {debugInfo.filteringDebug.clientIdValue}
+                  </div>
+                  <div>
+                    <strong>Job Client IDs:</strong>
+                    <pre className="mt-1 text-xs bg-white p-2 rounded border overflow-auto max-h-20">
+                      {JSON.stringify(debugInfo.filteringDebug.jobClientIds, null, 2)}
+                    </pre>
+                  </div>
+                  <div>
+                    <strong>Comparison Results:</strong>
+                    <pre className="mt-1 text-xs bg-white p-2 rounded border overflow-auto max-h-32">
+                      {JSON.stringify(debugInfo.filteringDebug.comparisonResults, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
