@@ -1,11 +1,12 @@
 // const Job = require('../models/Job'); // Using mock data for now
+const { inMemoryJobs } = require('./sharedJobsStore') || {};
 
 // Get available jobs for freelancers
 const getAvailableJobs = async (req, res) => {
   try {
     console.log('🔍 Fetching available jobs');
     
-    // Mock jobs for now - in production, this would query the database
+    // Prefer in-memory posted jobs if present; fallback to mock
     const mockJobs = [
       {
         id: 'job-1',
@@ -45,11 +46,8 @@ const getAvailableJobs = async (req, res) => {
       }
     ];
 
-    res.json({
-      success: true,
-      jobs: mockJobs,
-      total: mockJobs.length
-    });
+    const jobs = Array.isArray(inMemoryJobs) && inMemoryJobs.length > 0 ? inMemoryJobs.filter(j => j.status === 'open') : mockJobs;
+    res.json({ success: true, jobs, total: jobs.length });
   } catch (error) {
     console.error('Error fetching available jobs:', error);
     res.status(500).json({

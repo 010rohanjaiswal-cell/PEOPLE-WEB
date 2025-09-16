@@ -1,7 +1,17 @@
 import axios from 'axios';
 import { storage } from '../utils/storage';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
+const runtimeApiBaseUrl = (() => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const override = localStorage.getItem('apiBaseUrlOverride');
+      if (override) return override;
+    }
+  } catch (_) {}
+  return undefined;
+})();
+
+const API_BASE_URL = runtimeApiBaseUrl || process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
