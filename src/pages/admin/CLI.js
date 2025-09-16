@@ -59,7 +59,10 @@ const AdminDashboard = () => {
         adminService.getWithdrawalRequests('pending')
       ]);
       
-      setPendingVerifications(verificationsRes.verifications || []);
+      console.log('📋 Verifications response:', verificationsRes);
+      console.log('📋 Withdrawals response:', withdrawalsRes);
+      
+      setPendingVerifications(verificationsRes.data || []);
       setPendingWithdrawals(withdrawalsRes.withdrawals || []);
     } catch (error) {
       console.error('Error loading admin data:', error);
@@ -227,21 +230,21 @@ const AdminDashboard = () => {
       ) : (
         <div className="grid gap-6">
           {pendingVerifications.map(verification => (
-            <div key={verification.id} className="bg-white border border-gray-200 rounded-lg shadow-sm">
+            <div key={verification._id || verification.id} className="bg-white border border-gray-200 rounded-lg shadow-sm">
               <div className="bg-gray-50 p-6 rounded-t-lg">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-semibold text-gray-900">{verification.fullName}</h3>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-600 bg-blue-100 px-3 py-1 rounded-full">
-                      {verification.phone}
+                      {verification.phoneNumber || verification.phone}
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded-full ${verification.status === 'approved' ? 'bg-green-100 text-green-700' : verification.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {verification.status}
+                    <span className={`text-xs px-2 py-1 rounded-full ${verification.verificationStatus === 'approved' ? 'bg-green-100 text-green-700' : verification.verificationStatus === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      {verification.verificationStatus || verification.status}
                     </span>
                   </div>
                 </div>
                 <p className="text-gray-600 mt-2">
-                  Submitted on {verification.submittedAt ? new Date(verification.submittedAt).toLocaleDateString() : '—'}
+                  Submitted on {verification.updatedAt ? new Date(verification.updatedAt).toLocaleDateString() : verification.submittedAt ? new Date(verification.submittedAt).toLocaleDateString() : '—'}
                 </p>
               </div>
               <div className="p-6">
@@ -286,7 +289,7 @@ const AdminDashboard = () => {
                   {/* Action buttons */}
                   <div className="flex space-x-3">
                     <button 
-                      onClick={() => handleVerificationAction(verification.id, 'approve')}
+                      onClick={() => handleVerificationAction(verification._id || verification.id, 'approve')}
                       disabled={loading}
                       className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center"
                     >
@@ -294,7 +297,7 @@ const AdminDashboard = () => {
                       Approve
                     </button>
                     <button 
-                      onClick={() => handleVerificationAction(verification.id, 'reject')}
+                      onClick={() => handleVerificationAction(verification._id || verification.id, 'reject')}
                       disabled={loading}
                       className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center"
                     >
