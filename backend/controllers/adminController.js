@@ -3,10 +3,15 @@ const User = require('../models/User');
 // Get freelancer verifications
 const getFreelancerVerifications = async (req, res) => {
   try {
-    const verifications = await User.find({
-      role: 'freelancer',
-      verificationStatus: 'pending'
-    }).select('_id fullName phoneNumber verificationDocuments createdAt');
+    const { status } = req.query;
+    const filter = { role: 'freelancer' };
+    if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+      filter.verificationStatus = status;
+    }
+
+    const verifications = await User.find(filter)
+      .select('_id fullName phoneNumber verificationStatus verificationDocuments createdAt updatedAt')
+      .sort({ updatedAt: -1 });
 
     res.json({
       success: true,

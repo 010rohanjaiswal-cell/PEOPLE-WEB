@@ -26,6 +26,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('verifications');
+  const [verificationFilter, setVerificationFilter] = useState('pending');
   
   // Verification data
   const [pendingVerifications, setPendingVerifications] = useState([]);
@@ -37,13 +38,13 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     loadAdminData();
-  }, []);
+  }, [verificationFilter]);
 
   const loadAdminData = async () => {
     try {
       setLoading(true);
       const [verificationsRes, withdrawalsRes] = await Promise.all([
-        adminService.getFreelancerVerifications('pending'),
+        adminService.getFreelancerVerifications(verificationFilter),
         adminService.getWithdrawalRequests('pending')
       ]);
       
@@ -138,10 +139,21 @@ const AdminDashboard = () => {
   const renderVerifications = () => (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Pending Verifications</h2>
-        <Button onClick={loadAdminData} variant="outline">
-          Refresh
-        </Button>
+        <h2 className="text-2xl font-bold">Freelancer Verifications</h2>
+        <div className="flex items-center space-x-3">
+          <select
+            value={verificationFilter}
+            onChange={(e) => setVerificationFilter(e.target.value)}
+            className="border rounded-md px-3 py-2 text-sm"
+          >
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <Button onClick={loadAdminData} variant="outline">
+            Refresh
+          </Button>
+        </div>
       </div>
       
       {pendingVerifications.length === 0 ? (
@@ -159,36 +171,39 @@ const AdminDashboard = () => {
               <div className="bg-gray-50 p-6 rounded-t-lg">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-semibold text-gray-900">{verification.fullName}</h3>
-                  <span className="text-sm text-gray-600 bg-blue-100 px-3 py-1 rounded-full">
-                    {verification.phone}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600 bg-blue-100 px-3 py-1 rounded-full">
+                      {verification.phone}
+                    </span>
+                    <span className={`text-xs px-2 py-1 rounded-full ${verification.status === 'approved' ? 'bg-green-100 text-green-700' : verification.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      {verification.status}
+                    </span>
+                  </div>
                 </div>
                 <p className="text-gray-600 mt-2">
-                  Submitted on {new Date(verification.submittedAt).toLocaleDateString()}
+                  Submitted on {verification.submittedAt ? new Date(verification.submittedAt).toLocaleDateString() : '—'}
                 </p>
               </div>
               <div className="p-6">
                 <div className="space-y-6">
                   {/* Document previews */}
                   <div className="grid grid-cols-3 gap-6">
-                    <div className="text-center">
-                      <div className="w-24 h-24 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center mx-auto mb-3">
-                        <FileText className="w-8 h-8 text-gray-400" />
+                    {[{label:'Aadhaar Front', key:'aadhaarFront'}, {label:'Aadhaar Back', key:'aadhaarBack'}, {label:'PAN Card', key:'panCard'}].map((doc) => (
+                      <div key={doc.key} className="text-center">
+                        <div className="w-24 h-24 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center mx-auto mb-3 overflow-hidden">
+                          {verification[doc.key] || verification[doc.key] === '' ? (
+                            verification[doc.key] ? (
+                              <img src={verification[doc.key]} alt={doc.label} className="w-full h-full object-cover" />
+                            ) : (
+                              <FileText className="w-8 h-8 text-gray-400" />
+                            )
+                          ) : (
+                            <FileText className="w-8 h-8 text-gray-400" />
+                          )}
+                        </div>
+                        <p className="text-sm font-medium text-gray-700">{doc.label}</p>
                       </div>
-                      <p className="text-sm font-medium text-gray-700">Aadhaar Front</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="w-24 h-24 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center mx-auto mb-3">
-                        <FileText className="w-8 h-8 text-gray-400" />
-                      </div>
-                      <p className="text-sm font-medium text-gray-700">Aadhaar Back</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="w-24 h-24 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center mx-auto mb-3">
-                        <FileText className="w-8 h-8 text-gray-400" />
-                      </div>
-                      <p className="text-sm font-medium text-gray-700">PAN Card</p>
-                    </div>
+                    ))}
                   </div>
 
                   {/* Action buttons */}
@@ -438,6 +453,45 @@ const AdminDashboard = () => {
         {activeTab === 'verifications' && renderVerifications()}
         {activeTab === 'withdrawals' && renderWithdrawals()}
         {activeTab === 'profile' && renderProfile()}
+        {/* Details Modal */}
+        {verificationDetails && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl">
+              <div className="p-6 border-b">
+                <h3 className="text-xl font-semibold">Verification Details</h3>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-gray-600">Full Name</Label>
+                    <div className="text-gray-900">{verificationDetails.fullName}</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-600">Phone</Label>
+                    <div className="text-gray-900">{verificationDetails.phone}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  {[{label:'Aadhaar Front', key:'aadhaarFront'}, {label:'Aadhaar Back', key:'aadhaarBack'}, {label:'PAN Card', key:'panCard'}].map((doc) => (
+                    <div key={doc.key}>
+                      <Label className="text-sm text-gray-600">{doc.label}</Label>
+                      <div className="mt-2 w-full h-32 bg-gray-50 border rounded overflow-hidden flex items-center justify-center">
+                        {verificationDetails[doc.key] ? (
+                          <img src={verificationDetails[doc.key]} alt={doc.label} className="w-full h-full object-cover" />
+                        ) : (
+                          <FileText className="w-8 h-8 text-gray-400" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="p-6 border-t text-right">
+                <Button variant="outline" onClick={() => setVerificationDetails(null)}>Close</Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
