@@ -1,5 +1,5 @@
 import axios from 'axios';
-import storage from '../utils/storage';
+import { storage } from '../utils/storage';
 
 // Use runtime API override if available
 const API_BASE_URL = localStorage.getItem('apiBaseUrlOverride') || process.env.REACT_APP_API_BASE_URL || 'https://freelancing-platform-backend-backup.onrender.com/api';
