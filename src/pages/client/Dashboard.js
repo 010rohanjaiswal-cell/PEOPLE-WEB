@@ -14,7 +14,6 @@ import {
   History, 
   User, 
   LogOut, 
-  DollarSign,
   Clock,
   Users,
   AlertCircle,
@@ -305,7 +304,7 @@ const ClientDashboard = () => {
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center space-x-4">
                     <span className="flex items-center">
-                      {job.budget}
+                      ₹{job.budget}
                     </span>
                     <span className="flex items-center">
                       <Users className="w-4 h-4 mr-1" />
@@ -354,7 +353,7 @@ const ClientDashboard = () => {
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center space-x-4">
                     <span className="flex items-center">
-                      {job.budget}
+                      ₹{job.budget}
                     </span>
                     <span className="flex items-center">
                       <Clock className="w-4 h-4 mr-1" />
