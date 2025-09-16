@@ -69,6 +69,16 @@ const authenticate = async (req, res) => {
         user.role = role;
         console.log('🔄 User role updated to:', role);
       }
+      // Backfill required fields if missing to satisfy schema
+      if (!user.phoneNumber) {
+        user.phoneNumber = phoneNumber;
+      }
+      if (!user.fullName) {
+        user.fullName = 'New User';
+      }
+      if (typeof user.profileSetupCompleted === 'undefined') {
+        user.profileSetupCompleted = false;
+      }
       await user.save();
       console.log('✅ Existing user authenticated:', user._id);
     }
