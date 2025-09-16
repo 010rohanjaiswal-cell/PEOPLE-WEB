@@ -508,6 +508,11 @@ const AdminDashboard = () => {
             <h3 className="text-lg font-semibold">
               Search Results ({searchResults.total} found)
             </h3>
+            {searchResults.total > 1 && (
+              <div className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                Multiple accounts found for this phone number
+              </div>
+            )}
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -536,6 +541,7 @@ const AdminDashboard = () => {
                               <Phone className="w-3 h-3 mr-1" />
                               {client.phoneNumber || client.phone}
                             </p>
+                            <p className="text-xs text-blue-600 font-medium">Client Account</p>
                           </div>
                         </div>
                         <Button
@@ -578,6 +584,7 @@ const AdminDashboard = () => {
                               <Phone className="w-3 h-3 mr-1" />
                               {freelancer.phoneNumber || freelancer.phone}
                             </p>
+                            <p className="text-xs text-green-600 font-medium">Freelancer Account</p>
                             <p className="text-xs text-gray-400">
                               Status: {freelancer.verificationStatus || 'Not verified'}
                             </p>

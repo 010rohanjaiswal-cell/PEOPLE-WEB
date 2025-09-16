@@ -167,9 +167,19 @@ const searchUsers = async (req, res) => {
     .select('_id fullName phoneNumber phone email role verificationStatus profilePhoto createdAt updatedAt wallet verificationDocuments')
     .sort({ createdAt: -1 });
 
+    console.log(`🔍 Search for phone: ${phoneNumber}`);
+    console.log(`📊 Found ${users.length} users:`, users.map(u => ({ 
+      id: u._id, 
+      name: u.fullName, 
+      role: u.role, 
+      phone: u.phoneNumber || u.phone 
+    })));
+
     // Separate users by role
     const clients = users.filter(user => user.role === 'client');
     const freelancers = users.filter(user => user.role === 'freelancer');
+
+    console.log(`👥 Clients: ${clients.length}, Freelancers: ${freelancers.length}`);
 
     res.json({
       success: true,
