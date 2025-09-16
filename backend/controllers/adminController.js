@@ -182,29 +182,30 @@ const searchUsers = async (req, res) => {
     users.forEach(user => {
       const userObj = user.toObject();
       
-      // If user has freelancer data, show them in both tabs with freelancer details
+      // If user has freelancer data, show them in freelancer tab
       if (user.verificationDocuments || user.verificationStatus || user.role === 'freelancer') {
-        // Show in freelancer tab
         freelancers.push({
           ...userObj,
           displayRole: 'freelancer',
           isCurrentRole: user.role === 'freelancer'
         });
-        
-        // Also show in client tab with freelancer details (since freelancer has more info)
+      }
+      
+      // If user has APPROVED freelancer data, also show in client tab with freelancer details
+      if (user.verificationDocuments && user.verificationStatus === 'approved') {
         clients.push({
           ...userObj,
           displayRole: 'client',
           isCurrentRole: user.role === 'client',
-          hasFreelancerData: true // Flag to indicate this user has freelancer data
+          hasApprovedFreelancerData: true // Flag to indicate this user has approved freelancer data
         });
       } else {
-        // User only has client data, show only in client tab
+        // User only has client data or unapproved freelancer data, show only in client tab
         clients.push({
           ...userObj,
           displayRole: 'client',
           isCurrentRole: user.role === 'client',
-          hasFreelancerData: false
+          hasApprovedFreelancerData: false
         });
       }
     });

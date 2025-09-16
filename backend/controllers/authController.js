@@ -79,11 +79,11 @@ const authenticate = async (req, res) => {
         user.fullName = 'New User';
       }
       
-      // If user has freelancer data (verification docs), they don't need profile setup
-      // Freelancer data takes priority over client profile setup
-      if (user.verificationDocuments && user.verificationDocuments.aadhaarFront) {
+      // If user has APPROVED freelancer data, they don't need profile setup
+      // Only approved freelancer data takes priority over client profile setup
+      if (user.verificationDocuments && user.verificationDocuments.aadhaarFront && user.verificationStatus === 'approved') {
         user.profileSetupCompleted = true;
-        console.log('✅ User has freelancer data, marking profile setup as completed');
+        console.log('✅ User has approved freelancer data, marking profile setup as completed');
       } else if (typeof user.profileSetupCompleted === 'undefined') {
         user.profileSetupCompleted = false;
       }
