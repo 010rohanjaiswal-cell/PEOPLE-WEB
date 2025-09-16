@@ -5,6 +5,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 
 // Authentication routes
 router.post('/authenticate', authController.authenticate);
+router.post('/admin-login', authController.adminLogin);
 router.post('/logout', authMiddleware.verifyToken, authController.logout);
 router.post('/switch-role', authMiddleware.verifyToken, authController.switchRole);
 router.get('/can-switch-role', authMiddleware.verifyToken, authController.canSwitchRole);

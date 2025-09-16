@@ -78,16 +78,18 @@ export const AuthProvider = ({ children }) => {
       console.log('👤 User data:', userData);
       
       // Only authenticate if we have both token and user data
-      if (token && userData && userData.phone) {
+      // Accept if user has phone/phoneNumber, or is admin (email/role based)
+      const hasPhone = userData && (userData.phone || userData.phoneNumber);
+      const isAdminUser = userData && (userData.role === 'admin' || !!userData.email);
+      if (token && userData && (hasPhone || isAdminUser)) {
         console.log('✅ AuthContext: Valid authentication found, setting authenticated state');
         dispatch({
           type: 'AUTH_SUCCESS',
           payload: { token, user: userData }
         });
       } else {
-        console.log('❌ AuthContext: No valid authentication, clearing data');
-        // Clear any invalid data and set as not authenticated
-        storage.clearAll();
+        console.log('❌ AuthContext: No valid authentication');
+        // Do NOT clear all storage here to avoid races while login is writing
         dispatch({ type: 'AUTH_FAILURE', payload: null });
       }
     };
@@ -119,6 +121,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = (user, token) => {
+    console.log('🔐 Login called with user and token');
+    // Atomically set token and user to avoid race conditions
+    storage.setAuth(user, token);
     dispatch({
       type: 'AUTH_SUCCESS',
       payload: { user, token }
@@ -138,7 +143,10 @@ export const AuthProvider = ({ children }) => {
     // Also ensure we have a token for authentication
     const existingToken = storage.getAuthToken();
     if (existingToken) {
-      dispatch({ type: 'UPDATE_USER', payload: user });
+      dispatch({ 
+        type: 'AUTH_SUCCESS', 
+        payload: { user, token: existingToken } 
+      });
       console.log('✅ User updated in AuthContext with existing token');
       console.log('🔑 Token exists:', !!existingToken);
     } else {

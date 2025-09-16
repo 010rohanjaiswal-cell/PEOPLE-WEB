@@ -2,7 +2,17 @@ import axios from 'axios';
 import { storage } from '../utils/storage';
 import { cloudinaryService } from './cloudinaryService';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://freelancing-platform-backend-backup.onrender.com/api';
+const runtimeApiBaseUrl = (() => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const override = localStorage.getItem('apiBaseUrlOverride');
+      if (override) return override;
+    }
+  } catch (_) {}
+  return undefined;
+})();
+
+const API_BASE_URL = runtimeApiBaseUrl || process.env.REACT_APP_API_BASE_URL || 'https://freelancing-platform-backend-backup.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -17,6 +27,17 @@ api.interceptors.request.use(
     const token = storage.getAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      // Debug: confirm header attachment without leaking full token
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('🔒 Attaching Authorization header for freelancer API:', {
+          hasToken: !!token,
+          authHeaderStartsWith: (config.headers.Authorization || '').slice(0, 10)
+        });
+      }
+    } else if (process.env.NODE_ENV !== 'production') {
+      console.warn('⚠️ No auth token found when calling freelancer API:', {
+        url: config.url
+      });
     }
     return config;
   },
@@ -30,22 +51,43 @@ export const freelancerService = {
   submitVerification: async (verificationData) => {
     try {
       // For development: Mock verification submission
-      const useMockAuth = process.env.NODE_ENV === 'development' && 
-                         (process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
-                          !process.env.REACT_APP_API_BASE_URL);
+      const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
+                         (process.env.NODE_ENV === 'development' && !process.env.REACT_APP_API_BASE_URL);
+      
+      console.log('🔧 Verification submission check:', {
+        NODE_ENV: process.env.NODE_ENV,
+        USE_MOCK_AUTH: process.env.REACT_APP_USE_MOCK_AUTH,
+        API_BASE_URL: process.env.REACT_APP_API_BASE_URL,
+        useMockAuth: useMockAuth
+      });
       
       if (useMockAuth) {
         console.log('🔧 Development Mode: Using mock verification submission');
         console.log('📝 Verification data:', verificationData);
         
+        // Create mock verification data
+        const mockVerificationData = {
+          status: 'pending',
+          submittedAt: new Date().toISOString(),
+          fullName: verificationData.fullName,
+          dateOfBirth: verificationData.dateOfBirth,
+          gender: verificationData.gender,
+          address: verificationData.address,
+          // Mock document URLs
+          aadhaarFront: 'mock-aadhaar-front-url',
+          aadhaarBack: 'mock-aadhaar-back-url',
+          panCard: 'mock-pan-card-url'
+        };
+        
+        // Store in localStorage for persistence
+        localStorage.setItem('mockVerificationStatus', JSON.stringify(mockVerificationData));
+        console.log('💾 Stored mock verification status in localStorage');
+        
         // Mock verification submission
         return {
           success: true,
           message: 'Verification submitted successfully',
-          data: {
-            status: 'pending',
-            submittedAt: new Date().toISOString()
-          }
+          data: mockVerificationData
         };
       }
       
@@ -101,13 +143,28 @@ export const freelancerService = {
         
         console.log('🔄 Network error detected, falling back to mock verification submission');
         
+        // Create mock verification data
+        const mockVerificationData = {
+          status: 'pending',
+          submittedAt: new Date().toISOString(),
+          fullName: verificationData.fullName,
+          dateOfBirth: verificationData.dateOfBirth,
+          gender: verificationData.gender,
+          address: verificationData.address,
+          // Mock document URLs
+          aadhaarFront: 'mock-aadhaar-front-url',
+          aadhaarBack: 'mock-aadhaar-back-url',
+          panCard: 'mock-pan-card-url'
+        };
+        
+        // Store in localStorage for persistence
+        localStorage.setItem('mockVerificationStatus', JSON.stringify(mockVerificationData));
+        console.log('💾 Stored mock verification status in localStorage (fallback)');
+        
         return {
           success: true,
           message: 'Verification submitted successfully',
-          data: {
-            status: 'pending',
-            submittedAt: new Date().toISOString()
-          }
+          data: mockVerificationData
         };
       }
       
@@ -119,17 +176,34 @@ export const freelancerService = {
   getVerificationStatus: async () => {
     try {
       // For development: Mock verification status
-      const useMockAuth = process.env.NODE_ENV === 'development' && 
-                         (process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
-                          !process.env.REACT_APP_API_BASE_URL);
+      const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
+                         (process.env.NODE_ENV === 'development' && !process.env.REACT_APP_API_BASE_URL);
+      
+      console.log('🔧 Verification status check:', {
+        NODE_ENV: process.env.NODE_ENV,
+        USE_MOCK_AUTH: process.env.REACT_APP_USE_MOCK_AUTH,
+        API_BASE_URL: process.env.REACT_APP_API_BASE_URL,
+        useMockAuth: useMockAuth
+      });
       
       if (useMockAuth) {
         console.log('🔧 Development Mode: Using mock verification status');
         
-        // Mock verification status - return null to show the form
+        // Check if verification has been submitted in localStorage
+        const submittedVerification = localStorage.getItem('mockVerificationStatus');
+        
+        if (submittedVerification) {
+          console.log('📋 Found submitted verification:', submittedVerification);
+          return {
+            success: true,
+            data: JSON.parse(submittedVerification)
+          };
+        }
+        
+        // No verification submitted yet - return null to show the form
         return {
           success: true,
-          data: null // null means no verification submitted yet
+          data: null
         };
       }
       
@@ -138,23 +212,7 @@ export const freelancerService = {
       return response.data;
     } catch (error) {
       console.error('Verification status error:', error);
-      
-      // Fallback to mock if network error in development
-      if (process.env.NODE_ENV === 'development' && 
-          (error.code === 'NETWORK_ERROR' || 
-           error.code === 'ERR_NETWORK' ||
-           error.message?.includes('Network Error') ||
-           error.message?.includes('fetch') ||
-           error.message?.includes('ERR_CONNECTION_REFUSED'))) {
-        
-        console.log('🔄 Network error detected, falling back to mock verification status');
-        
-        return {
-          success: true,
-          data: null // null means no verification submitted yet
-        };
-      }
-      
+      // Do not fallback to mock on network errors; surface the error so CORS/auth can be fixed
       throw error.response?.data || error;
     }
   },

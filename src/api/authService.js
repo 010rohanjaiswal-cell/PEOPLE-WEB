@@ -1,7 +1,17 @@
 import axios from 'axios';
 import { storage } from '../utils/storage';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://freelancing-platform-backend-backup.onrender.com/api';
+const runtimeApiBaseUrl = (() => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const override = localStorage.getItem('apiBaseUrlOverride');
+      if (override) return override;
+    }
+  } catch (_) {}
+  return undefined;
+})();
+
+const API_BASE_URL = runtimeApiBaseUrl || process.env.REACT_APP_API_BASE_URL || 'https://freelancing-platform-backend-backup.onrender.com/api';
 
 // Create axios instance
 const api = axios.create({
@@ -31,21 +41,41 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       storage.clearAll();
-      window.location.href = '/login';
+      try {
+        const path = window.location?.pathname || '';
+        const redirect = path.startsWith('/admin') ? '/admin/login' : '/login';
+        window.location.href = redirect;
+      } catch (_) {
+        // Fallback
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
 );
 
 export const authService = {
+  // Admin email/password login (non-Firebase)
+  adminLogin: async (email, password) => {
+    try {
+      const response = await api.post('/auth/admin-login', { email, password });
+      if (response.data.success) {
+        storage.setAuthToken(response.data.token);
+        storage.setUserData(response.data.user);
+        storage.setCurrentRole('admin');
+      }
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
   // Authenticate user with Firebase ID token
-  authenticate: async (idToken, role) => {
+  authenticate: async (idToken, role, phoneNumber) => {
     try {
       // For development: Mock authentication without backend
       // Always use mock in development unless explicitly disabled
-      const useMockAuth = process.env.NODE_ENV === 'development' && 
-                         (process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
-                          !process.env.REACT_APP_API_BASE_URL);
+      const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
+                         (process.env.NODE_ENV === 'development' && !process.env.REACT_APP_API_BASE_URL);
       
       console.log('🔧 Mock auth check:', {
         NODE_ENV: process.env.NODE_ENV,
@@ -61,7 +91,8 @@ export const authService = {
         // Mock user data
         const mockUser = {
           id: 'mock-user-id-' + Date.now(),
-          phone: '+919876543210', // You can extract this from Firebase user
+          phone: phoneNumber || '+919876543210', // Use provided phone number or default
+          phoneNumber: phoneNumber || '+919876543210', // Also set phoneNumber for compatibility
           role: role,
           fullName: 'Mock User',
           profilePhoto: null,
@@ -91,9 +122,14 @@ export const authService = {
       }
       
       // Production: Real API call
+      if (!phoneNumber) {
+        throw new Error('Phone number is required for authentication');
+      }
+      
       const response = await api.post('/auth/authenticate', {
         idToken,
-        role
+        role,
+        phoneNumber
       });
       
       if (response.data.success) {
@@ -105,49 +141,7 @@ export const authService = {
       return response.data;
     } catch (error) {
       console.error('Authentication error:', error);
-      
-      // Fallback to mock authentication if network error in development
-      if (process.env.NODE_ENV === 'development' && 
-          (error.code === 'NETWORK_ERROR' || 
-           error.code === 'ERR_NETWORK' ||
-           error.message?.includes('Network Error') ||
-           error.message?.includes('fetch') ||
-           error.message?.includes('ERR_CONNECTION_REFUSED'))) {
-        
-        console.log('🔄 Network error detected, falling back to mock authentication');
-        
-        // Mock user data
-        const mockUser = {
-          id: 'mock-user-id-' + Date.now(),
-          phone: '+919876543210',
-          role: role,
-          fullName: 'Mock User',
-          profilePhoto: null,
-          isNewUser: true,
-          needsProfileSetup: true, // Both clients and freelancers need setup
-          needsVerification: role === 'freelancer' // Only freelancers need verification
-        };
-        
-        // Mock JWT token
-        const mockToken = 'mock-jwt-token-' + Date.now();
-        
-        // Store in localStorage
-        storage.setAuthToken(mockToken);
-        storage.setUserData(mockUser);
-        storage.setCurrentRole(role);
-        
-        console.log('✅ Fallback mock authentication successful:', mockUser);
-        
-        return {
-          success: true,
-          token: mockToken,
-          user: mockUser,
-          isNewUser: true,
-          needsProfileSetup: true, // Both clients and freelancers need setup
-          needsVerification: role === 'freelancer' // Only freelancers need verification
-        };
-      }
-      
+      // Do not fallback to mock on network errors; surface the error so CORS/auth can be fixed
       throw error.response?.data || error;
     }
   },

@@ -1,7 +1,17 @@
 import axios from 'axios';
 import { storage } from '../utils/storage';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://freelancing-platform-backend-backup.onrender.com/api';
+const runtimeApiBaseUrl = (() => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const override = localStorage.getItem('apiBaseUrlOverride');
+      if (override) return override;
+    }
+  } catch (_) {}
+  return undefined;
+})();
+
+const API_BASE_URL = runtimeApiBaseUrl || process.env.REACT_APP_API_BASE_URL || 'https://freelancing-platform-backend-backup.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -16,6 +26,15 @@ api.interceptors.request.use(
     const token = storage.getAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('🔒 Attaching Authorization header for admin API:', {
+          hasToken: !!token,
+          authHeaderStartsWith: (config.headers.Authorization || '').slice(0, 10),
+          url: config.url
+        });
+      }
+    } else if (process.env.NODE_ENV !== 'production') {
+      console.warn('⚠️ No auth token found when calling admin API:', { url: config.url });
     }
     return config;
   },
@@ -29,32 +48,45 @@ export const adminService = {
   getFreelancerVerifications: async (status = 'pending') => {
     try {
       // For development: Mock verification data
-      const useMockAuth = process.env.NODE_ENV === 'development' && 
-                         (process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
-                          !process.env.REACT_APP_API_BASE_URL);
+      const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
+                         (process.env.NODE_ENV === 'development' && !process.env.REACT_APP_API_BASE_URL);
+      
+      console.log('🔧 Admin verification check:', {
+        NODE_ENV: process.env.NODE_ENV,
+        USE_MOCK_AUTH: process.env.REACT_APP_USE_MOCK_AUTH,
+        API_BASE_URL: process.env.REACT_APP_API_BASE_URL,
+        useMockAuth: useMockAuth
+      });
       
       if (useMockAuth) {
         console.log('🔧 Development Mode: Using mock freelancer verifications');
         
-        // Mock verification data based on what was submitted
-        const mockVerifications = [
-          {
-            id: 'verification-1',
-            freelancerId: 'freelancer-1',
-            fullName: 'Rahul Jaiswar',
-            dateOfBirth: '2001-01-30',
-            gender: 'Male',
-            address: 'new prabhat',
-            aadhaarFront: 'mock-aadhaar-front-url',
-            aadhaarBack: 'mock-aadhaar-back-url',
-            panCard: 'mock-pan-card-url',
-            status: 'pending',
-            submittedAt: new Date().toISOString(),
-            reviewedAt: null,
-            reviewedBy: null,
-            rejectionReason: null
-          }
-        ];
+        // Check if there's a submitted verification in localStorage
+        const submittedVerification = localStorage.getItem('mockVerificationStatus');
+        
+        let mockVerifications = [];
+        
+        if (submittedVerification) {
+          const verificationData = JSON.parse(submittedVerification);
+          mockVerifications = [
+            {
+              id: 'verification-1',
+              freelancerId: 'freelancer-1',
+              fullName: verificationData.fullName,
+              dateOfBirth: verificationData.dateOfBirth,
+              gender: verificationData.gender,
+              address: verificationData.address,
+              aadhaarFront: verificationData.aadhaarFront,
+              aadhaarBack: verificationData.aadhaarBack,
+              panCard: verificationData.panCard,
+              status: verificationData.status,
+              submittedAt: verificationData.submittedAt,
+              reviewedAt: null,
+              reviewedBy: null,
+              rejectionReason: null
+            }
+          ];
+        }
         
         return {
           success: true,
@@ -80,24 +112,32 @@ export const adminService = {
         
         console.log('🔄 Network error detected, falling back to mock freelancer verifications');
         
-        const mockVerifications = [
-          {
-            id: 'verification-1',
-            freelancerId: 'freelancer-1',
-            fullName: 'Rahul Jaiswar',
-            dateOfBirth: '2001-01-30',
-            gender: 'Male',
-            address: 'new prabhat',
-            aadhaarFront: 'mock-aadhaar-front-url',
-            aadhaarBack: 'mock-aadhaar-back-url',
-            panCard: 'mock-pan-card-url',
-            status: 'pending',
-            submittedAt: new Date().toISOString(),
-            reviewedAt: null,
-            reviewedBy: null,
-            rejectionReason: null
-          }
-        ];
+        // Check if there's a submitted verification in localStorage
+        const submittedVerification = localStorage.getItem('mockVerificationStatus');
+        
+        let mockVerifications = [];
+        
+        if (submittedVerification) {
+          const verificationData = JSON.parse(submittedVerification);
+          mockVerifications = [
+            {
+              id: 'verification-1',
+              freelancerId: 'freelancer-1',
+              fullName: verificationData.fullName,
+              dateOfBirth: verificationData.dateOfBirth,
+              gender: verificationData.gender,
+              address: verificationData.address,
+              aadhaarFront: verificationData.aadhaarFront,
+              aadhaarBack: verificationData.aadhaarBack,
+              panCard: verificationData.panCard,
+              status: verificationData.status,
+              submittedAt: verificationData.submittedAt,
+              reviewedAt: null,
+              reviewedBy: null,
+              rejectionReason: null
+            }
+          ];
+        }
         
         return {
           success: true,
@@ -113,12 +153,22 @@ export const adminService = {
   approveFreelancer: async (freelancerId) => {
     try {
       // For development: Mock approval
-      const useMockAuth = process.env.NODE_ENV === 'development' && 
-                         (process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
-                          !process.env.REACT_APP_API_BASE_URL);
+      const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
+                         (process.env.NODE_ENV === 'development' && !process.env.REACT_APP_API_BASE_URL);
       
       if (useMockAuth) {
         console.log('🔧 Development Mode: Mock approving freelancer:', freelancerId);
+        
+        // Update the verification status in localStorage
+        const submittedVerification = localStorage.getItem('mockVerificationStatus');
+        if (submittedVerification) {
+          const verificationData = JSON.parse(submittedVerification);
+          verificationData.status = 'approved';
+          verificationData.reviewedAt = new Date().toISOString();
+          verificationData.reviewedBy = 'admin';
+          localStorage.setItem('mockVerificationStatus', JSON.stringify(verificationData));
+          console.log('💾 Updated verification status to approved in localStorage');
+        }
         
         return {
           success: true,
@@ -142,6 +192,17 @@ export const adminService = {
         
         console.log('🔄 Network error detected, falling back to mock approval');
         
+        // Update the verification status in localStorage
+        const submittedVerification = localStorage.getItem('mockVerificationStatus');
+        if (submittedVerification) {
+          const verificationData = JSON.parse(submittedVerification);
+          verificationData.status = 'approved';
+          verificationData.reviewedAt = new Date().toISOString();
+          verificationData.reviewedBy = 'admin';
+          localStorage.setItem('mockVerificationStatus', JSON.stringify(verificationData));
+          console.log('💾 Updated verification status to approved in localStorage (fallback)');
+        }
+        
         return {
           success: true,
           message: 'Freelancer verification approved successfully'
@@ -156,12 +217,23 @@ export const adminService = {
   rejectFreelancer: async (freelancerId, reason) => {
     try {
       // For development: Mock rejection
-      const useMockAuth = process.env.NODE_ENV === 'development' && 
-                         (process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
-                          !process.env.REACT_APP_API_BASE_URL);
+      const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
+                         (process.env.NODE_ENV === 'development' && !process.env.REACT_APP_API_BASE_URL);
       
       if (useMockAuth) {
         console.log('🔧 Development Mode: Mock rejecting freelancer:', freelancerId, 'Reason:', reason);
+        
+        // Update the verification status in localStorage
+        const submittedVerification = localStorage.getItem('mockVerificationStatus');
+        if (submittedVerification) {
+          const verificationData = JSON.parse(submittedVerification);
+          verificationData.status = 'rejected';
+          verificationData.reviewedAt = new Date().toISOString();
+          verificationData.reviewedBy = 'admin';
+          verificationData.rejectionReason = reason;
+          localStorage.setItem('mockVerificationStatus', JSON.stringify(verificationData));
+          console.log('💾 Updated verification status to rejected in localStorage');
+        }
         
         return {
           success: true,
@@ -187,6 +259,18 @@ export const adminService = {
         
         console.log('🔄 Network error detected, falling back to mock rejection');
         
+        // Update the verification status in localStorage
+        const submittedVerification = localStorage.getItem('mockVerificationStatus');
+        if (submittedVerification) {
+          const verificationData = JSON.parse(submittedVerification);
+          verificationData.status = 'rejected';
+          verificationData.reviewedAt = new Date().toISOString();
+          verificationData.reviewedBy = 'admin';
+          verificationData.rejectionReason = reason;
+          localStorage.setItem('mockVerificationStatus', JSON.stringify(verificationData));
+          console.log('💾 Updated verification status to rejected in localStorage (fallback)');
+        }
+        
         return {
           success: true,
           message: 'Freelancer verification rejected successfully'
@@ -201,9 +285,8 @@ export const adminService = {
   getWithdrawalRequests: async (status = 'pending') => {
     try {
       // For development: Mock withdrawal requests
-      const useMockAuth = process.env.NODE_ENV === 'development' && 
-                         (process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
-                          !process.env.REACT_APP_API_BASE_URL);
+      const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
+                         (process.env.NODE_ENV === 'development' && !process.env.REACT_APP_API_BASE_URL);
       
       if (useMockAuth) {
         console.log('🔧 Development Mode: Using mock withdrawal requests');
@@ -277,9 +360,8 @@ export const adminService = {
   approveWithdrawal: async (withdrawalId) => {
     try {
       // For development: Mock approval
-      const useMockAuth = process.env.NODE_ENV === 'development' && 
-                         (process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
-                          !process.env.REACT_APP_API_BASE_URL);
+      const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
+                         (process.env.NODE_ENV === 'development' && !process.env.REACT_APP_API_BASE_URL);
       
       if (useMockAuth) {
         console.log('🔧 Development Mode: Mock approving withdrawal:', withdrawalId);
@@ -320,9 +402,8 @@ export const adminService = {
   rejectWithdrawal: async (withdrawalId, reason) => {
     try {
       // For development: Mock rejection
-      const useMockAuth = process.env.NODE_ENV === 'development' && 
-                         (process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
-                          !process.env.REACT_APP_API_BASE_URL);
+      const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
+                         (process.env.NODE_ENV === 'development' && !process.env.REACT_APP_API_BASE_URL);
       
       if (useMockAuth) {
         console.log('🔧 Development Mode: Mock rejecting withdrawal:', withdrawalId, 'Reason:', reason);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../api/authService';
 import { adminService } from '../../api/adminService';
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -119,9 +121,11 @@ const AdminDashboard = () => {
     try {
       await authService.logout();
       logout();
+      navigate('/admin/login');
     } catch (error) {
       console.error('Logout error:', error);
       logout(); // Force logout even if API fails
+      navigate('/admin/login');
     }
   };
 
@@ -387,6 +391,13 @@ const AdminDashboard = () => {
               <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
                 <Shield className="w-4 h-4 text-white" />
               </div>
+              <Button 
+                variant="destructive"
+                onClick={handleLogout}
+                className="ml-2"
+              >
+                Logout
+              </Button>
             </div>
           </div>
         </div>

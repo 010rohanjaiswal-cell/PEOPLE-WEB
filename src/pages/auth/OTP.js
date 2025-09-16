@@ -16,7 +16,7 @@ import { Shield, ArrowLeft, CheckCircle } from 'lucide-react';
 const OTP = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { updateUser } = useAuth();
+  const { updateUser, login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resendLoading, setResendLoading] = useState(false);
@@ -105,7 +105,7 @@ const OTP = () => {
     try {
       // Add timeout to prevent hanging
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Authentication timeout. Please try again.')), 15000);
+        setTimeout(() => reject(new Error('Authentication timeout. Please try again.')), 30000);
       });
       
       const idToken = await Promise.race([
@@ -116,13 +116,19 @@ const OTP = () => {
       console.log('🔐 Starting authentication for role:', role);
       console.log('🌐 API Base URL:', process.env.REACT_APP_API_BASE_URL);
       console.log('🔧 Use Mock Auth:', process.env.REACT_APP_USE_MOCK_AUTH);
+      console.log('📱 Phone number:', phoneNumber);
+      console.log('🔑 ID Token available:', !!idToken);
       
       // Authenticate with backend (with timeout)
-      const authPromise = authService.authenticate(idToken, role);
+      const authPromise = authService.authenticate(idToken, role, phoneNumber);
+      console.log('⏳ Starting authentication request...');
+      
       const result = await Promise.race([
         authPromise,
         timeoutPromise
       ]);
+      
+      console.log('✅ Authentication request completed:', result);
       
       if (result.success) {
         console.log('✅ Authentication successful, checking next step');
@@ -132,7 +138,7 @@ const OTP = () => {
         
         // Manually update AuthContext to ensure it's in sync
         console.log('🔄 Manually updating AuthContext with user data');
-        updateUser(result.user);
+        login(result.user, result.token);
         
         // Wait a moment for the AuthContext to update
         setTimeout(() => {

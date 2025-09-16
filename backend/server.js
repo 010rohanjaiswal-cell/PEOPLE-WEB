@@ -27,7 +27,7 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CORS configuration - THIS IS THE KEY FIX!
+// CORS configuration - allow configured origins and any localhost port
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',')
   : [
@@ -37,12 +37,25 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
       'https://your-frontend-domain.com'
     ];
 
-app.use(cors({
-  origin: allowedOrigins,
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser requests (no origin)
+    if (!origin) return callback(null, true);
+    // Allow explicit list or any localhost:* origin
+    const isWhitelisted = allowedOrigins.includes(origin) || /^(http:\/\/|https:\/\/)localhost:\d+$/.test(origin);
+    if (isWhitelisted) {
+      return callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+};
+
+app.use(cors(corsOptions));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));

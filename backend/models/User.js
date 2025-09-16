@@ -11,6 +11,12 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  // Legacy compatibility: some deployments have a unique index on `phone`
+  // Ensure it's populated to avoid duplicate null index errors
+  phone: {
+    type: String,
+    default: null
+  },
   role: {
     type: String,
     enum: ['client', 'freelancer', 'admin'],

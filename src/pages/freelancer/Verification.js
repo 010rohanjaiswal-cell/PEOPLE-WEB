@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { freelancerVerificationSchema } from '../../utils/validators';
 import { freelancerService } from '../../api/freelancerService';
 import { useAuth } from '../../context/AuthContext';
+import { storage } from '../../utils/storage';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
 import { Label } from '../../components/common/Label';
@@ -40,19 +41,27 @@ const FreelancerVerification = () => {
 
   const watchedFields = watch();
 
-  useEffect(() => {
-    // Only check verification status if user is authenticated
-    if (isAuthenticated && user) {
-      checkVerificationStatus();
-    } else {
-      // Redirect to login if not authenticated
-      navigate('/login');
-    }
-  }, [isAuthenticated, user, navigate]);
-
-  const checkVerificationStatus = async () => {
+  const checkVerificationStatus = useCallback(async () => {
     try {
       setLoading(true);
+      // Debug auth state and token before calling API
+      const token = storage.getAuthToken();
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('🔍 Verification: auth state before API call', {
+          isAuthenticated,
+          hasUser: !!user,
+          hasToken: !!token,
+          tokenPreview: (token || '').slice(0, 12)
+        });
+      }
+      if (!token) {
+        // Wait briefly for token propagation, then retry once
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+      const tokenAfterWait = storage.getAuthToken();
+      if (!tokenAfterWait) {
+        throw new Error('Missing auth token');
+      }
       const result = await freelancerService.getVerificationStatus();
       
       if (result.success) {
@@ -69,7 +78,17 @@ const FreelancerVerification = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    // Only check verification status if user is authenticated
+    if (isAuthenticated && user) {
+      checkVerificationStatus();
+    } else {
+      // Redirect to login if not authenticated
+      navigate('/login');
+    }
+  }, [isAuthenticated, user, navigate, checkVerificationStatus]);
 
   const handleImageChange = (field, file) => {
     if (file) {
@@ -92,6 +111,14 @@ const FreelancerVerification = () => {
     setError('');
 
     try {
+      // Debug token presence before submit
+      const token = storage.getAuthToken();
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('📝 Verification submit: token present?', {
+          hasToken: !!token,
+          tokenPreview: (token || '').slice(0, 12)
+        });
+      }
       const result = await freelancerService.submitVerification(data);
       
       if (result.success) {

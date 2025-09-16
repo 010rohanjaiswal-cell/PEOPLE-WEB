@@ -8,6 +8,17 @@ export const storage = {
     window.dispatchEvent(new CustomEvent('userDataUpdated'));
   },
   
+  // Atomically set both user and token, then emit one event
+  setAuth: (userData, token) => {
+    if (token) {
+      localStorage.setItem('authToken', token);
+    }
+    if (userData) {
+      localStorage.setItem('userData', JSON.stringify(userData));
+    }
+    window.dispatchEvent(new CustomEvent('userDataUpdated'));
+  },
+  
   getAuthToken: () => {
     return localStorage.getItem('authToken');
   },
@@ -61,5 +72,10 @@ export const storage = {
   // Clear all data
   clearAll: () => {
     localStorage.clear();
+  },
+  
+  // Clear mock verification data (for testing)
+  clearMockVerification: () => {
+    localStorage.removeItem('mockVerificationStatus');
   }
 };

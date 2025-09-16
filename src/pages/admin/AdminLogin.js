@@ -27,7 +27,7 @@ const adminLoginSchema = yup.object({
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { updateUser } = useAuth();
+  const { updateUser, login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -47,60 +47,22 @@ const AdminLogin = () => {
     try {
       console.log('🔐 Attempting admin login with:', data.email);
       
-      // For development: Check if using mock admin credentials
-      const useMockAuth = process.env.NODE_ENV === 'development' && 
-                         (data.email === 'admin@test.com' && data.password === 'admin123');
-      
-      if (useMockAuth) {
-        console.log('🔧 Development Mode: Using mock admin authentication');
-        
-        // Mock admin authentication
-        const mockAdminUser = {
-          id: 'mock-admin-id',
-          email: 'admin@test.com',
-          role: 'admin',
-          fullName: 'Admin User',
-          isAdmin: true
-        };
-        
-        const mockToken = 'mock-admin-token-' + Date.now();
-        
-        // Store mock admin data
-        const { storage } = await import('../../utils/storage');
-        storage.setAuthToken(mockToken);
-        storage.setUserData(mockAdminUser);
-        storage.setCurrentRole('admin');
-        
-        // Manually update AuthContext to ensure it's in sync
-        console.log('🔄 Manually updating AuthContext with admin user data');
-        updateUser(mockAdminUser);
-        
-        // Wait a moment for the AuthContext to update
-        setTimeout(() => {
-          console.log('✅ Mock admin authentication successful, navigating to dashboard');
-          navigate('/admin/dashboard');
-        }, 300);
+      // Use backend email/password login for admin
+      console.log('🔧 Using backend admin email/password login');
+      const { storage } = await import('../../utils/storage');
+      storage.clearAll();
+      const result = await authService.adminLogin(data.email, data.password);
+      console.log('📋 Admin login result:', result);
+      if (result.success) {
+        login(result.user, result.token);
+        navigate('/admin/dashboard');
+        return;
+      } else {
+        setError(result.message || 'Admin authentication failed');
         return;
       }
       
-      // Production: Real Firebase authentication
-      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-      console.log('✅ Firebase authentication successful:', userCredential.user.email);
-      
-      const idToken = await userCredential.user.getIdToken();
-      console.log('🔑 Got Firebase ID token');
-
-      // Authenticate with backend as admin
-      const result = await authService.authenticate(idToken, 'admin');
-      console.log('📋 Backend authentication result:', result);
-      
-      if (result.success) {
-        console.log('✅ Admin authentication successful, navigating to dashboard');
-        // Navigate to admin dashboard
-        navigate('/admin/dashboard');
-      } else {
-        setError(result.message || 'Admin authentication failed');
-      }
+      // (Firebase path removed for admin login)
     } catch (error) {
       console.error('Admin login error:', error);
       console.error('Error code:', error.code);
