@@ -60,10 +60,13 @@ const AdminDashboard = () => {
       ]);
       
       console.log('📋 Verifications response:', verificationsRes);
+      console.log('📋 Verifications array:', verificationsRes.verifications);
       console.log('📋 Withdrawals response:', withdrawalsRes);
       
-      setPendingVerifications(verificationsRes.data || []);
+      setPendingVerifications(verificationsRes.verifications || []);
       setPendingWithdrawals(withdrawalsRes.withdrawals || []);
+      
+      console.log('📋 Set pendingVerifications to:', verificationsRes.verifications || []);
     } catch (error) {
       console.error('Error loading admin data:', error);
       setError('Failed to load admin data');
@@ -199,7 +202,11 @@ const AdminDashboard = () => {
     { id: 'profile', label: 'Profile', icon: User }
   ];
 
-  const renderVerifications = () => (
+  const renderVerifications = () => {
+    console.log('🎨 Rendering verifications, pendingVerifications:', pendingVerifications);
+    console.log('🎨 pendingVerifications.length:', pendingVerifications.length);
+    
+    return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Freelancer Verifications</h2>
@@ -313,7 +320,8 @@ const AdminDashboard = () => {
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   const renderWithdrawals = () => (
     <div className="space-y-4">
