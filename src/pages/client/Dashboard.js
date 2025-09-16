@@ -66,6 +66,19 @@ const ClientDashboard = () => {
     setError('');
 
     try {
+      // Frontend validation
+      const budgetNum = Number(jobForm.budget);
+      if (Number.isNaN(budgetNum) || budgetNum < 10) {
+        setError('Budget must be at least ₹10');
+        setLoading(false);
+        return;
+      }
+      if (!/^\d{6}$/.test(String(jobForm.pincode).trim())) {
+        setError('Please enter a valid 6-digit pincode');
+        setLoading(false);
+        return;
+      }
+
       const result = await clientService.postJob(jobForm);
       if (result.success) {
         setJobForm({
@@ -194,6 +207,9 @@ const ClientDashboard = () => {
                   value={jobForm.pincode}
                   onChange={(e) => setJobForm({...jobForm, pincode: e.target.value})}
                   placeholder="e.g., 400001"
+                  pattern="\d{6}"
+                  maxLength="6"
+                  inputMode="numeric"
                   required
                 />
               </div>
@@ -208,7 +224,7 @@ const ClientDashboard = () => {
                   value={jobForm.budget}
                   onChange={(e) => setJobForm({...jobForm, budget: e.target.value})}
                   placeholder="1000"
-                  min="100"
+                  min="10"
                   required
                 />
               </div>
