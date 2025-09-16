@@ -7,6 +7,7 @@ import { Button } from '../../components/common/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Label } from '../../components/common/Label';
+import DebugPanel from '../../components/debug/DebugPanel';
 import { 
   Plus, 
   Briefcase, 
@@ -16,7 +17,8 @@ import {
   DollarSign,
   Clock,
   Users,
-  AlertCircle
+  AlertCircle,
+  Bug
 } from 'lucide-react';
 
 const ClientDashboard = () => {
@@ -137,7 +139,8 @@ const ClientDashboard = () => {
     { id: 'post-job', label: 'Post Job', icon: Plus },
     { id: 'my-jobs', label: 'My Jobs', icon: Briefcase },
     { id: 'history', label: 'History', icon: History },
-    { id: 'profile', label: 'Profile', icon: User }
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'debug', label: 'Debug', icon: Bug }
   ];
 
   const categories = [
@@ -485,6 +488,7 @@ const ClientDashboard = () => {
         {activeTab === 'my-jobs' && renderMyJobs()}
         {activeTab === 'history' && renderHistory()}
         {activeTab === 'profile' && renderProfile()}
+        {activeTab === 'debug' && <DebugPanel />}
       </div>
     </div>
   );
