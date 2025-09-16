@@ -56,7 +56,15 @@ const getVerificationStatus = async (req, res) => {
       });
     }
 
-    res.json({
+    // If no documents have ever been submitted, return null so UI shows the form
+    if (!user.verificationDocuments || !user.verificationDocuments.aadhaarFront) {
+      return res.json({
+        success: true,
+        data: null
+      });
+    }
+
+    return res.json({
       success: true,
       data: {
         status: user.verificationStatus,
