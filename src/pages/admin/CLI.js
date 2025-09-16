@@ -42,7 +42,8 @@ const AdminDashboard = () => {
   
   // Search data
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState({ clients: [], freelancers: [], total: 0 });
+  const [allUsers, setAllUsers] = useState({ clients: [], freelancers: [], total: 0 });
+  const [filteredResults, setFilteredResults] = useState({ clients: [], freelancers: [], total: 0 });
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -50,6 +51,20 @@ const AdminDashboard = () => {
   useEffect(() => {
     loadAdminData();
   }, [verificationFilter]);
+
+  // Load all users when search tab is activated
+  useEffect(() => {
+    if (activeTab === 'search') {
+      loadAllUsers();
+    }
+  }, [activeTab]);
+
+  // Real-time filtering when search query changes
+  useEffect(() => {
+    if (activeTab === 'search') {
+      filterUsers();
+    }
+  }, [searchQuery, allUsers]);
 
   const loadAdminData = async () => {
     try {
@@ -147,28 +162,59 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim() || searchQuery.length < 10) {
-      setError('Please enter a valid phone number (at least 10 digits)');
-      return;
-    }
-
+  const loadAllUsers = async () => {
     try {
       setSearchLoading(true);
       setError('');
-      const result = await adminService.searchUsers(searchQuery);
+      // Search with empty query to get all users
+      const result = await adminService.searchUsers('');
       
       if (result.success) {
-        setSearchResults(result.data);
+        setAllUsers(result.data);
+        setFilteredResults(result.data);
       } else {
-        setError(result.message || 'Search failed');
+        setError(result.message || 'Failed to load users');
+        setAllUsers({ clients: [], freelancers: [], total: 0 });
+        setFilteredResults({ clients: [], freelancers: [], total: 0 });
       }
     } catch (error) {
-      console.error('Search error:', error);
-      setError(error.message || 'Search failed');
+      console.error('Load all users error:', error);
+      setError('Failed to load users. Please try again.');
+      setAllUsers({ clients: [], freelancers: [], total: 0 });
+      setFilteredResults({ clients: [], freelancers: [], total: 0 });
     } finally {
       setSearchLoading(false);
     }
+  };
+
+  const filterUsers = () => {
+    if (!searchQuery.trim()) {
+      // If no search query, show all users
+      setFilteredResults(allUsers);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    
+    // Filter clients
+    const filteredClients = allUsers.clients.filter(client => {
+      const phoneNumber = (client.phoneNumber || client.phone || '').toString();
+      return phoneNumber.includes(query);
+    });
+
+    // Filter freelancers
+    const filteredFreelancers = allUsers.freelancers.filter(freelancer => {
+      const phoneNumber = (freelancer.phoneNumber || freelancer.phone || '').toString();
+      return phoneNumber.includes(query);
+    });
+
+    const total = filteredClients.length + filteredFreelancers.length;
+    
+    setFilteredResults({
+      clients: filteredClients,
+      freelancers: filteredFreelancers,
+      total: total
+    });
   };
 
   const handleViewProfile = async (userId) => {
@@ -490,43 +536,36 @@ const AdminDashboard = () => {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Search className="w-5 h-5 mr-2" />
-            Search by Phone Number
+            Filter Users by Phone Number
           </CardTitle>
           <CardDescription>
-            Enter a phone number to search for users
+            All users are loaded. Start typing to filter by phone number.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex space-x-4">
-            <div className="flex-1">
-              <Input
-                type="text"
-                placeholder="Enter phone number (e.g., +919876543210)"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            <Button 
-              onClick={handleSearch} 
-              loading={searchLoading}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Search className="w-4 h-4 mr-2" />
-              Search
-            </Button>
+          <div className="space-y-2">
+            <Input
+              type="text"
+              placeholder="Type to filter users (e.g., 9292, +919876543210)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full"
+            />
+            {searchLoading && (
+              <p className="text-sm text-blue-600">Loading all users...</p>
+            )}
           </div>
         </CardContent>
       </Card>
 
       {/* Search Results */}
-      {searchResults.total > 0 && (
+      {filteredResults.total > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">
-              Search Results ({searchResults.total} found)
+              {searchQuery.trim() ? `Filtered Results (${filteredResults.total} found)` : `All Users (${filteredResults.total} total)`}
             </h3>
-            {searchResults.clients.some(c => c.hasApprovedFreelancerData) && (
+            {filteredResults.clients.some(c => c.hasApprovedFreelancerData) && (
               <div className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
                 User has approved freelancer data (shown in both tabs)
               </div>
@@ -539,15 +578,15 @@ const AdminDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Users className="w-5 h-5 mr-2" />
-                  Clients ({searchResults.clients.length})
+                  Clients ({filteredResults.clients.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {searchResults.clients.length === 0 ? (
+                {filteredResults.clients.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">No clients found</p>
                 ) : (
                   <div className="space-y-3">
-                    {searchResults.clients.map((client) => (
+                    {filteredResults.clients.map((client) => (
                       <div key={client._id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -585,15 +624,15 @@ const AdminDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Shield className="w-5 h-5 mr-2" />
-                  Freelancers ({searchResults.freelancers.length})
+                  Freelancers ({filteredResults.freelancers.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {searchResults.freelancers.length === 0 ? (
+                {filteredResults.freelancers.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">No freelancers found</p>
                 ) : (
                   <div className="space-y-3">
-                    {searchResults.freelancers.map((freelancer) => (
+                    {filteredResults.freelancers.map((freelancer) => (
                       <div key={freelancer._id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
