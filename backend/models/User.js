@@ -8,7 +8,8 @@ const userSchema = new mongoose.Schema({
   },
   phoneNumber: {
     type: String,
-    required: true
+    required: true,
+    unique: true
   },
   // Legacy compatibility: some deployments have a unique index on `phone`
   // Ensure it's populated to avoid duplicate null index errors
@@ -72,8 +73,5 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ firebaseUid: 1 });
 userSchema.index({ phoneNumber: 1 });
 userSchema.index({ role: 1 });
-
-// Compound unique index: same phone number can exist for different roles
-userSchema.index({ phoneNumber: 1, role: 1 }, { unique: true });
 
 module.exports = mongoose.model('User', userSchema);

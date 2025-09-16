@@ -175,9 +175,30 @@ const searchUsers = async (req, res) => {
       phone: u.phoneNumber || u.phone 
     })));
 
-    // Separate users by role
-    const clients = users.filter(user => user.role === 'client');
-    const freelancers = users.filter(user => user.role === 'freelancer');
+    // For role-switching users, show them in both client and freelancer tabs
+    // Check if user has ever been a client or freelancer based on their profile data
+    const clients = [];
+    const freelancers = [];
+
+    users.forEach(user => {
+      // If user has client-related data (posted jobs, etc.) or is currently a client
+      if (user.role === 'client' || user.wallet?.balance > 0 || user.profileSetupCompleted) {
+        clients.push({
+          ...user.toObject(),
+          displayRole: 'client',
+          isCurrentRole: user.role === 'client'
+        });
+      }
+      
+      // If user has freelancer-related data (verification docs, etc.) or is currently a freelancer
+      if (user.role === 'freelancer' || user.verificationDocuments || user.verificationStatus) {
+        freelancers.push({
+          ...user.toObject(),
+          displayRole: 'freelancer',
+          isCurrentRole: user.role === 'freelancer'
+        });
+      }
+    });
 
     console.log(`👥 Clients: ${clients.length}, Freelancers: ${freelancers.length}`);
 

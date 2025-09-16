@@ -508,9 +508,9 @@ const AdminDashboard = () => {
             <h3 className="text-lg font-semibold">
               Search Results ({searchResults.total} found)
             </h3>
-            {searchResults.total > 1 && (
+            {searchResults.clients.length > 0 && searchResults.freelancers.length > 0 && (
               <div className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                Multiple accounts found for this phone number
+                User has both client and freelancer access
               </div>
             )}
           </div>
@@ -541,7 +541,9 @@ const AdminDashboard = () => {
                               <Phone className="w-3 h-3 mr-1" />
                               {client.phoneNumber || client.phone}
                             </p>
-                            <p className="text-xs text-blue-600 font-medium">Client Account</p>
+                            <p className="text-xs text-blue-600 font-medium">
+                              Client Account {client.isCurrentRole && '(Current Role)'}
+                            </p>
                           </div>
                         </div>
                         <Button
@@ -584,7 +586,9 @@ const AdminDashboard = () => {
                               <Phone className="w-3 h-3 mr-1" />
                               {freelancer.phoneNumber || freelancer.phone}
                             </p>
-                            <p className="text-xs text-green-600 font-medium">Freelancer Account</p>
+                            <p className="text-xs text-green-600 font-medium">
+                              Freelancer Account {freelancer.isCurrentRole && '(Current Role)'}
+                            </p>
                             <p className="text-xs text-gray-400">
                               Status: {freelancer.verificationStatus || 'Not verified'}
                             </p>
