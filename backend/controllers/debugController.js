@@ -5,9 +5,9 @@ const debugJobs = async (req, res) => {
   try {
     const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
     
-    const myActiveJobs = inMemoryJobs.filter(j => j.clientId === clientId && j.status !== 'completed');
-    const myCompletedJobs = inMemoryJobs.filter(j => j.clientId === clientId && j.status === 'completed');
-    const otherJobs = inMemoryJobs.filter(j => j.clientId !== clientId);
+    const myActiveJobs = inMemoryJobs.filter(j => String(j.clientId) === String(clientId) && j.status !== 'completed');
+    const myCompletedJobs = inMemoryJobs.filter(j => String(j.clientId) === String(clientId) && j.status === 'completed');
+    const otherJobs = inMemoryJobs.filter(j => String(j.clientId) !== String(clientId));
 
     const debugInfo = {
       timestamp: new Date().toISOString(),
@@ -45,7 +45,8 @@ const debugJobs = async (req, res) => {
           extractedClientId: clientId,
           isEqual: j.clientId === clientId,
           strictEqual: j.clientId === clientId,
-          looseEqual: j.clientId == clientId
+          looseEqual: j.clientId == clientId,
+          stringEqual: String(j.clientId) === String(clientId)
         }))
       }
     };

@@ -55,7 +55,7 @@ const getMyJobs = async (req, res) => {
     console.log('🔍 getMyJobs - total jobs in store:', inMemoryJobs.length);
     console.log('🔍 getMyJobs - all jobs:', inMemoryJobs.map(j => ({ id: j.id, clientId: j.clientId, status: j.status })));
     
-    const jobs = inMemoryJobs.filter(j => j.clientId === clientId && j.status !== 'completed');
+    const jobs = inMemoryJobs.filter(j => String(j.clientId) === String(clientId) && j.status !== 'completed');
     console.log('🔍 getMyJobs - filtered jobs:', jobs.length);
     console.log('🔍 getMyJobs - filtered jobs details:', jobs);
     
@@ -69,7 +69,7 @@ const getMyJobs = async (req, res) => {
 const getJobHistory = async (req, res) => {
   try {
     const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
-    const jobs = inMemoryJobs.filter(j => j.clientId === clientId && j.status === 'completed');
+    const jobs = inMemoryJobs.filter(j => String(j.clientId) === String(clientId) && j.status === 'completed');
     res.json({ success: true, jobs });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch job history' });
