@@ -14,6 +14,13 @@ const verifyToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // If admin token, allow without DB lookup (adminLogin issues non-ObjectId userId)
+    if (decoded && decoded.role === 'admin') {
+      req.user = { _id: decoded.userId || 'admin', role: 'admin' };
+      return next();
+    }
+
     const user = await User.findById(decoded.userId);
     
     if (!user) {
