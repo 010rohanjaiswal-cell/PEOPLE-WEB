@@ -31,6 +31,7 @@ const AdminDashboard = () => {
   // Verification data
   const [pendingVerifications, setPendingVerifications] = useState([]);
   const [verificationDetails, setVerificationDetails] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   
   // Withdrawal data
   const [pendingWithdrawals, setPendingWithdrawals] = useState([]);
@@ -208,7 +209,12 @@ const AdminDashboard = () => {
                       <div key={doc.key} className="text-center">
                         <div className="w-24 h-24 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center mx-auto mb-3 overflow-hidden">
                           {verification[doc.key] ? (
-                            <img src={verification[doc.key]} alt={doc.label} className="w-full h-full object-cover" />
+                            <img 
+                              src={verification[doc.key]} 
+                              alt={doc.label} 
+                              className="w-full h-full object-cover cursor-zoom-in" 
+                              onClick={() => setImagePreviewUrl(verification[doc.key])}
+                            />
                           ) : (
                             <FileText className="w-8 h-8 text-gray-400" />
                           )}
@@ -495,6 +501,20 @@ const AdminDashboard = () => {
               </div>
               <div className="p-6 border-t text-right">
                 <Button variant="outline" onClick={() => setVerificationDetails(null)}>Close</Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Image Preview Modal */}
+        {imagePreviewUrl && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" onClick={() => setImagePreviewUrl(null)}>
+            <div className="relative max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-white rounded-lg overflow-hidden shadow-2xl">
+                <img src={imagePreviewUrl} alt="Document preview" className="w-full h-auto max-h-[80vh] object-contain" />
+              </div>
+              <div className="mt-3 text-right">
+                <Button variant="outline" onClick={() => setImagePreviewUrl(null)}>Close</Button>
               </div>
             </div>
           </div>
