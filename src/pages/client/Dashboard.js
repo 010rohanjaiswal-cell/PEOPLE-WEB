@@ -45,15 +45,24 @@ const ClientDashboard = () => {
   const loadClientData = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Loading client data...');
+      console.log('👤 Current user:', user);
+      
       const [activeJobsRes, historyRes] = await Promise.all([
         clientService.getActiveJobs(),
         clientService.getJobHistory()
       ]);
       
+      console.log('📋 Active jobs response:', activeJobsRes);
+      console.log('📋 History response:', historyRes);
+      
       setActiveJobs(activeJobsRes.jobs || []);
       setJobHistory(historyRes.jobs || []);
+      
+      console.log('✅ Set activeJobs:', activeJobsRes.jobs || []);
+      console.log('✅ Set jobHistory:', historyRes.jobs || []);
     } catch (error) {
-      console.error('Error loading client data:', error);
+      console.error('❌ Error loading client data:', error);
       setError('Failed to load data');
     } finally {
       setLoading(false);

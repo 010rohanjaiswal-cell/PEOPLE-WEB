@@ -3,10 +3,15 @@ const { inMemoryJobs } = require('./sharedJobsStore');
 
 const postJob = async (req, res) => {
   try {
+    console.log('📝 postJob - req.user:', req.user);
+    console.log('📝 postJob - req.user._id:', req.user?._id);
+    console.log('📝 postJob - req.user.id:', req.user?.id);
+    console.log('📝 postJob - req.user.userId:', req.user?.userId);
+    
     const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
     const { title, address, pincode, budget, category, gender } = req.body;
 
-    console.log('📝 postJob - clientId:', clientId);
+    console.log('📝 postJob - final clientId:', clientId);
     console.log('📝 postJob - job data:', { title, address, pincode, budget, category, gender });
 
     if (!title || !address || !pincode || !budget || !category || !gender) {
@@ -40,13 +45,19 @@ const postJob = async (req, res) => {
 
 const getMyJobs = async (req, res) => {
   try {
+    console.log('🔍 getMyJobs - req.user:', req.user);
+    console.log('🔍 getMyJobs - req.user._id:', req.user?._id);
+    console.log('🔍 getMyJobs - req.user.id:', req.user?.id);
+    console.log('🔍 getMyJobs - req.user.userId:', req.user?.userId);
+    
     const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
-    console.log('🔍 getMyJobs - clientId:', clientId);
+    console.log('🔍 getMyJobs - final clientId:', clientId);
     console.log('🔍 getMyJobs - total jobs in store:', inMemoryJobs.length);
     console.log('🔍 getMyJobs - all jobs:', inMemoryJobs.map(j => ({ id: j.id, clientId: j.clientId, status: j.status })));
     
     const jobs = inMemoryJobs.filter(j => j.clientId === clientId && j.status !== 'completed');
     console.log('🔍 getMyJobs - filtered jobs:', jobs.length);
+    console.log('🔍 getMyJobs - filtered jobs details:', jobs);
     
     res.json({ success: true, jobs });
   } catch (error) {

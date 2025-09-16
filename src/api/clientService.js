@@ -48,13 +48,21 @@ export const clientService = {
   // Get client's active jobs
   getActiveJobs: async () => {
     try {
+      console.log('🌐 Calling /client/my-jobs API...');
       const response = await api.get('/client/my-jobs');
+      console.log('📡 Raw API response:', response);
+      console.log('📡 Response data:', response.data);
+      
       const data = response.data || {};
-      return {
+      const result = {
         success: data.success !== false,
         jobs: data.jobs || data.data || []
       };
+      
+      console.log('🔄 Processed result:', result);
+      return result;
     } catch (error) {
+      console.error('❌ getActiveJobs API error:', error);
       throw error.response?.data || error;
     }
   },
