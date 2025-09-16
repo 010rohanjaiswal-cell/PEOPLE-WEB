@@ -186,17 +186,29 @@ const AdminDashboard = () => {
               </div>
               <div className="p-6">
                 <div className="space-y-6">
+                  {/* Personal details */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <p className="text-sm text-gray-500">Date of Birth</p>
+                      <p className="font-medium text-gray-900">{verification.dateOfBirth ? new Date(verification.dateOfBirth).toLocaleDateString() : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Gender</p>
+                      <p className="font-medium text-gray-900">{verification.gender || '—'}</p>
+                    </div>
+                    <div className="md:col-span-1">
+                      <p className="text-sm text-gray-500">Address</p>
+                      <p className="font-medium text-gray-900 break-words">{verification.address || '—'}</p>
+                    </div>
+                  </div>
+
                   {/* Document previews */}
                   <div className="grid grid-cols-3 gap-6">
                     {[{label:'Aadhaar Front', key:'aadhaarFront'}, {label:'Aadhaar Back', key:'aadhaarBack'}, {label:'PAN Card', key:'panCard'}].map((doc) => (
                       <div key={doc.key} className="text-center">
                         <div className="w-24 h-24 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center mx-auto mb-3 overflow-hidden">
-                          {verification[doc.key] || verification[doc.key] === '' ? (
-                            verification[doc.key] ? (
-                              <img src={verification[doc.key]} alt={doc.label} className="w-full h-full object-cover" />
-                            ) : (
-                              <FileText className="w-8 h-8 text-gray-400" />
-                            )
+                          {verification[doc.key] ? (
+                            <img src={verification[doc.key]} alt={doc.label} className="w-full h-full object-cover" />
                           ) : (
                             <FileText className="w-8 h-8 text-gray-400" />
                           )}
@@ -224,12 +236,7 @@ const AdminDashboard = () => {
                       <XCircle className="w-4 h-4 mr-2" />
                       Reject
                     </button>
-                    <button 
-                      onClick={() => setVerificationDetails(verification)}
-                      className="border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg"
-                    >
-                      View Details
-                    </button>
+                    {/* Removed View Details button */}
                   </div>
                 </div>
               </div>

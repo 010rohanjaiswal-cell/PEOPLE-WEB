@@ -108,7 +108,10 @@ export const adminService = {
         submittedAt: u.createdAt || u.updatedAt,
         aadhaarFront: u.verificationDocuments?.aadhaarFront,
         aadhaarBack: u.verificationDocuments?.aadhaarBack,
-        panCard: u.verificationDocuments?.panCard
+        panCard: u.verificationDocuments?.panCard,
+        dateOfBirth: u.verificationDocuments?.dateOfBirth,
+        gender: u.verificationDocuments?.gender,
+        address: u.verificationDocuments?.address
       }));
       return { success: true, verifications };
     } catch (error) {
