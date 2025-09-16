@@ -293,26 +293,33 @@ const AdminDashboard = () => {
                     ))}
                   </div>
 
-                  {/* Action buttons */}
-                  <div className="flex space-x-3">
-                    <button 
-                      onClick={() => handleVerificationAction(verification._id || verification.id, 'approve')}
-                      disabled={loading}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Approve
-                    </button>
-                    <button 
-                      onClick={() => handleVerificationAction(verification._id || verification.id, 'reject')}
-                      disabled={loading}
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center"
-                    >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Reject
-                    </button>
-                    {/* Removed View Details button */}
-                  </div>
+                  {/* Action buttons - only show for pending verifications */}
+                  {verification.verificationStatus === 'pending' ? (
+                    <div className="flex space-x-3">
+                      <button 
+                        onClick={() => handleVerificationAction(verification._id || verification.id, 'approve')}
+                        disabled={loading}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Approve
+                      </button>
+                      <button 
+                        onClick={() => handleVerificationAction(verification._id || verification.id, 'reject')}
+                        disabled={loading}
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center"
+                      >
+                        <XCircle className="w-4 h-4 mr-2" />
+                        Reject
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-2">
+                      <span className="text-sm text-gray-500 font-medium">
+                        Decision already made
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
