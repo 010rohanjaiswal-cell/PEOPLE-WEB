@@ -98,7 +98,19 @@ export const adminService = {
       const response = await api.get('/admin/freelancer-verifications', {
         params: { status }
       });
-      return response.data;
+      // Normalize to expected shape in UI (verifications array with id/phone fields)
+      const raw = response.data?.data || [];
+      const verifications = raw.map((u) => ({
+        id: u._id || u.id,
+        fullName: u.fullName,
+        phone: u.phoneNumber || u.phone,
+        status: u.verificationStatus || 'pending',
+        submittedAt: u.createdAt || u.updatedAt,
+        aadhaarFront: u.verificationDocuments?.aadhaarFront,
+        aadhaarBack: u.verificationDocuments?.aadhaarBack,
+        panCard: u.verificationDocuments?.panCard
+      }));
+      return { success: true, verifications };
     } catch (error) {
       console.error('Freelancer verifications error:', error);
       
@@ -317,7 +329,18 @@ export const adminService = {
       const response = await api.get('/admin/withdrawal-requests', {
         params: { status }
       });
-      return response.data;
+      // Normalize to expected shape in UI
+      const raw = response.data?.data || [];
+      const withdrawals = raw.map((w) => ({
+        id: w._id || w.id || `withdrawal-${Date.now()}`,
+        freelancerId: w.freelancerId,
+        freelancerName: w.freelancerName,
+        amount: w.amount || 0,
+        upiId: w.upiId || w.bankAccount,
+        status: w.status || status,
+        requestedAt: w.requestedAt || w.createdAt
+      }));
+      return { success: true, withdrawals };
     } catch (error) {
       console.error('Withdrawal requests error:', error);
       
