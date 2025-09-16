@@ -49,7 +49,11 @@ export const clientService = {
   getActiveJobs: async () => {
     try {
       const response = await api.get('/client/my-jobs');
-      return response.data;
+      const data = response.data || {};
+      return {
+        success: data.success !== false,
+        jobs: data.jobs || data.data || []
+      };
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -59,7 +63,11 @@ export const clientService = {
   getJobHistory: async () => {
     try {
       const response = await api.get('/client/job-history');
-      return response.data;
+      const data = response.data || {};
+      return {
+        success: data.success !== false,
+        jobs: data.jobs || data.data || []
+      };
     } catch (error) {
       throw error.response?.data || error;
     }
