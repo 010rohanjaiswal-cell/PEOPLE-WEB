@@ -6,6 +6,9 @@ const postJob = async (req, res) => {
     const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
     const { title, address, pincode, budget, category, gender } = req.body;
 
+    console.log('📝 postJob - clientId:', clientId);
+    console.log('📝 postJob - job data:', { title, address, pincode, budget, category, gender });
+
     if (!title || !address || !pincode || !budget || !category || !gender) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
@@ -23,10 +26,14 @@ const postJob = async (req, res) => {
       createdAt: new Date().toISOString(),
       offers: []
     };
+    
+    console.log('📝 postJob - created job:', job);
     inMemoryJobs.unshift(job);
+    console.log('📝 postJob - total jobs after posting:', inMemoryJobs.length);
 
     res.json({ success: true, job });
   } catch (error) {
+    console.error('❌ postJob error:', error);
     res.status(500).json({ success: false, message: 'Failed to post job' });
   }
 };
@@ -34,9 +41,16 @@ const postJob = async (req, res) => {
 const getMyJobs = async (req, res) => {
   try {
     const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
+    console.log('🔍 getMyJobs - clientId:', clientId);
+    console.log('🔍 getMyJobs - total jobs in store:', inMemoryJobs.length);
+    console.log('🔍 getMyJobs - all jobs:', inMemoryJobs.map(j => ({ id: j.id, clientId: j.clientId, status: j.status })));
+    
     const jobs = inMemoryJobs.filter(j => j.clientId === clientId && j.status !== 'completed');
+    console.log('🔍 getMyJobs - filtered jobs:', jobs.length);
+    
     res.json({ success: true, jobs });
   } catch (error) {
+    console.error('❌ getMyJobs error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch jobs' });
   }
 };

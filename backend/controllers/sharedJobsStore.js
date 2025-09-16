@@ -1,10 +1,10 @@
 // Shared in-memory store for demo purposes only
 // Replace with a database in production
 
-const store = {
-  inMemoryJobs: []
-};
+const inMemoryJobs = [];
 
-module.exports = store;
+module.exports = {
+  inMemoryJobs
+};
 
 
