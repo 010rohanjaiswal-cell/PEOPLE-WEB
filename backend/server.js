@@ -20,13 +20,28 @@ const PORT = process.env.PORT || 3001;
 // Security middleware
 app.use(helmet());
 
-// Rate limiting
+// Rate limiting - configured for production scale
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP to 1000 requests per windowMs (increased for development)
-  message: 'Too many requests from this IP, please try again later.'
+  max: 10000, // limit each IP to 10,000 requests per 15 minutes (suitable for millions of users)
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
+// Apply general rate limiting
 app.use(limiter);
+
+// More restrictive rate limiting for authentication endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // limit each IP to 1000 auth requests per 15 minutes
+  message: 'Too many authentication attempts from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply auth rate limiting to authentication routes
+app.use('/api/auth', authLimiter);
 
 // CORS configuration - allow configured origins and any localhost port
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
