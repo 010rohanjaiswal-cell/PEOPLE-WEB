@@ -31,10 +31,11 @@ const ClientDashboard = () => {
   // Job posting form state
   const [jobForm, setJobForm] = useState({
     title: '',
-    description: '',
+    address: '',
+    pincode: '',
     budget: '',
     category: '',
-    deadline: ''
+    gender: ''
   });
 
   useEffect(() => {
@@ -69,10 +70,11 @@ const ClientDashboard = () => {
       if (result.success) {
         setJobForm({
           title: '',
-          description: '',
+          address: '',
+          pincode: '',
           budget: '',
           category: '',
-          deadline: ''
+          gender: ''
         });
         setActiveTab('my-jobs');
         loadClientData(); // Refresh data
@@ -117,12 +119,17 @@ const ClientDashboard = () => {
   ];
 
   const categories = [
-    'Web Development',
-    'Mobile Development',
-    'Design',
-    'Writing',
-    'Marketing',
-    'Data Entry',
+    'Delivery',
+    'Cooking',
+    'Cleaning',
+    'Plumbing',
+    'Electrical',
+    'Mechanic',
+    'Driver',
+    'Care taker',
+    'Tailor',
+    'Barber',
+    'Laundry',
     'Other'
   ];
 
@@ -147,7 +154,7 @@ const ClientDashboard = () => {
                   id="title"
                   value={jobForm.title}
                   onChange={(e) => setJobForm({...jobForm, title: e.target.value})}
-                  placeholder="e.g., Build a React website"
+                  placeholder="Enter job title"
                   required
                 />
               </div>
@@ -168,16 +175,28 @@ const ClientDashboard = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <textarea
-                id="description"
-                value={jobForm.description}
-                onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
-                placeholder="Describe your project requirements in detail..."
-                className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                required
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  value={jobForm.address}
+                  onChange={(e) => setJobForm({...jobForm, address: e.target.value})}
+                  placeholder="Enter address"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pincode">Pincode</Label>
+                <Input
+                  id="pincode"
+                  type="text"
+                  value={jobForm.pincode}
+                  onChange={(e) => setJobForm({...jobForm, pincode: e.target.value})}
+                  placeholder="e.g., 400001"
+                  required
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -194,15 +213,19 @@ const ClientDashboard = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="deadline">Deadline</Label>
-                <Input
-                  id="deadline"
-                  type="date"
-                  value={jobForm.deadline}
-                  onChange={(e) => setJobForm({...jobForm, deadline: e.target.value})}
-                  min={new Date().toISOString().split('T')[0]}
+                <Label htmlFor="gender">Gender</Label>
+                <select
+                  id="gender"
+                  value={jobForm.gender}
+                  onChange={(e) => setJobForm({...jobForm, gender: e.target.value})}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   required
-                />
+                >
+                  <option value="">Select gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Any">Any</option>
+                </select>
               </div>
             </div>
 
@@ -248,7 +271,7 @@ const ClientDashboard = () => {
                     {job.status}
                   </span>
                 </div>
-                <CardDescription>{job.description}</CardDescription>
+                <CardDescription>{job.address} {job.pincode ? `- ${job.pincode}` : ''}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between text-sm">
@@ -258,8 +281,8 @@ const ClientDashboard = () => {
                       ₹{job.budget}
                     </span>
                     <span className="flex items-center">
-                      <Clock className="w-4 h-4 mr-1" />
-                      {new Date(job.deadline).toLocaleDateString()}
+                      <Users className="w-4 h-4 mr-1" />
+                      {job.gender || 'Any'}
                     </span>
                     <span className="flex items-center">
                       <Users className="w-4 h-4 mr-1" />
