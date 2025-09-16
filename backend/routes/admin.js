@@ -11,4 +11,8 @@ router.get('/withdrawal-requests', authMiddleware.verifyToken, authMiddleware.ve
 router.post('/approve-withdrawal/:id', authMiddleware.verifyToken, authMiddleware.verifyAdmin, adminController.approveWithdrawal);
 router.post('/reject-withdrawal/:id', authMiddleware.verifyToken, authMiddleware.verifyAdmin, adminController.rejectWithdrawal);
 
+// User search and profile routes
+router.get('/search-users', authMiddleware.verifyToken, authMiddleware.verifyAdmin, adminController.searchUsers);
+router.get('/user-profile/:id', authMiddleware.verifyToken, authMiddleware.verifyAdmin, adminController.getUserProfile);
+
 module.exports = router;

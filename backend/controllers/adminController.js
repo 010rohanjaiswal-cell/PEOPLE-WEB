@@ -145,11 +145,86 @@ const rejectWithdrawal = async (req, res) => {
   }
 };
 
+// Search users by phone number
+const searchUsers = async (req, res) => {
+  try {
+    const { phoneNumber } = req.query;
+    
+    if (!phoneNumber || phoneNumber.trim().length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid phone number (at least 10 digits)'
+      });
+    }
+
+    // Search for users with matching phone number (supporting both phone and phoneNumber fields)
+    const users = await User.find({
+      $or: [
+        { phoneNumber: { $regex: phoneNumber, $options: 'i' } },
+        { phone: { $regex: phoneNumber, $options: 'i' } }
+      ]
+    })
+    .select('_id fullName phoneNumber phone email role verificationStatus profilePhoto createdAt updatedAt wallet verificationDocuments')
+    .sort({ createdAt: -1 });
+
+    // Separate users by role
+    const clients = users.filter(user => user.role === 'client');
+    const freelancers = users.filter(user => user.role === 'freelancer');
+
+    res.json({
+      success: true,
+      data: {
+        clients,
+        freelancers,
+        total: users.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Search users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search users'
+    });
+  }
+};
+
+// Get user profile by ID
+const getUserProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const user = await User.findById(id)
+      .select('-__v'); // Exclude version field
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user
+    });
+
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user profile'
+    });
+  }
+};
+
 module.exports = {
   getFreelancerVerifications,
   approveFreelancer,
   rejectFreelancer,
   getWithdrawalRequests,
   approveWithdrawal,
-  rejectWithdrawal
+  rejectWithdrawal,
+  searchUsers,
+  getUserProfile
 };

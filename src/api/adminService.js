@@ -476,5 +476,107 @@ export const adminService = {
     } catch (error) {
       throw error.response?.data || error;
     }
+  },
+
+  // Search users by phone number
+  searchUsers: async (phoneNumber) => {
+    try {
+      // For development: Mock user search
+      const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
+                         (process.env.NODE_ENV === 'development' && !process.env.REACT_APP_API_BASE_URL);
+      
+      if (useMockAuth) {
+        console.log('🔧 Development Mode: Using mock user search');
+        
+        // Mock search results
+        const mockUsers = [
+          {
+            _id: 'user-1',
+            fullName: 'John Doe',
+            phoneNumber: '+919876543210',
+            role: 'client',
+            verificationStatus: 'approved',
+            profilePhoto: null,
+            createdAt: new Date().toISOString(),
+            wallet: { balance: 1000 }
+          },
+          {
+            _id: 'user-2',
+            fullName: 'Jane Smith',
+            phoneNumber: '+919876543211',
+            role: 'freelancer',
+            verificationStatus: 'pending',
+            profilePhoto: null,
+            createdAt: new Date().toISOString(),
+            wallet: { balance: 500 }
+          }
+        ];
+        
+        return {
+          success: true,
+          data: {
+            clients: mockUsers.filter(u => u.role === 'client'),
+            freelancers: mockUsers.filter(u => u.role === 'freelancer'),
+            total: mockUsers.length
+          }
+        };
+      }
+      
+      // Production: Real API call
+      const response = await api.get('/admin/search-users', {
+        params: { phoneNumber }
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Search users error:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  // Get user profile by ID
+  getUserProfile: async (userId) => {
+    try {
+      // For development: Mock user profile
+      const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true' || 
+                         (process.env.NODE_ENV === 'development' && !process.env.REACT_APP_API_BASE_URL);
+      
+      if (useMockAuth) {
+        console.log('🔧 Development Mode: Using mock user profile');
+        
+        // Mock user profile data
+        const mockProfile = {
+          _id: userId,
+          fullName: 'John Doe',
+          phoneNumber: '+919876543210',
+          email: 'john@example.com',
+          role: 'client',
+          verificationStatus: 'approved',
+          profilePhoto: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          wallet: { 
+            balance: 1000, 
+            totalEarnings: 5000 
+          },
+          verificationDocuments: null,
+          profileSetupCompleted: true,
+          isActive: true
+        };
+        
+        return {
+          success: true,
+          data: mockProfile
+        };
+      }
+      
+      // Production: Real API call
+      const response = await api.get(`/admin/user-profile/${userId}`);
+      
+      return response.data;
+    } catch (error) {
+      console.error('Get user profile error:', error);
+      throw error.response?.data || error;
+    }
   }
 };

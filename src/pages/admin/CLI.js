@@ -17,7 +17,10 @@ import {
   DollarSign,
   Users,
   FileText,
-  AlertCircle
+  AlertCircle,
+  Search,
+  Eye,
+  Phone
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -36,6 +39,13 @@ const AdminDashboard = () => {
   // Withdrawal data
   const [pendingWithdrawals, setPendingWithdrawals] = useState([]);
   const [withdrawalDetails, setWithdrawalDetails] = useState(null);
+  
+  // Search data
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState({ clients: [], freelancers: [], total: 0 });
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
     loadAdminData();
@@ -131,9 +141,58 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleSearch = async () => {
+    if (!searchQuery.trim() || searchQuery.length < 10) {
+      setError('Please enter a valid phone number (at least 10 digits)');
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+      setError('');
+      const result = await adminService.searchUsers(searchQuery);
+      
+      if (result.success) {
+        setSearchResults(result.data);
+      } else {
+        setError(result.message || 'Search failed');
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      setError(error.message || 'Search failed');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleViewProfile = async (userId) => {
+    try {
+      setLoading(true);
+      const result = await adminService.getUserProfile(userId);
+      
+      if (result.success) {
+        setUserProfile(result.data);
+        setSelectedUser(userId);
+      } else {
+        setError(result.message || 'Failed to load user profile');
+      }
+    } catch (error) {
+      console.error('Get user profile error:', error);
+      setError(error.message || 'Failed to load user profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const closeUserProfile = () => {
+    setUserProfile(null);
+    setSelectedUser(null);
+  };
+
   const tabs = [
     { id: 'verifications', label: 'Verifications', icon: Shield },
     { id: 'withdrawals', label: 'Withdrawals', icon: DollarSign },
+    { id: 'search', label: 'Search Users', icon: Search },
     { id: 'profile', label: 'Profile', icon: User }
   ];
 
@@ -402,6 +461,148 @@ const AdminDashboard = () => {
     </div>
   );
 
+  const renderSearch = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Search Users</h2>
+      </div>
+      
+      {/* Search Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Search className="w-5 h-5 mr-2" />
+            Search by Phone Number
+          </CardTitle>
+          <CardDescription>
+            Enter a phone number to search for users
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex space-x-4">
+            <div className="flex-1">
+              <Input
+                type="text"
+                placeholder="Enter phone number (e.g., +919876543210)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <Button 
+              onClick={handleSearch} 
+              loading={searchLoading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Search className="w-4 h-4 mr-2" />
+              Search
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Search Results */}
+      {searchResults.total > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">
+              Search Results ({searchResults.total} found)
+            </h3>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Clients Tab */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Users className="w-5 h-5 mr-2" />
+                  Clients ({searchResults.clients.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {searchResults.clients.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">No clients found</p>
+                ) : (
+                  <div className="space-y-3">
+                    {searchResults.clients.map((client) => (
+                      <div key={client._id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <User className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{client.fullName}</p>
+                            <p className="text-sm text-gray-500 flex items-center">
+                              <Phone className="w-3 h-3 mr-1" />
+                              {client.phoneNumber || client.phone}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewProfile(client._id)}
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          View Profile
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Freelancers Tab */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Shield className="w-5 h-5 mr-2" />
+                  Freelancers ({searchResults.freelancers.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {searchResults.freelancers.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">No freelancers found</p>
+                ) : (
+                  <div className="space-y-3">
+                    {searchResults.freelancers.map((freelancer) => (
+                      <div key={freelancer._id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                            <Shield className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{freelancer.fullName}</p>
+                            <p className="text-sm text-gray-500 flex items-center">
+                              <Phone className="w-3 h-3 mr-1" />
+                              {freelancer.phoneNumber || freelancer.phone}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              Status: {freelancer.verificationStatus || 'Not verified'}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewProfile(freelancer._id)}
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          View Profile
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -465,6 +666,7 @@ const AdminDashboard = () => {
         {/* Tab Content */}
         {activeTab === 'verifications' && renderVerifications()}
         {activeTab === 'withdrawals' && renderWithdrawals()}
+        {activeTab === 'search' && renderSearch()}
         {activeTab === 'profile' && renderProfile()}
         {/* Details Modal */}
         {verificationDetails && (
@@ -515,6 +717,137 @@ const AdminDashboard = () => {
               </div>
               <div className="mt-3 text-right">
                 <Button variant="outline" onClick={() => setImagePreviewUrl(null)}>Close</Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* User Profile Modal */}
+        {userProfile && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-semibold">User Profile</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={closeUserProfile}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+              <div className="p-6 space-y-6">
+                {/* Basic Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm text-gray-600">Full Name</Label>
+                      <div className="text-gray-900 font-medium">{userProfile.fullName}</div>
+                    </div>
+                    <div>
+                      <Label className="text-sm text-gray-600">Phone Number</Label>
+                      <div className="text-gray-900">{userProfile.phoneNumber || userProfile.phone}</div>
+                    </div>
+                    <div>
+                      <Label className="text-sm text-gray-600">Email</Label>
+                      <div className="text-gray-900">{userProfile.email || 'Not provided'}</div>
+                    </div>
+                    <div>
+                      <Label className="text-sm text-gray-600">Role</Label>
+                      <div className="text-gray-900 capitalize">{userProfile.role}</div>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm text-gray-600">Verification Status</Label>
+                      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        userProfile.verificationStatus === 'approved' ? 'bg-green-100 text-green-800' :
+                        userProfile.verificationStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        userProfile.verificationStatus === 'rejected' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {userProfile.verificationStatus || 'Not verified'}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-sm text-gray-600">Account Status</Label>
+                      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        userProfile.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {userProfile.isActive ? 'Active' : 'Inactive'}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-sm text-gray-600">Profile Setup</Label>
+                      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        userProfile.profileSetupCompleted ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {userProfile.profileSetupCompleted ? 'Completed' : 'Pending'}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-sm text-gray-600">Member Since</Label>
+                      <div className="text-gray-900">
+                        {new Date(userProfile.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Wallet Information */}
+                {userProfile.wallet && (
+                  <div className="border-t pt-6">
+                    <h4 className="text-lg font-semibold mb-4">Wallet Information</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm text-gray-600">Current Balance</Label>
+                        <div className="text-gray-900 font-medium">₹{userProfile.wallet.balance || 0}</div>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-gray-600">Total Earnings</Label>
+                        <div className="text-gray-900 font-medium">₹{userProfile.wallet.totalEarnings || 0}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Verification Documents (for freelancers) */}
+                {userProfile.role === 'freelancer' && userProfile.verificationDocuments && (
+                  <div className="border-t pt-6">
+                    <h4 className="text-lg font-semibold mb-4">Verification Documents</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {[
+                        { label: 'Aadhaar Front', key: 'aadhaarFront' },
+                        { label: 'Aadhaar Back', key: 'aadhaarBack' },
+                        { label: 'PAN Card', key: 'panCard' }
+                      ].map((doc) => (
+                        <div key={doc.key}>
+                          <Label className="text-sm text-gray-600">{doc.label}</Label>
+                          {userProfile.verificationDocuments[doc.key] ? (
+                            <div className="mt-1">
+                              <img
+                                src={userProfile.verificationDocuments[doc.key]}
+                                alt={doc.label}
+                                className="w-full h-32 object-cover rounded border cursor-pointer"
+                                onClick={() => window.open(userProfile.verificationDocuments[doc.key], '_blank')}
+                              />
+                            </div>
+                          ) : (
+                            <div className="mt-1 text-gray-400 text-sm">Not uploaded</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {userProfile.verificationDocuments.address && (
+                      <div className="mt-4">
+                        <Label className="text-sm text-gray-600">Address</Label>
+                        <div className="text-gray-900">{userProfile.verificationDocuments.address}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
