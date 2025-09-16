@@ -68,7 +68,9 @@ const RoleRedirect = () => {
     case 'client':
       return <Navigate to="/client/dashboard" replace />;
     case 'freelancer':
-      return <Navigate to="/freelancer/dashboard" replace />;
+      // Always redirect freelancers to verification page first
+      // The verification page will handle checking status and redirecting to dashboard if approved
+      return <Navigate to="/freelancer/verification" replace />;
     case 'admin':
       return <Navigate to="/admin/dashboard" replace />;
     default:

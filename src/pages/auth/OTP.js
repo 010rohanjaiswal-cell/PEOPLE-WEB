@@ -160,19 +160,16 @@ const OTP = () => {
               navigate('/client/dashboard');
             }
           } else if (role === 'freelancer') {
-            if (result.needsVerification) {
-              console.log('🎯 Freelancer needs verification, navigating to verification');
-              navigate('/freelancer/verification', { 
-                state: { 
-                  phoneNumber,
-                  role,
-                  isNewUser: result.isNewUser 
-                } 
-              });
-            } else {
-              console.log('🎯 Freelancer verification complete, navigating to dashboard');
-              navigate('/freelancer/dashboard');
-            }
+            // Always redirect freelancers to verification page first
+            // The verification page will check status and redirect to dashboard if approved
+            console.log('🎯 Freelancer navigating to verification page');
+            navigate('/freelancer/verification', { 
+              state: { 
+                phoneNumber,
+                role,
+                isNewUser: result.isNewUser 
+              } 
+            });
           }
         }, 300);
       } else {
