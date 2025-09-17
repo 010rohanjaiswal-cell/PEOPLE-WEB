@@ -2,18 +2,28 @@ const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
 
-// Try to load payment controller, but don't fail if it's not available
-let paymentController;
+// Create dummy controller for graceful degradation
+const paymentController = {
+  testPaymentService: (req, res) => {
+    res.json({
+      success: true,
+      message: 'Payment service test endpoint working',
+      status: 'dummy_controller'
+    });
+  },
+  createUPIPayment: (req, res) => res.status(503).json({ success: false, message: 'Payment service temporarily unavailable' }),
+  verifyUPIPayment: (req, res) => res.status(503).json({ success: false, message: 'Payment service temporarily unavailable' }),
+  getPaymentStatus: (req, res) => res.status(503).json({ success: false, message: 'Payment service temporarily unavailable' })
+};
+
+// Try to load real payment controller, but don't fail if it's not available
 try {
-  paymentController = require('../controllers/paymentController');
+  const realController = require('../controllers/paymentController');
+  console.log('✅ Payment controller loaded successfully');
+  // Override with real controller
+  Object.assign(paymentController, realController);
 } catch (error) {
-  console.warn('Payment controller not available:', error.message);
-  // Create dummy controller for graceful degradation
-  paymentController = {
-    createUPIPayment: (req, res) => res.status(503).json({ success: false, message: 'Payment service temporarily unavailable' }),
-    verifyUPIPayment: (req, res) => res.status(503).json({ success: false, message: 'Payment service temporarily unavailable' }),
-    getPaymentStatus: (req, res) => res.status(503).json({ success: false, message: 'Payment service temporarily unavailable' })
-  };
+  console.warn('⚠️ Payment controller not available, using dummy controller:', error.message);
 }
 
 // Payment routes
