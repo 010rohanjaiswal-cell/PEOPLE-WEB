@@ -220,27 +220,111 @@ const ClientDashboard = () => {
   };
 
   const handlePayment = async (jobId, paymentMethod) => {
-    if (!window.confirm(`Are you sure you want to pay via ${paymentMethod.toUpperCase()}? This will complete the job.`)) {
-      return;
-    }
+    if (paymentMethod === 'cash') {
+      // Handle cash payment (existing logic)
+      if (!window.confirm('Are you sure you want to pay for this job via cash? This will complete the job.')) {
+        return;
+      }
 
+      try {
+        setLoading(true);
+        setError('');
+        const result = await clientService.payJob(jobId, paymentMethod);
+        if (result.success) {
+          console.log('✅ Cash payment processed successfully:', result.job);
+          await loadClientData(); // Refresh data
+          setError('');
+        } else {
+          setError(result.message || 'Failed to process payment');
+        }
+      } catch (error) {
+        console.error('Error processing cash payment:', error);
+        setError(error.message || 'Failed to process payment');
+      } finally {
+        setLoading(false);
+      }
+    } else if (paymentMethod === 'upi') {
+      // Handle UPI payment (new logic)
+      handleUPIPayment(jobId);
+    }
+  };
+
+  const handleUPIPayment = async (jobId) => {
     try {
       setLoading(true);
       setError('');
-      const result = await clientService.payJob(jobId, paymentMethod);
+      
+      // Import payment service dynamically
+      const paymentService = (await import('../api/paymentService')).default;
+      
+      // Create UPI payment request
+      const result = await paymentService.createUPIPayment(jobId);
+      
       if (result.success) {
-        // Refresh the jobs list
-        await loadClientData();
-        setError('');
+        console.log('✅ UPI payment request created:', result);
+        
+        // Show commission breakdown
+        const commissionBreakdown = `
+Payment Details:
+• Total Amount: ₹${result.amounts.totalAmount}
+• Commission (10%): ₹${result.amounts.commission}
+• Freelancer Amount (90%): ₹${result.amounts.freelancerAmount}
+
+You will be redirected to the payment gateway.`;
+        
+        if (window.confirm(commissionBreakdown + '\n\nProceed to payment?')) {
+          // Open payment gateway in new window
+          const paymentWindow = window.open(result.paymentUrl, '_blank', 'width=800,height=600');
+          
+          // Start polling for payment status
+          pollPaymentStatus(jobId, result.orderId);
+        }
       } else {
-        setError(result.message || 'Failed to process payment');
+        setError(result.message || 'Failed to create payment request');
       }
     } catch (error) {
-      console.error('Error processing payment:', error);
-      setError(error.message || 'Failed to process payment');
+      console.error('Error creating UPI payment:', error);
+      setError(error.message || 'Failed to create payment request');
     } finally {
       setLoading(false);
     }
+  };
+
+  const pollPaymentStatus = async (jobId, orderId) => {
+    const maxAttempts = 30; // 5 minutes with 10-second intervals
+    let attempts = 0;
+    
+    const checkStatus = async () => {
+      try {
+        attempts++;
+        const paymentService = (await import('../api/paymentService')).default;
+        const result = await paymentService.verifyUPIPayment(orderId);
+        
+        if (result.success && result.isSuccess) {
+          console.log('✅ Payment completed successfully');
+          await loadClientData(); // Refresh data
+          setError('');
+          return;
+        }
+        
+        if (attempts < maxAttempts) {
+          setTimeout(checkStatus, 10000); // Check again in 10 seconds
+        } else {
+          console.log('⏰ Payment status check timeout');
+          setError('Payment verification timeout. Please check your payment status manually.');
+        }
+      } catch (error) {
+        console.error('Error checking payment status:', error);
+        if (attempts < maxAttempts) {
+          setTimeout(checkStatus, 10000);
+        } else {
+          setError('Failed to verify payment status');
+        }
+      }
+    };
+    
+    // Start checking after 5 seconds
+    setTimeout(checkStatus, 5000);
   };
 
   const handleAcceptOffer = async (jobId, freelancerId) => {

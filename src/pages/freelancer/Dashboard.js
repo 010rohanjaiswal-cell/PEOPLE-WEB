@@ -585,6 +585,11 @@ const FreelancerDashboard = () => {
                     {transaction.jobId && (
                       <p className="text-xs text-gray-500">Job ID: {transaction.jobId}</p>
                     )}
+                    {transaction.commission && transaction.totalAmount && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        <p>Total: ₹{transaction.totalAmount} | Commission: ₹{transaction.commission}</p>
+                      </div>
+                    )}
                     <p className="text-sm text-muted-foreground">
                       {new Date(transaction.createdAt).toLocaleDateString()}
                     </p>

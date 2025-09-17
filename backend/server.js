@@ -107,6 +107,7 @@ app.use('/api/client', clientRoutes);
 app.use('/api/freelancer', freelancerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/payment', require('./routes/payment'));
 app.use('/api/debug', debugRoutes);
 
 // 404 handler
