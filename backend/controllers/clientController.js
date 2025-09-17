@@ -61,8 +61,8 @@ const getMyJobs = async (req, res) => {
     console.log('🔍 getMyJobs - total jobs in store:', inMemoryJobs.length);
     console.log('🔍 getMyJobs - all jobs:', inMemoryJobs.map(j => ({ id: j.id, clientId: j.clientId, status: j.status })));
     
-    // Show jobs that are active (open, assigned, in-progress, work_done) but not completed or cancelled
-    const activeStatuses = ['open', 'assigned', 'in-progress', 'work_done'];
+    // Show jobs that are active (open, assigned, in-progress, work_done, completed) but not fully_completed or cancelled
+    const activeStatuses = ['open', 'assigned', 'in-progress', 'work_done', 'completed'];
     const jobs = inMemoryJobs.filter(j => 
       String(j.clientId) === String(clientId) && 
       activeStatuses.includes(j.status)
@@ -87,7 +87,7 @@ const getMyJobs = async (req, res) => {
 const getJobHistory = async (req, res) => {
   try {
     const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
-    const jobs = inMemoryJobs.filter(j => String(j.clientId) === String(clientId) && j.status === 'completed');
+    const jobs = inMemoryJobs.filter(j => String(j.clientId) === String(clientId) && j.status === 'fully_completed');
     res.json({ success: true, jobs });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch job history' });
@@ -276,6 +276,43 @@ const payJob = async (req, res) => {
 
     console.log('💳 payJob - job marked as completed');
     console.log('💳 payJob - payment method:', paymentMethod);
+    
+    // Credit freelancer's wallet
+    const User = require('../models/User');
+    const freelancerId = job.assignedFreelancer.id;
+    const jobAmount = job.budget;
+    
+    try {
+      const freelancer = await User.findById(freelancerId);
+      if (freelancer) {
+        // Update wallet balance
+        freelancer.wallet.balance = (freelancer.wallet.balance || 0) + jobAmount;
+        freelancer.wallet.totalEarnings = (freelancer.wallet.totalEarnings || 0) + jobAmount;
+        
+        // Add transaction record
+        if (!freelancer.wallet.transactions) {
+          freelancer.wallet.transactions = [];
+        }
+        
+        freelancer.wallet.transactions.unshift({
+          id: 'txn-' + Date.now(),
+          type: 'credit',
+          amount: jobAmount,
+          description: `Payment for job: ${job.title}`,
+          clientName: req.user.fullName,
+          jobId: job.id,
+          createdAt: new Date().toISOString()
+        });
+        
+        await freelancer.save();
+        console.log('💰 payJob - freelancer wallet credited:', { freelancerId, amount: jobAmount });
+      } else {
+        console.log('⚠️ payJob - freelancer not found:', freelancerId);
+      }
+    } catch (walletError) {
+      console.error('❌ payJob - wallet credit error:', walletError);
+      // Don't fail the payment if wallet update fails
+    }
     
     // Save to file for persistence
     saveJobsToFile();

@@ -162,17 +162,48 @@ const FreelancerDashboard = () => {
   };
 
   const handleJobComplete = async (jobId) => {
+    if (!window.confirm('Are you sure you want to mark this job as work done? This will notify the client for payment.')) {
+      return;
+    }
+
     try {
       setLoading(true);
+      setError('');
       const result = await freelancerService.markJobComplete(jobId);
       if (result.success) {
+        console.log('✅ Job marked as work done successfully:', result.job);
         loadFreelancerData(); // Refresh data
+        setError('');
       } else {
-        setError(result.message || 'Failed to mark job complete');
+        setError(result.message || 'Failed to mark job as work done');
       }
     } catch (error) {
-      console.error('Error completing job:', error);
-      setError(error.message || 'Failed to complete job');
+      console.error('Error marking job as work done:', error);
+      setError(error.message || 'Failed to mark job as work done');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleJobFullyComplete = async (jobId) => {
+    if (!window.confirm('Are you sure you want to mark this job as fully completed? This will remove it from your active jobs.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      const result = await freelancerService.markJobFullyComplete(jobId);
+      if (result.success) {
+        console.log('✅ Job marked as fully completed successfully:', result.job);
+        loadFreelancerData(); // Refresh data
+        setError('');
+      } else {
+        setError(result.message || 'Failed to mark job as fully completed');
+      }
+    } catch (error) {
+      console.error('Error marking job as fully completed:', error);
+      setError(error.message || 'Failed to mark job as fully completed');
     } finally {
       setLoading(false);
     }
@@ -437,11 +468,15 @@ const FreelancerDashboard = () => {
                   </div>
                 )}
                 {job.status === 'completed' && (
-                  <div className="flex items-center space-x-2">
-                    <div className="flex items-center text-green-600">
+                  <div className="flex space-x-2">
+                    <Button 
+                      onClick={() => handleJobFullyComplete(job.id)}
+                      disabled={loading}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
                       <CheckCircle className="w-4 h-4 mr-1" />
-                      <span className="text-sm font-medium">Payment Received</span>
-                    </div>
+                      Completed
+                    </Button>
                     {job.clientId && (
                       <Button 
                         variant="outline"
@@ -544,6 +579,12 @@ const FreelancerDashboard = () => {
                 <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
                   <div>
                     <p className="font-medium">{transaction.description}</p>
+                    {transaction.clientName && (
+                      <p className="text-sm text-blue-600">From: {transaction.clientName}</p>
+                    )}
+                    {transaction.jobId && (
+                      <p className="text-xs text-gray-500">Job ID: {transaction.jobId}</p>
+                    )}
                     <p className="text-sm text-muted-foreground">
                       {new Date(transaction.createdAt).toLocaleDateString()}
                     </p>

@@ -172,7 +172,7 @@ const getAssignedJobs = async (req, res) => {
     const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
     const assignedJobs = Array.isArray(inMemoryJobs) 
       ? inMemoryJobs.filter(job => 
-          job.status === 'assigned' && 
+          (job.status === 'assigned' || job.status === 'work_done' || job.status === 'completed') && 
           job.assignedFreelancer && 
           String(job.assignedFreelancer.id) === freelancerId
         )
@@ -257,6 +257,72 @@ const markJobComplete = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to mark job as complete'
+    });
+  }
+};
+
+// Mark job as fully completed (after payment received)
+const markJobFullyComplete = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const user = req.user;
+    const freelancerId = String(user._id);
+
+    console.log('✅ markJobFullyComplete - jobId:', jobId);
+    console.log('✅ markJobFullyComplete - freelancerId:', freelancerId);
+
+    // Get jobs from in-memory store
+    const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
+    
+    if (!Array.isArray(inMemoryJobs)) {
+      return res.status(404).json({
+        success: false,
+        message: 'No jobs found'
+      });
+    }
+
+    // Find the job
+    const jobIndex = inMemoryJobs.findIndex(job => job.id === jobId);
+    if (jobIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found'
+      });
+    }
+
+    const job = inMemoryJobs[jobIndex];
+    console.log('✅ markJobFullyComplete - found job:', { id: job.id, title: job.title, status: job.status });
+
+    // Check if job is completed (payment received)
+    if (job.status !== 'completed' || !job.assignedFreelancer || String(job.assignedFreelancer.id) !== freelancerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Job must be completed (payment received) before marking as fully complete'
+      });
+    }
+
+    // Update job status to fully completed
+    job.status = 'fully_completed';
+    job.fullyCompletedAt = new Date().toISOString();
+    job.fullyCompletedBy = freelancerId;
+
+    console.log('✅ markJobFullyComplete - job marked as fully completed');
+    console.log('✅ markJobFullyComplete - fully completed at:', job.fullyCompletedAt);
+    
+    // Save to file for persistence
+    saveJobsToFile();
+
+    res.json({
+      success: true,
+      message: 'Job marked as fully completed successfully',
+      job: job
+    });
+
+  } catch (error) {
+    console.error('❌ markJobFullyComplete error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to mark job as fully complete'
     });
   }
 };
@@ -493,5 +559,6 @@ module.exports = {
   pickupJob,
   makeOffer,
   checkCooldownStatus,
-  markJobComplete
+  markJobComplete,
+  markJobFullyComplete
 };

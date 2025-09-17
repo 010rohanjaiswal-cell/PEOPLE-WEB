@@ -279,6 +279,16 @@ export const freelancerService = {
     }
   },
 
+  // Mark job as fully complete
+  markJobFullyComplete: async (jobId) => {
+    try {
+      const response = await api.post(`/freelancer/mark-fully-complete/${jobId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
   // Get wallet balance and transactions
   getWallet: async () => {
     try {
