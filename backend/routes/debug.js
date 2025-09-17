@@ -10,4 +10,7 @@ if (process.env.NODE_ENV !== 'production') {
   router.post('/add-test-job', authMiddleware.verifyToken, debugController.addTestJob);
 }
 
+// Payment debug route (always available)
+router.get('/payment', debugController.debugPayment);
+
 module.exports = router;

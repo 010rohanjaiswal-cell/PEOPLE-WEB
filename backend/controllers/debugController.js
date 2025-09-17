@@ -106,8 +106,83 @@ const addTestJob = async (req, res) => {
   }
 };
 
+// Simple payment service debug
+const debugPayment = async (req, res) => {
+  try {
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      dependencies: {
+        axios: testModule('axios'),
+        cryptoJs: testModule('crypto-js')
+      },
+      services: {
+        paymentService: testPaymentService(),
+        paymentController: testPaymentController()
+      },
+      environment: {
+        NODE_ENV: process.env.NODE_ENV,
+        PAYMENT_REDIRECT_URL: process.env.PAYMENT_REDIRECT_URL
+      }
+    };
+
+    res.json({
+      success: true,
+      message: 'Payment debug completed',
+      debugInfo
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Payment debug failed',
+      error: error.message
+    });
+  }
+};
+
+// Helper function to test module loading
+function testModule(moduleName) {
+  try {
+    require(moduleName);
+    return { available: true };
+  } catch (error) {
+    return { available: false, error: error.message };
+  }
+}
+
+// Test payment service
+function testPaymentService() {
+  try {
+    const service = require('../services/paymentService');
+    return { available: true, hasCalculateAmounts: typeof service.calculateAmounts === 'function' };
+  } catch (error) {
+    try {
+      const minimalService = require('../services/paymentServiceMinimal');
+      return { available: true, type: 'minimal', hasCalculateAmounts: typeof minimalService.calculateAmounts === 'function' };
+    } catch (minimalError) {
+      return { available: false, error: error.message };
+    }
+  }
+}
+
+// Test payment controller
+function testPaymentController() {
+  try {
+    const controller = require('../controllers/paymentController');
+    return { available: true, hasCreateUPIPayment: typeof controller.createUPIPayment === 'function' };
+  } catch (error) {
+    try {
+      const minimalController = require('../controllers/paymentControllerMinimal');
+      return { available: true, type: 'minimal', hasCreateUPIPayment: typeof minimalController.createUPIPayment === 'function' };
+    } catch (minimalError) {
+      return { available: false, error: error.message };
+    }
+  }
+}
+
 module.exports = {
   debugJobs,
   clearJobs,
-  addTestJob
+  addTestJob,
+  debugPayment
 };
