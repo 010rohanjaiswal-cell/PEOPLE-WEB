@@ -22,6 +22,7 @@ const createUPIPayment = async (req, res) => {
 
     console.log('💳 createUPIPayment - jobId:', jobId);
     console.log('💳 createUPIPayment - clientId:', clientId);
+    console.log('💳 createUPIPayment - user:', req.user);
 
     // Find the job
     const jobIndex = inMemoryJobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
@@ -45,12 +46,16 @@ const createUPIPayment = async (req, res) => {
     }
 
     // Calculate amounts
+    console.log('💳 createUPIPayment - calculating amounts for budget:', job.budget);
     const amounts = getPaymentService().calculateAmounts(job.budget);
+    console.log('💳 createUPIPayment - calculated amounts:', amounts);
     
     // Generate unique order ID
     const orderId = `ORDER_${jobId}_${Date.now()}`;
+    console.log('💳 createUPIPayment - generated orderId:', orderId);
     
     // Create payment request
+    console.log('💳 createUPIPayment - calling payment service...');
     const paymentResult = await getPaymentService().createPaymentRequest(
       amounts.totalAmount,
       orderId,
@@ -58,6 +63,7 @@ const createUPIPayment = async (req, res) => {
       jobId,
       job.title
     );
+    console.log('💳 createUPIPayment - payment service result:', paymentResult);
 
     if (!paymentResult.success) {
       return res.status(500).json({
@@ -240,8 +246,43 @@ const getPaymentStatus = async (req, res) => {
   }
 };
 
+// Test payment service availability
+const testPaymentService = async (req, res) => {
+  try {
+    console.log('🧪 Testing payment service availability...');
+    
+    // Try to get payment service
+    const service = getPaymentService();
+    console.log('🧪 Payment service loaded successfully');
+    
+    // Test amount calculation
+    const testAmounts = service.calculateAmounts(1000);
+    console.log('🧪 Test amounts calculation:', testAmounts);
+    
+    res.json({
+      success: true,
+      message: 'Payment service is working',
+      testAmounts,
+      serviceInfo: {
+        merchantId: service.merchantId,
+        baseUrl: service.baseUrl,
+        redirectUrl: service.redirectUrl
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Payment service test failed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Payment service test failed',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createUPIPayment,
   verifyUPIPayment,
-  getPaymentStatus
+  getPaymentStatus,
+  testPaymentService
 };

@@ -28,6 +28,8 @@ class PaymentService {
   // Create payment request
   async createPaymentRequest(amount, orderId, userId, jobId, jobTitle) {
     try {
+      console.log('🔧 PaymentService - createPaymentRequest called with:', { amount, orderId, userId, jobId, jobTitle });
+      
       const payload = {
         merchantId: this.merchantId,
         merchantTransactionId: orderId,
@@ -42,11 +44,18 @@ class PaymentService {
         }
       };
 
+      console.log('🔧 PaymentService - payload:', payload);
+      console.log('🔧 PaymentService - baseUrl:', this.baseUrl);
+      console.log('🔧 PaymentService - redirectUrl:', this.redirectUrl);
+
       const checksum = this.generateChecksum(payload);
+      console.log('🔧 PaymentService - generated checksum:', checksum);
       
       const requestData = {
         request: Buffer.from(JSON.stringify(payload)).toString('base64')
       };
+
+      console.log('🔧 PaymentService - making API call to PhonePe...');
 
       const response = await axios.post(`${this.baseUrl}/pg/v1/pay`, requestData, {
         headers: {
@@ -56,6 +65,8 @@ class PaymentService {
         }
       });
 
+      console.log('🔧 PaymentService - PhonePe response:', response.data);
+
       return {
         success: true,
         data: response.data,
@@ -63,10 +74,15 @@ class PaymentService {
       };
 
     } catch (error) {
-      console.error('Payment request creation error:', error.response?.data || error.message);
+      console.error('❌ PaymentService - Payment request creation error:', error);
+      console.error('❌ PaymentService - Error response:', error.response?.data);
+      console.error('❌ PaymentService - Error status:', error.response?.status);
+      console.error('❌ PaymentService - Error message:', error.message);
+      
       return {
         success: false,
-        error: error.response?.data || error.message
+        error: error.response?.data || error.message,
+        status: error.response?.status
       };
     }
   }
