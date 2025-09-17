@@ -589,8 +589,12 @@ const AdminDashboard = () => {
                     {filteredResults.clients.map((client) => (
                       <div key={client._id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                            <User className="w-5 h-5 text-blue-600" />
+                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                            {client.profilePhoto ? (
+                              <img src={client.profilePhoto} alt={client.fullName} className="w-full h-full object-cover" />
+                            ) : (
+                              <User className="w-5 h-5 text-blue-600" />
+                            )}
                           </div>
                           <div>
                             <p className="font-medium">{client.fullName}</p>
@@ -635,8 +639,12 @@ const AdminDashboard = () => {
                     {filteredResults.freelancers.map((freelancer) => (
                       <div key={freelancer._id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                            <Shield className="w-5 h-5 text-green-600" />
+                          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center overflow-hidden">
+                            {freelancer.profilePhoto ? (
+                              <img src={freelancer.profilePhoto} alt={freelancer.fullName} className="w-full h-full object-cover" />
+                            ) : (
+                              <Shield className="w-5 h-5 text-green-600" />
+                            )}
                           </div>
                           <div>
                             <p className="font-medium">{freelancer.fullName}</p>

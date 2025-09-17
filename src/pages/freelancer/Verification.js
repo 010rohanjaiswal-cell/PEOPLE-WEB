@@ -255,6 +255,29 @@ const FreelancerVerification = () => {
                   Personal Information
                 </h3>
                 
+                {/* Profile Photo */}
+                <div className="space-y-2">
+                  <Label>Profile Photo</Label>
+                  <div className="flex items-center space-x-4">
+                    <div className="w-20 h-20 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center border">
+                      {previewImages.profilePhoto ? (
+                        <img src={previewImages.profilePhoto} alt="Profile preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <Camera className="w-8 h-8 text-gray-400" />
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleImageChange('profilePhoto', e.target.files[0])}
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Upload a clear face photo</p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="fullName">Full Name</Label>

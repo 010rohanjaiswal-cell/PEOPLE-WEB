@@ -4,7 +4,7 @@ const User = require('../models/User');
 const submitVerification = async (req, res) => {
   try {
     const user = req.user;
-    const { fullName, dateOfBirth, gender, address, aadhaarFront, aadhaarBack, panCard } = req.body;
+    const { fullName, dateOfBirth, gender, address, aadhaarFront, aadhaarBack, panCard, profilePhoto } = req.body;
 
     if (user.role !== 'freelancer') {
       return res.status(403).json({
@@ -24,6 +24,9 @@ const submitVerification = async (req, res) => {
     };
     user.verificationStatus = 'pending';
     user.fullName = fullName;
+    if (profilePhoto) {
+      user.profilePhoto = profilePhoto;
+    }
     await user.save();
 
     console.log('✅ Verification documents submitted for user:', user._id);

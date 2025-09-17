@@ -93,7 +93,7 @@ export const freelancerService = {
       
       // Production: Real API call with Cloudinary uploads
       const uploadPromises = [];
-      const documentFields = ['aadhaarFront', 'aadhaarBack', 'panCard'];
+      const documentFields = ['profilePhoto', 'aadhaarFront', 'aadhaarBack', 'panCard'];
       
       // Upload documents to Cloudinary
       for (const field of documentFields) {
