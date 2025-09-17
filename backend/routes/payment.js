@@ -23,7 +23,15 @@ try {
   // Override with real controller
   Object.assign(paymentController, realController);
 } catch (error) {
-  console.warn('⚠️ Payment controller not available, using dummy controller:', error.message);
+  console.warn('⚠️ Payment controller not available, trying minimal controller:', error.message);
+  try {
+    const minimalController = require('../controllers/paymentControllerMinimal');
+    console.log('✅ Minimal payment controller loaded successfully');
+    // Override with minimal controller
+    Object.assign(paymentController, minimalController);
+  } catch (minimalError) {
+    console.warn('⚠️ Minimal payment controller not available, using dummy controller:', minimalError.message);
+  }
 }
 
 // Payment routes
