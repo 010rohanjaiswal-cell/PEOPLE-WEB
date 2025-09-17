@@ -155,6 +155,19 @@ export const clientService = {
     }
   },
 
+  // Update job
+  updateJob: async (jobId, jobData) => {
+    try {
+      console.log('✏️ Updating job:', jobId, jobData);
+      const response = await api.put(`/client/job/${jobId}`, jobData);
+      console.log('✏️ Update job response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Update job error:', error);
+      throw error.response?.data || error;
+    }
+  },
+
   // Delete job
   deleteJob: async (jobId) => {
     try {

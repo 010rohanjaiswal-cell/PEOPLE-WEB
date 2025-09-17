@@ -10,6 +10,7 @@ router.get('/job-history', authMiddleware.verifyToken, clientController.getJobHi
 router.post('/accept-offer/:jobId', authMiddleware.verifyToken, clientController.acceptOffer);
 router.post('/reject-offer/:jobId', authMiddleware.verifyToken, clientController.rejectOffer);
 router.post('/pay/:jobId', authMiddleware.verifyToken, clientController.payJob);
+router.put('/job/:jobId', authMiddleware.verifyToken, clientController.updateJob);
 router.delete('/job/:jobId', authMiddleware.verifyToken, clientController.deleteJob);
 
 module.exports = router;

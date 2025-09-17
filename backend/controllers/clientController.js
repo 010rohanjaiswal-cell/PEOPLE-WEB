@@ -89,6 +89,76 @@ const payJob = async (req, res) => {
   res.json({ success: true, message: 'Payment processed successfully' });
 };
 
+const updateJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
+    const { title, address, pincode, budget, category, gender, description } = req.body;
+    
+    console.log('✏️ updateJob - jobId:', jobId);
+    console.log('✏️ updateJob - clientId:', clientId);
+    console.log('✏️ updateJob - update data:', { title, address, pincode, budget, category, gender, description });
+    
+    // Find the job
+    const jobIndex = inMemoryJobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
+    if (jobIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+    
+    const job = inMemoryJobs[jobIndex];
+    
+    // Check if client owns the job
+    if (String(job.clientId) !== String(clientId)) {
+      return res.status(403).json({ success: false, message: 'You can only edit your own jobs' });
+    }
+    
+    // Check if job can be edited (not assigned and no accepted offers)
+    if (job.status === 'assigned' || job.status === 'in-progress' || job.status === 'completed') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot edit job that has been assigned to a freelancer' 
+      });
+    }
+    
+    // Check if any offers have been accepted
+    const hasAcceptedOffers = Array.isArray(job.offers) && 
+      job.offers.some(offer => offer.status === 'accepted');
+    
+    if (hasAcceptedOffers) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot edit job with accepted offers' 
+      });
+    }
+    
+    // Validate required fields
+    if (!title || !address || !pincode || !budget || !category || !gender) {
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+    
+    // Update the job
+    inMemoryJobs[jobIndex] = {
+      ...job,
+      title,
+      address,
+      pincode,
+      budget: Number(budget),
+      category,
+      gender,
+      description: description || '',
+      updatedAt: new Date().toISOString()
+    };
+    
+    console.log('✏️ updateJob - job updated successfully');
+    console.log('✏️ updateJob - updated job:', inMemoryJobs[jobIndex]);
+    
+    res.json({ success: true, message: 'Job updated successfully', job: inMemoryJobs[jobIndex] });
+  } catch (error) {
+    console.error('❌ updateJob error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update job' });
+  }
+};
+
 const deleteJob = async (req, res) => {
   try {
     const { jobId } = req.params;
@@ -148,5 +218,6 @@ module.exports = {
   acceptOffer,
   rejectOffer,
   payJob,
+  updateJob,
   deleteJob
 };

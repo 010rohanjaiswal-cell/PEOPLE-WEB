@@ -18,7 +18,8 @@ import {
   Users,
   AlertCircle,
   Bug,
-  Trash2
+  Trash2,
+  Edit
 } from 'lucide-react';
 
 const ClientDashboard = () => {
@@ -30,6 +31,7 @@ const ClientDashboard = () => {
   const [activeJobs, setActiveJobs] = useState([]);
   const [jobHistory, setJobHistory] = useState([]);
   const [activeJobOffers, setActiveJobOffers] = useState(null);
+  const [editJobModal, setEditJobModal] = useState({ open: false, job: null });
 
   // Job posting form state
   const [jobForm, setJobForm] = useState({
@@ -159,6 +161,42 @@ const ClientDashboard = () => {
       job.offers.some(offer => offer.status === 'accepted');
     
     return !hasAcceptedOffers;
+  };
+
+  const canEditJob = (job) => {
+    // Can edit if job is still open and no offers have been accepted
+    if (job.status !== 'open') return false;
+    
+    // Check if any offers have been accepted
+    const hasAcceptedOffers = Array.isArray(job.offers) && 
+      job.offers.some(offer => offer.status === 'accepted');
+    
+    return !hasAcceptedOffers;
+  };
+
+  const handleEditJob = (job) => {
+    setEditJobModal({ open: true, job });
+  };
+
+  const handleUpdateJob = async (jobId, updatedJobData) => {
+    try {
+      setLoading(true);
+      setError('');
+      const result = await clientService.updateJob(jobId, updatedJobData);
+      if (result.success) {
+        // Refresh the jobs list
+        await loadClientData();
+        setEditJobModal({ open: false, job: null });
+        setError('');
+      } else {
+        setError(result.message || 'Failed to update job');
+      }
+    } catch (error) {
+      console.error('Error updating job:', error);
+      setError(error.message || 'Failed to update job');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRoleSwitch = async () => {
@@ -349,7 +387,14 @@ const ClientDashboard = () => {
                     {job.status}
                   </span>
                 </div>
-                <CardDescription>{job.address} {job.pincode ? `- ${job.pincode}` : ''}</CardDescription>
+                <CardDescription>
+                  {job.address} {job.pincode ? `- ${job.pincode}` : ''}
+                  {job.description && (
+                    <div className="mt-2 text-sm text-gray-600">
+                      {job.description}
+                    </div>
+                  )}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between text-sm">
@@ -370,6 +415,17 @@ const ClientDashboard = () => {
                     <Button size="sm" variant="outline" onClick={() => setActiveJobOffers(job)}>
                       View Offers
                     </Button>
+                    {canEditJob(job) && (
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => handleEditJob(job)}
+                        disabled={loading}
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    )}
                     {canDeleteJob(job) && (
                       <Button 
                         size="sm" 
@@ -593,6 +649,133 @@ const ClientDashboard = () => {
               </div>
               <div className="p-6 border-t text-right">
                 <Button variant="outline" onClick={() => setActiveJobOffers(null)}>Close</Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Job Modal */}
+        {editJobModal.open && editJobModal.job && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setEditJobModal({ open: false, job: null })}>
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6 border-b flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Edit Job: {editJobModal.job.title}</h3>
+                <button className="text-gray-500 hover:text-gray-700" onClick={() => setEditJobModal({ open: false, job: null })}>Close</button>
+              </div>
+              <div className="p-6">
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.target);
+                  const updatedJobData = {
+                    title: formData.get('title'),
+                    address: formData.get('address'),
+                    pincode: formData.get('pincode'),
+                    budget: formData.get('budget'),
+                    category: formData.get('category'),
+                    gender: formData.get('gender'),
+                    description: formData.get('description')
+                  };
+                  handleUpdateJob(editJobModal.job.id, updatedJobData);
+                }} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-title">Job Title</Label>
+                      <Input
+                        id="edit-title"
+                        name="title"
+                        defaultValue={editJobModal.job.title}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-category">Category</Label>
+                      <select
+                        id="edit-category"
+                        name="category"
+                        defaultValue={editJobModal.job.category}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        required
+                      >
+                        <option value="">Select category</option>
+                        {categories.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-address">Address</Label>
+                    <Input
+                      id="edit-address"
+                      name="address"
+                      defaultValue={editJobModal.job.address}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-pincode">Pincode</Label>
+                      <Input
+                        id="edit-pincode"
+                        name="pincode"
+                        type="number"
+                        defaultValue={editJobModal.job.pincode}
+                        min="100000"
+                        max="999999"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-budget">Budget (₹)</Label>
+                      <Input
+                        id="edit-budget"
+                        name="budget"
+                        type="number"
+                        defaultValue={editJobModal.job.budget}
+                        min="10"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-gender">Gender</Label>
+                      <select
+                        id="edit-gender"
+                        name="gender"
+                        defaultValue={editJobModal.job.gender}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        required
+                      >
+                        <option value="">Select gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Any">Any</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-description">Job Description (Optional)</Label>
+                    <textarea
+                      id="edit-description"
+                      name="description"
+                      defaultValue={editJobModal.job.description || ''}
+                      placeholder="Describe the job requirements, tasks, or any additional details..."
+                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      rows={3}
+                    />
+                  </div>
+                  
+                  <div className="flex space-x-3 pt-4">
+                    <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" loading={loading}>
+                      Update Job
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setEditJobModal({ open: false, job: null })}>
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
               </div>
             </div>
           </div>
