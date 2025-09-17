@@ -119,6 +119,7 @@ try {
   });
 }
 app.use('/api/debug', debugRoutes);
+app.use('/api/debug-payment', require('./routes/debugPayment'));
 
 // 404 handler
 app.use('*', (req, res) => {
