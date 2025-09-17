@@ -287,7 +287,11 @@ const AdminDashboard = () => {
               <div className="bg-gray-50 p-6 rounded-t-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 border">
+                    <div 
+                      className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 border cursor-zoom-in"
+                      onClick={() => verification.profilePhoto && setImagePreviewUrl(verification.profilePhoto)}
+                      title={verification.profilePhoto ? 'Click to preview' : ''}
+                    >
                       {verification.profilePhoto ? (
                         <img src={verification.profilePhoto} alt={verification.fullName} className="w-full h-full object-cover" />
                       ) : (
