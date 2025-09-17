@@ -153,5 +153,18 @@ export const clientService = {
     } catch (error) {
       throw error.response?.data || error;
     }
+  },
+
+  // Delete job
+  deleteJob: async (jobId) => {
+    try {
+      console.log('🗑️ Deleting job:', jobId);
+      const response = await api.delete(`/client/job/${jobId}`);
+      console.log('🗑️ Delete job response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Delete job error:', error);
+      throw error.response?.data || error;
+    }
   }
 };

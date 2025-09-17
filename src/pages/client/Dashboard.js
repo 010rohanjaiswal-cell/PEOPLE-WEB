@@ -17,7 +17,8 @@ import {
   Clock,
   Users,
   AlertCircle,
-  Bug
+  Bug,
+  Trash2
 } from 'lucide-react';
 
 const ClientDashboard = () => {
@@ -121,6 +122,41 @@ const ClientDashboard = () => {
       console.error('Logout error:', error);
       logout(); // Force logout even if API fails
     }
+  };
+
+  const handleDeleteJob = async (jobId) => {
+    if (!window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      const result = await clientService.deleteJob(jobId);
+      if (result.success) {
+        // Refresh the jobs list
+        await loadClientData();
+        setError('');
+      } else {
+        setError(result.message || 'Failed to delete job');
+      }
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      setError(error.message || 'Failed to delete job');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const canDeleteJob = (job) => {
+    // Can delete if job is still open and no offers have been accepted
+    if (job.status !== 'open') return false;
+    
+    // Check if any offers have been accepted
+    const hasAcceptedOffers = Array.isArray(job.offers) && 
+      job.offers.some(offer => offer.status === 'accepted');
+    
+    return !hasAcceptedOffers;
   };
 
   const handleRoleSwitch = async () => {
@@ -316,9 +352,22 @@ const ClientDashboard = () => {
                       {job.offers?.length || 0} offers
                     </span>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => setActiveJobOffers(job)}>
-                    View Offers
-                  </Button>
+                  <div className="flex items-center space-x-2">
+                    <Button size="sm" variant="outline" onClick={() => setActiveJobOffers(job)}>
+                      View Offers
+                    </Button>
+                    {canDeleteJob(job) && (
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => handleDeleteJob(job.id)}
+                        disabled={loading}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

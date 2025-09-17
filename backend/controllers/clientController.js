@@ -88,11 +88,64 @@ const payJob = async (req, res) => {
   res.json({ success: true, message: 'Payment processed successfully' });
 };
 
+const deleteJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
+    
+    console.log('🗑️ deleteJob - jobId:', jobId);
+    console.log('🗑️ deleteJob - clientId:', clientId);
+    
+    // Find the job
+    const jobIndex = inMemoryJobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
+    if (jobIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+    
+    const job = inMemoryJobs[jobIndex];
+    
+    // Check if client owns the job
+    if (String(job.clientId) !== String(clientId)) {
+      return res.status(403).json({ success: false, message: 'You can only delete your own jobs' });
+    }
+    
+    // Check if job can be deleted (not assigned and no accepted offers)
+    if (job.status === 'assigned' || job.status === 'in-progress' || job.status === 'completed') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot delete job that has been assigned to a freelancer' 
+      });
+    }
+    
+    // Check if any offers have been accepted
+    const hasAcceptedOffers = Array.isArray(job.offers) && 
+      job.offers.some(offer => offer.status === 'accepted');
+    
+    if (hasAcceptedOffers) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot delete job with accepted offers' 
+      });
+    }
+    
+    // Delete the job
+    inMemoryJobs.splice(jobIndex, 1);
+    console.log('🗑️ deleteJob - job deleted successfully');
+    console.log('🗑️ deleteJob - remaining jobs:', inMemoryJobs.length);
+    
+    res.json({ success: true, message: 'Job deleted successfully' });
+  } catch (error) {
+    console.error('❌ deleteJob error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete job' });
+  }
+};
+
 module.exports = {
   postJob,
   getMyJobs,
   getJobHistory,
   acceptOffer,
   rejectOffer,
-  payJob
+  payJob,
+  deleteJob
 };
