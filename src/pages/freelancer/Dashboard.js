@@ -210,7 +210,9 @@ const FreelancerDashboard = () => {
         </Card>
       ) : (
         <div className="grid gap-4">
-          {availableJobs.map(job => (
+          {availableJobs.map(job => {
+            console.log('🔍 Job data:', job); // Debug log
+            return (
             <Card key={job.id}>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -222,21 +224,34 @@ const FreelancerDashboard = () => {
                 <CardDescription>{job.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between text-sm mb-4">
-                  <div className="flex items-center space-x-4">
-                    <span className="flex items-center">
-                      <DollarSign className="w-4 h-4 mr-1" />
-                      ₹{job.budget}
-                    </span>
-                    <span className="flex items-center">
-                      <Clock className="w-4 h-4 mr-1" />
-                      {new Date(job.deadline).toLocaleDateString()}
-                    </span>
-                    <span className="flex items-center">
-                      <MapPin className="w-4 h-4 mr-1" />
-                      {job.location || 'Remote'}
-                    </span>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-4">
+                      <span className="flex items-center">
+                        <DollarSign className="w-4 h-4 mr-1" />
+                        ₹{job.budget}
+                      </span>
+                      <span className="flex items-center">
+                        <Clock className="w-4 h-4 mr-1" />
+                        Posted: {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : 'Recently'}
+                      </span>
+                    </div>
                   </div>
+                  
+                  {job.address && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <MapPin className="w-4 h-4 mr-2" />
+                      <span>{job.address}</span>
+                      {job.pincode && <span className="ml-2">- {job.pincode}</span>}
+                    </div>
+                  )}
+                  
+                  {job.gender && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <User className="w-4 h-4 mr-2" />
+                      <span>Gender Preference: {job.gender}</span>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex space-x-2">
@@ -261,7 +276,8 @@ const FreelancerDashboard = () => {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
