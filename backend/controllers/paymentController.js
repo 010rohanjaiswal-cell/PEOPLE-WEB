@@ -9,11 +9,18 @@ const getPaymentService = () => {
     try {
       paymentService = require('../services/paymentService');
       paymentServiceAvailable = true;
-      console.log('✅ Payment service loaded successfully');
+      console.log('✅ Full payment service loaded successfully');
     } catch (error) {
-      console.error('❌ Failed to load payment service:', error);
-      paymentServiceAvailable = false;
-      throw new Error('Payment service not available');
+      console.warn('⚠️ Full payment service not available, using minimal service:', error.message);
+      try {
+        paymentService = require('../services/paymentServiceMinimal');
+        paymentServiceAvailable = true;
+        console.log('✅ Minimal payment service loaded successfully');
+      } catch (minimalError) {
+        console.error('❌ Failed to load any payment service:', minimalError);
+        paymentServiceAvailable = false;
+        throw new Error('Payment service not available');
+      }
     }
   }
   return paymentService;
