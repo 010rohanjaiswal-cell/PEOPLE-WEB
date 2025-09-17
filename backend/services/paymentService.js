@@ -1,5 +1,12 @@
-const axios = require('axios');
-const crypto = require('crypto-js');
+// Check if dependencies are available
+let axios, crypto;
+try {
+  axios = require('axios');
+  crypto = require('crypto-js');
+} catch (error) {
+  console.error('Payment service dependencies not available:', error.message);
+  throw new Error('Payment service dependencies not installed');
+}
 
 class PaymentService {
   constructor() {
@@ -7,7 +14,7 @@ class PaymentService {
     this.saltKey = 'd74141aa-8762-4d1b-bfa1-dfe2a094d310';
     this.saltIndex = 1;
     this.baseUrl = 'https://api.phonepe.com/apis/hermes';
-    this.redirectUrl = 'https://yourdomain.com/payment/callback'; // Update this with your domain
+    this.redirectUrl = process.env.PAYMENT_REDIRECT_URL || 'https://freelancing-platform-backend-backup.onrender.com/payment/callback';
   }
 
   // Generate checksum for PhonePe API
@@ -107,4 +114,15 @@ class PaymentService {
   }
 }
 
-module.exports = new PaymentService();
+// Export payment service with error handling
+try {
+  module.exports = new PaymentService();
+} catch (error) {
+  console.error('Failed to initialize payment service:', error.message);
+  // Export a dummy service that throws errors
+  module.exports = {
+    calculateAmounts: () => { throw new Error('Payment service not available'); },
+    createPaymentRequest: () => { throw new Error('Payment service not available'); },
+    verifyPayment: () => { throw new Error('Payment service not available'); }
+  };
+}

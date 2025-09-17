@@ -1,5 +1,18 @@
-const paymentService = require('../services/paymentService');
 const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
+
+// Lazy load payment service to avoid build issues
+let paymentService;
+const getPaymentService = () => {
+  if (!paymentService) {
+    try {
+      paymentService = require('../services/paymentService');
+    } catch (error) {
+      console.error('Failed to load payment service:', error);
+      throw new Error('Payment service not available');
+    }
+  }
+  return paymentService;
+};
 
 // Create UPI payment request
 const createUPIPayment = async (req, res) => {
@@ -32,13 +45,13 @@ const createUPIPayment = async (req, res) => {
     }
 
     // Calculate amounts
-    const amounts = paymentService.calculateAmounts(job.budget);
+    const amounts = getPaymentService().calculateAmounts(job.budget);
     
     // Generate unique order ID
     const orderId = `ORDER_${jobId}_${Date.now()}`;
     
     // Create payment request
-    const paymentResult = await paymentService.createPaymentRequest(
+    const paymentResult = await getPaymentService().createPaymentRequest(
       amounts.totalAmount,
       orderId,
       clientId,
@@ -97,7 +110,7 @@ const verifyUPIPayment = async (req, res) => {
     console.log('🔍 verifyUPIPayment - orderId:', orderId);
 
     // Verify payment with PhonePe
-    const verificationResult = await paymentService.verifyPayment(orderId);
+    const verificationResult = await getPaymentService().verifyPayment(orderId);
     
     if (!verificationResult.success) {
       return res.status(500).json({

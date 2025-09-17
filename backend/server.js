@@ -107,7 +107,17 @@ app.use('/api/client', clientRoutes);
 app.use('/api/freelancer', freelancerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/jobs', jobRoutes);
-app.use('/api/payment', require('./routes/payment'));
+// Try to load payment routes, but don't fail if unavailable
+try {
+  app.use('/api/payment', require('./routes/payment'));
+  console.log('✅ Payment routes loaded successfully');
+} catch (error) {
+  console.warn('⚠️ Payment routes not available:', error.message);
+  // Add a dummy route for graceful degradation
+  app.use('/api/payment', (req, res) => {
+    res.status(503).json({ success: false, message: 'Payment service temporarily unavailable' });
+  });
+}
 app.use('/api/debug', debugRoutes);
 
 // 404 handler
