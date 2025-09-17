@@ -4,53 +4,16 @@ const { inMemoryJobs } = require('./sharedJobsStore') || {};
 // Get available jobs for freelancers
 const getAvailableJobs = async (req, res) => {
   try {
-    console.log('🔍 Fetching available jobs');
-    
-    // Prefer in-memory posted jobs if present; fallback to mock
-    const mockJobs = [
-      {
-        id: 'job-1',
-        title: 'Website Development',
-        description: 'Create a modern website for a small business',
-        category: 'Web Development',
-        budget: 15000,
-        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-        location: 'Remote',
-        status: 'open',
-        clientId: 'client-1',
-        createdAt: new Date()
-      },
-      {
-        id: 'job-2',
-        title: 'Mobile App Design',
-        description: 'Design UI/UX for a mobile application',
-        category: 'Design',
-        budget: 25000,
-        deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
-        location: 'Mumbai',
-        status: 'open',
-        clientId: 'client-2',
-        createdAt: new Date()
-      },
-      {
-        id: 'job-3',
-        title: 'Content Writing',
-        description: 'Write blog posts for a tech company',
-        category: 'Writing',
-        budget: 8000,
-        deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
-        location: 'Remote',
-        status: 'open',
-        clientId: 'client-3',
-        createdAt: new Date()
-      }
-    ];
+    console.log('🔍 Fetching available jobs (real, no mock fallback)');
 
-    const jobs = Array.isArray(inMemoryJobs) && inMemoryJobs.length > 0 ? inMemoryJobs.filter(j => j.status === 'open') : mockJobs;
-    res.json({ success: true, jobs, total: jobs.length });
+    const jobs = Array.isArray(inMemoryJobs)
+      ? inMemoryJobs.filter(job => job.status === 'open')
+      : [];
+
+    return res.json({ success: true, jobs, total: jobs.length });
   } catch (error) {
     console.error('Error fetching available jobs:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch available jobs'
     });
@@ -61,29 +24,20 @@ const getAvailableJobs = async (req, res) => {
 const getJobById = async (req, res) => {
   try {
     const { jobId } = req.params;
-    console.log('🔍 Fetching job:', jobId);
-    
-    // Mock job - in production, this would query the database
-    const mockJob = {
-      id: jobId,
-      title: 'Website Development',
-      description: 'Create a modern website for a small business',
-      category: 'Web Development',
-      budget: 15000,
-      deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      location: 'Remote',
-      status: 'open',
-      clientId: 'client-1',
-      createdAt: new Date()
-    };
+    console.log('🔍 Fetching job by ID:', jobId);
 
-    res.json({
-      success: true,
-      job: mockJob
-    });
+    const job = Array.isArray(inMemoryJobs)
+      ? inMemoryJobs.find(j => (j.id || (j._id && String(j._id))) === jobId)
+      : null;
+
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+
+    return res.json({ success: true, job });
   } catch (error) {
     console.error('Error fetching job:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch job'
     });
