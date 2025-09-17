@@ -12,6 +12,7 @@ router.get('/withdrawal-history', authMiddleware.verifyToken, freelancerControll
 router.get('/assigned-jobs', authMiddleware.verifyToken, freelancerController.getAssignedJobs);
 router.post('/pickup-job/:jobId', authMiddleware.verifyToken, freelancerController.pickupJob);
 router.post('/make-offer/:jobId', authMiddleware.verifyToken, freelancerController.makeOffer);
+router.get('/cooldown-status/:jobId', authMiddleware.verifyToken, freelancerController.checkCooldownStatus);
 router.post('/mark-complete/:jobId', authMiddleware.verifyToken, freelancerController.markJobComplete);
 
 module.exports = router;

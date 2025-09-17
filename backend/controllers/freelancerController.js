@@ -250,12 +250,14 @@ const makeOffer = async (req, res) => {
     // Enforce 5-minute cooldown per freelancer per job
     const COOLDOWN_MS = 5 * 60 * 1000;
     const now = Date.now();
-    const lastOffer = Array.isArray(job.offers)
-      ? job.offers.find(o => o.freelancer && String(o.freelancer.id || o.freelancer._id) === String(user._id))
-      : null;
-    if (lastOffer && lastOffer.submittedAt) {
-      const lastAt = new Date(lastOffer.submittedAt).getTime();
-      const remaining = COOLDOWN_MS - (now - lastAt);
+    const freelancerId = String(user._id);
+    
+    // Check cooldown from job's cooldown tracking
+    if (!job.cooldowns) job.cooldowns = {};
+    const lastOfferTime = job.cooldowns[freelancerId];
+    
+    if (lastOfferTime) {
+      const remaining = COOLDOWN_MS - (now - lastOfferTime);
       if (remaining > 0) {
         return res.status(429).json({
           success: false,
@@ -271,7 +273,7 @@ const makeOffer = async (req, res) => {
       message: message || coverLetter || '',
       submittedAt: new Date().toISOString(),
       freelancer: {
-        id: String(user._id),
+        id: freelancerId,
         fullName: user.fullName,
         profilePhoto: user.profilePhoto || null,
         freelancerId: user.freelancerId || null
@@ -279,7 +281,13 @@ const makeOffer = async (req, res) => {
     };
 
     if (!Array.isArray(job.offers)) job.offers = [];
+    
+    // Remove any existing offers from this freelancer and add the new one
+    job.offers = job.offers.filter(o => String(o.freelancer.id) !== freelancerId);
     job.offers.unshift(offer);
+    
+    // Store cooldown timestamp
+    job.cooldowns[freelancerId] = now;
 
     res.json({
       success: true,
@@ -296,6 +304,57 @@ const makeOffer = async (req, res) => {
   }
 };
 
+// Check cooldown status for a job
+const checkCooldownStatus = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const user = req.user;
+    const freelancerId = String(user._id);
+
+    const { inMemoryJobs } = require('./sharedJobsStore');
+    const job = Array.isArray(inMemoryJobs) ? inMemoryJobs.find(j => (j.id || (j._id && String(j._id))) === jobId) : null;
+    
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+
+    const COOLDOWN_MS = 5 * 60 * 1000;
+    const now = Date.now();
+    
+    if (!job.cooldowns || !job.cooldowns[freelancerId]) {
+      return res.json({
+        success: true,
+        canMakeOffer: true,
+        remainingMs: 0
+      });
+    }
+
+    const lastOfferTime = job.cooldowns[freelancerId];
+    const remaining = COOLDOWN_MS - (now - lastOfferTime);
+    
+    if (remaining <= 0) {
+      return res.json({
+        success: true,
+        canMakeOffer: true,
+        remainingMs: 0
+      });
+    }
+
+    return res.json({
+      success: true,
+      canMakeOffer: false,
+      remainingMs: remaining
+    });
+
+  } catch (error) {
+    console.error('Check cooldown status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check cooldown status'
+    });
+  }
+};
+
 module.exports = {
   submitVerification,
   getVerificationStatus,
@@ -305,5 +364,6 @@ module.exports = {
   getAssignedJobs,
   pickupJob,
   makeOffer,
+  checkCooldownStatus,
   markJobComplete
 };

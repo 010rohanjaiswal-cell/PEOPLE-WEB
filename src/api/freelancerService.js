@@ -259,6 +259,16 @@ export const freelancerService = {
     }
   },
 
+  // Check cooldown status for a job
+  checkCooldownStatus: async (jobId) => {
+    try {
+      const response = await api.get(`/freelancer/cooldown-status/${jobId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
   // Mark job as complete
   markJobComplete: async (jobId, completionData = {}) => {
     try {

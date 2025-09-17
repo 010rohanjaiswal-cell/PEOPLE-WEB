@@ -37,6 +37,29 @@ const FreelancerDashboard = () => {
   const [offerModal, setOfferModal] = useState({ open: false, jobId: null, amount: '', message: '' });
   const [offerCooldowns, setOfferCooldowns] = useState({});
 
+  // Check cooldown status for all jobs when component loads
+  useEffect(() => {
+    const checkAllCooldowns = async () => {
+      if (availableJobs.length > 0) {
+        for (const job of availableJobs) {
+          try {
+            const cooldownStatus = await freelancerService.checkCooldownStatus(job.id);
+            if (cooldownStatus.success && !cooldownStatus.canMakeOffer) {
+              setOfferCooldowns(prev => ({
+                ...prev,
+                [job.id]: cooldownStatus.remainingMs
+              }));
+            }
+          } catch (error) {
+            console.error('Error checking cooldown for job:', job.id, error);
+          }
+        }
+      }
+    };
+
+    checkAllCooldowns();
+  }, [availableJobs]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setOfferCooldowns(prev => {
@@ -109,7 +132,7 @@ const FreelancerDashboard = () => {
       const result = await freelancerService.makeOffer(jobId, { amount: offerAmount, message });
       if (result.success) {
         loadFreelancerData(); // Refresh data
-        // If backend returns retryAfterMs on failure, we set cooldown; on success, start 5m cooldown
+        // Start 5m cooldown on success
         setOfferCooldowns(prev => ({ ...prev, [jobId]: 5 * 60 * 1000 }));
       } else {
         setError(result.message || 'Failed to make offer');
