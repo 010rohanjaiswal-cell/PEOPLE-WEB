@@ -223,20 +223,84 @@ const pickupJob = async (req, res) => {
   try {
     const { jobId } = req.params;
     const user = req.user;
+    const freelancerId = String(user._id);
 
-    console.log('🎯 Freelancer picking up job:', jobId);
-    console.log('👤 Freelancer ID:', user._id);
+    console.log('🎯 pickupJob - jobId:', jobId);
+    console.log('🎯 pickupJob - freelancerId:', freelancerId);
 
-    // In a real implementation, you'd update the job status and assign it to the freelancer
+    // Get jobs from in-memory store
+    const { inMemoryJobs } = require('./sharedJobsStore');
+    
+    if (!Array.isArray(inMemoryJobs)) {
+      return res.status(404).json({
+        success: false,
+        message: 'No jobs found'
+      });
+    }
+
+    // Find the job
+    const jobIndex = inMemoryJobs.findIndex(job => job.id === jobId);
+    if (jobIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found'
+      });
+    }
+
+    const job = inMemoryJobs[jobIndex];
+    console.log('🎯 pickupJob - found job:', { id: job.id, title: job.title, status: job.status });
+
+    // Check if job is available for pickup
+    if (job.status !== 'open') {
+      return res.status(400).json({
+        success: false,
+        message: 'Job is not available for pickup'
+      });
+    }
+
+    // Check if freelancer already has an offer for this job
+    if (job.offers && Array.isArray(job.offers)) {
+      const existingOffer = job.offers.find(offer => String(offer.freelancer.id) === freelancerId);
+      if (existingOffer) {
+        return res.status(400).json({
+          success: false,
+          message: 'You already have an offer for this job'
+        });
+      }
+    }
+
+    // Assign job to freelancer
+    job.status = 'assigned';
+    job.assignedFreelancer = {
+      id: freelancerId,
+      fullName: user.fullName,
+      profilePhoto: user.profilePhoto || null,
+      freelancerId: user.freelancerId || null
+    };
+    job.assignedAt = new Date().toISOString();
+    job.pickupMethod = 'direct'; // Mark as direct pickup vs offer acceptance
+
+    // Mark any existing offers as rejected since job is now assigned
+    if (job.offers && Array.isArray(job.offers)) {
+      job.offers.forEach(offer => {
+        if (offer.status !== 'accepted') {
+          offer.status = 'rejected';
+          offer.rejectedAt = new Date().toISOString();
+        }
+      });
+    }
+
+    console.log('✅ pickupJob - job assigned successfully');
+    console.log('✅ pickupJob - assigned freelancer:', job.assignedFreelancer);
+
     res.json({
       success: true,
       message: 'Job picked up successfully',
-      jobId,
-      freelancerId: user._id
+      job: job
     });
 
   } catch (error) {
-    console.error('Pickup job error:', error);
+    console.error('❌ pickupJob error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to pickup job'

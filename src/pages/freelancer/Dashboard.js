@@ -113,11 +113,18 @@ const FreelancerDashboard = () => {
   };
 
   const handleJobPickup = async (jobId) => {
+    if (!window.confirm('Are you sure you want to pickup this job? This will assign it directly to you.')) {
+      return;
+    }
+
     try {
       setLoading(true);
+      setError('');
       const result = await freelancerService.pickupJob(jobId);
       if (result.success) {
+        console.log('✅ Job picked up successfully:', result.job);
         loadFreelancerData(); // Refresh data
+        setError('');
       } else {
         setError(result.message || 'Failed to pickup job');
       }
@@ -283,7 +290,9 @@ const FreelancerDashboard = () => {
                     size="sm" 
                     onClick={() => handleJobPickup(job.id)}
                     disabled={loading}
+                    className="bg-green-600 hover:bg-green-700"
                   >
+                    <CheckCircle className="w-4 h-4 mr-1" />
                     Pickup Job
                   </Button>
                   <Button 
