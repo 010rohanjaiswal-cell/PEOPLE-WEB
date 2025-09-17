@@ -96,8 +96,11 @@ const FreelancerDashboard = () => {
         freelancerService.getWallet()
       ]);
       
+      console.log('📋 loadFreelancerData - assignedRes:', assignedRes);
+      console.log('📋 loadFreelancerData - assignedRes.data:', assignedRes.data);
+      
       setAvailableJobs(jobsRes.jobs || []);
-      setAssignedJobs(assignedRes.jobs || []);
+      setAssignedJobs(assignedRes.data || []);
       setWalletBalance(walletRes.data?.balance || 0);
       setFreelancerId(walletRes.data?.freelancerId || null);
       setWalletTransactions(walletRes.data?.transactions || []);
@@ -335,20 +338,37 @@ const FreelancerDashboard = () => {
                     {job.status}
                   </span>
                 </div>
-                <CardDescription>{job.description}</CardDescription>
+                <CardDescription>
+                  {job.description || 'No description provided'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between text-sm mb-4">
-                  <div className="flex items-center space-x-4">
-                    <span className="flex items-center">
-                      <DollarSign className="w-4 h-4 mr-1" />
-                      ₹{job.budget}
-                    </span>
-                    <span className="flex items-center">
-                      <Clock className="w-4 h-4 mr-1" />
-                      Due: {new Date(job.deadline).toLocaleDateString()}
-                    </span>
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-4">
+                      <span className="flex items-center">
+                        ₹{job.budget}
+                      </span>
+                      {job.gender && (
+                        <span className="flex items-center">
+                          <User className="w-4 h-4 mr-1" />
+                          Gender: {job.gender}
+                        </span>
+                      )}
+                      <span className="flex items-center">
+                        <Clock className="w-4 h-4 mr-1" />
+                        Assigned: {job.assignedAt ? new Date(job.assignedAt).toLocaleDateString() : 'Recently'}
+                      </span>
+                    </div>
                   </div>
+                  
+                  {job.address && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <MapPin className="w-4 h-4 mr-2" />
+                      <span>{job.address}</span>
+                      {job.pincode && <span className="ml-2">- {job.pincode}</span>}
+                    </div>
+                  )}
                 </div>
                 
                 {job.status === 'in_progress' && (

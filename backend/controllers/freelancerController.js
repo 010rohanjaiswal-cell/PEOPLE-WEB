@@ -164,11 +164,26 @@ const getWithdrawalHistory = async (req, res) => {
 const getAssignedJobs = async (req, res) => {
   try {
     const user = req.user;
+    const freelancerId = String(user._id);
 
-    // In a real implementation, you'd fetch from a jobs collection
+    console.log('📋 getAssignedJobs - freelancerId:', freelancerId);
+
+    // Get jobs from in-memory store where this freelancer is assigned
+    const { inMemoryJobs } = require('./sharedJobsStore');
+    const assignedJobs = Array.isArray(inMemoryJobs) 
+      ? inMemoryJobs.filter(job => 
+          job.status === 'assigned' && 
+          job.assignedFreelancer && 
+          String(job.assignedFreelancer.id) === freelancerId
+        )
+      : [];
+
+    console.log('📋 getAssignedJobs - found jobs:', assignedJobs.length);
+    console.log('📋 getAssignedJobs - jobs:', assignedJobs.map(j => ({ id: j.id, title: j.title, status: j.status })));
+
     res.json({
       success: true,
-      data: []
+      data: assignedJobs
     });
 
   } catch (error) {
