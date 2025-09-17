@@ -28,6 +28,7 @@ const ClientDashboard = () => {
   const [error, setError] = useState('');
   const [activeJobs, setActiveJobs] = useState([]);
   const [jobHistory, setJobHistory] = useState([]);
+  const [activeJobOffers, setActiveJobOffers] = useState(null);
 
   // Job posting form state
   const [jobForm, setJobForm] = useState({
@@ -315,8 +316,8 @@ const ClientDashboard = () => {
                       {job.offers?.length || 0} offers
                     </span>
                   </div>
-                  <Button size="sm" variant="outline">
-                    View Details
+                  <Button size="sm" variant="outline" onClick={() => setActiveJobOffers(job)}>
+                    View Offers
                   </Button>
                 </div>
               </CardContent>
@@ -486,6 +487,53 @@ const ClientDashboard = () => {
         {activeTab === 'history' && renderHistory()}
         {activeTab === 'profile' && renderProfile()}
         {activeTab === 'debug' && <DebugPanel />}
+
+        {/* Offers Modal */}
+        {activeJobOffers && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setActiveJobOffers(null)}>
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6 border-b flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Offers for {activeJobOffers.title}</h3>
+                <button className="text-gray-500 hover:text-gray-700" onClick={() => setActiveJobOffers(null)}>Close</button>
+              </div>
+              <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
+                {(!activeJobOffers.offers || activeJobOffers.offers.length === 0) ? (
+                  <p className="text-sm text-muted-foreground">No offers yet.</p>
+                ) : (
+                  activeJobOffers.offers.map((offer) => (
+                    <div key={offer.id} className="p-3 border rounded-lg flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 border">
+                          {offer.freelancer?.profilePhoto ? (
+                            <img src={offer.freelancer.profilePhoto} alt={offer.freelancer.fullName} className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="w-5 h-5 text-gray-500 m-2" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium">{offer.freelancer?.fullName || 'Freelancer'}</p>
+                          {offer.freelancer?.freelancerId && (
+                            <p className="text-xs text-blue-600">ID: <span className="font-mono">{offer.freelancer.freelancerId}</span></p>
+                          )}
+                          {offer.message && (
+                            <p className="text-xs text-gray-600 mt-1">“{offer.message}”</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className="font-semibold">₹{offer.amount}</span>
+                        <Button size="sm" onClick={() => alert('Accept flow TBD')}>Accept</Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="p-6 border-t text-right">
+                <Button variant="outline" onClick={() => setActiveJobOffers(null)}>Close</Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

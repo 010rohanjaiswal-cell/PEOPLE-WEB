@@ -233,26 +233,42 @@ const pickupJob = async (req, res) => {
 const makeOffer = async (req, res) => {
   try {
     const { jobId } = req.params;
-    const { amount, coverLetter } = req.body;
+    const { amount, coverLetter, message } = req.body;
     const user = req.user;
 
     console.log('💰 Freelancer making offer for job:', jobId);
     console.log('👤 Freelancer ID:', user._id);
     console.log('💵 Offer amount:', amount);
 
-    // In a real implementation, you'd save the offer to the database
+    // Save to in-memory job store so client can view offers
+    const { inMemoryJobs } = require('./sharedJobsStore');
+    const job = Array.isArray(inMemoryJobs) ? inMemoryJobs.find(j => (j.id || (j._id && String(j._id))) === jobId) : null;
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+
+    const offer = {
+      id: 'offer-' + Date.now(),
+      amount: Number(amount),
+      message: message || coverLetter || '',
+      submittedAt: new Date().toISOString(),
+      freelancer: {
+        id: String(user._id),
+        fullName: user.fullName,
+        profilePhoto: user.profilePhoto || null,
+        freelancerId: user.freelancerId || null
+      }
+    };
+
+    if (!Array.isArray(job.offers)) job.offers = [];
+    job.offers.unshift(offer);
+
     res.json({
       success: true,
       message: 'Offer submitted successfully',
       jobId,
-      freelancerId: user._id,
-      offer: {
-        amount,
-        coverLetter,
-        submittedAt: new Date()
-      }
+      offer
     });
-
   } catch (error) {
     console.error('Make offer error:', error);
     res.status(500).json({

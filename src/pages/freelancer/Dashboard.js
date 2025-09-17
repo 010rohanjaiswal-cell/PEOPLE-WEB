@@ -19,7 +19,8 @@ import {
   TrendingUp,
   AlertCircle,
   CheckCircle,
-  Eye
+  Eye,
+  XCircle
 } from 'lucide-react';
 
 const FreelancerDashboard = () => {
@@ -33,6 +34,7 @@ const FreelancerDashboard = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [freelancerId, setFreelancerId] = useState(null);
+  const [offerModal, setOfferModal] = useState({ open: false, jobId: null, amount: '', message: '' });
   const [withdrawalForm, setWithdrawalForm] = useState({
     amount: '',
     upiId: ''
@@ -81,10 +83,10 @@ const FreelancerDashboard = () => {
     }
   };
 
-  const handleMakeOffer = async (jobId, offerAmount) => {
+  const handleMakeOffer = async (jobId, offerAmount, message) => {
     try {
       setLoading(true);
-      const result = await freelancerService.makeOffer(jobId, { amount: offerAmount });
+      const result = await freelancerService.makeOffer(jobId, { amount: offerAmount, message });
       if (result.success) {
         loadFreelancerData(); // Refresh data
       } else {
@@ -222,12 +224,7 @@ const FreelancerDashboard = () => {
                   <Button 
                     size="sm" 
                     variant="outline"
-                    onClick={() => {
-                      const amount = prompt('Enter your offer amount:');
-                      if (amount && !isNaN(amount)) {
-                        handleMakeOffer(job.id, parseFloat(amount));
-                      }
-                    }}
+                    onClick={() => setOfferModal({ open: true, jobId: job.id, amount: '', message: '' })}
                     disabled={loading}
                   >
                     Make Offer
@@ -535,6 +532,57 @@ const FreelancerDashboard = () => {
         {activeTab === 'wallet' && renderWallet()}
         {activeTab === 'profile' && renderProfile()}
       </div>
+
+      {/* Make Offer Modal */}
+      {offerModal.open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setOfferModal({ open: false, jobId: null, amount: '', message: '' })}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Make an Offer</h3>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => setOfferModal({ open: false, jobId: null, amount: '', message: '' })}>
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="offerAmount">Offer Amount (₹)</Label>
+                <Input
+                  id="offerAmount"
+                  type="number"
+                  min="1"
+                  placeholder="e.g., 500"
+                  value={offerModal.amount}
+                  onChange={(e) => setOfferModal(prev => ({ ...prev, amount: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="offerMessage">Message (optional)</Label>
+                <textarea
+                  id="offerMessage"
+                  placeholder="Write a brief message to the client (optional)"
+                  className="flex min-h-[90px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  value={offerModal.message}
+                  onChange={(e) => setOfferModal(prev => ({ ...prev, message: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t flex items-center justify-end space-x-2">
+              <Button variant="outline" onClick={() => setOfferModal({ open: false, jobId: null, amount: '', message: '' })}>Cancel</Button>
+              <Button
+                onClick={async () => {
+                  const amt = parseFloat(offerModal.amount);
+                  if (!amt || isNaN(amt) || amt <= 0) return;
+                  await handleMakeOffer(offerModal.jobId, amt, offerModal.message);
+                  setOfferModal({ open: false, jobId: null, amount: '', message: '' });
+                }}
+                disabled={loading || !offerModal.amount}
+              >
+                Submit Offer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
