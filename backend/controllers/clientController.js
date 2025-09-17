@@ -78,11 +78,140 @@ const getJobHistory = async (req, res) => {
 };
 
 const acceptOffer = async (req, res) => {
-  res.json({ success: true, message: 'Offer accepted successfully' });
+  try {
+    const { jobId } = req.params;
+    const { freelancerId } = req.body;
+    const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
+    
+    console.log('✅ acceptOffer - jobId:', jobId);
+    console.log('✅ acceptOffer - freelancerId:', freelancerId);
+    console.log('✅ acceptOffer - clientId:', clientId);
+    
+    // Find the job
+    const jobIndex = inMemoryJobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
+    if (jobIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+    
+    const job = inMemoryJobs[jobIndex];
+    
+    // Check if client owns the job
+    if (String(job.clientId) !== String(clientId)) {
+      return res.status(403).json({ success: false, message: 'You can only accept offers for your own jobs' });
+    }
+    
+    // Check if job is still open
+    if (job.status !== 'open') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Job is no longer available for offers' 
+      });
+    }
+    
+    // Find the offer from the specified freelancer
+    if (!Array.isArray(job.offers)) {
+      return res.status(404).json({ success: false, message: 'No offers found for this job' });
+    }
+    
+    const offerIndex = job.offers.findIndex(offer => String(offer.freelancer.id) === String(freelancerId));
+    if (offerIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Offer not found' });
+    }
+    
+    const acceptedOffer = job.offers[offerIndex];
+    
+    // Mark the accepted offer as accepted
+    job.offers[offerIndex] = {
+      ...acceptedOffer,
+      status: 'accepted',
+      acceptedAt: new Date().toISOString()
+    };
+    
+    // Mark all other offers as rejected
+    job.offers.forEach((offer, index) => {
+      if (index !== offerIndex) {
+        offer.status = 'rejected';
+        offer.rejectedAt = new Date().toISOString();
+      }
+    });
+    
+    // Update job status to assigned
+    job.status = 'assigned';
+    job.assignedFreelancer = {
+      id: acceptedOffer.freelancer.id,
+      fullName: acceptedOffer.freelancer.fullName,
+      profilePhoto: acceptedOffer.freelancer.profilePhoto,
+      freelancerId: acceptedOffer.freelancer.freelancerId
+    };
+    job.assignedAt = new Date().toISOString();
+    job.acceptedOffer = acceptedOffer;
+    
+    console.log('✅ acceptOffer - job updated successfully');
+    console.log('✅ acceptOffer - assigned freelancer:', job.assignedFreelancer);
+    
+    res.json({ 
+      success: true, 
+      message: 'Offer accepted successfully',
+      job: job,
+      acceptedOffer: acceptedOffer
+    });
+  } catch (error) {
+    console.error('❌ acceptOffer error:', error);
+    res.status(500).json({ success: false, message: 'Failed to accept offer' });
+  }
 };
 
 const rejectOffer = async (req, res) => {
-  res.json({ success: true, message: 'Offer rejected successfully' });
+  try {
+    const { jobId } = req.params;
+    const { freelancerId } = req.body;
+    const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
+    
+    console.log('❌ rejectOffer - jobId:', jobId);
+    console.log('❌ rejectOffer - freelancerId:', freelancerId);
+    console.log('❌ rejectOffer - clientId:', clientId);
+    
+    // Find the job
+    const jobIndex = inMemoryJobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
+    if (jobIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+    
+    const job = inMemoryJobs[jobIndex];
+    
+    // Check if client owns the job
+    if (String(job.clientId) !== String(clientId)) {
+      return res.status(403).json({ success: false, message: 'You can only reject offers for your own jobs' });
+    }
+    
+    // Find the offer from the specified freelancer
+    if (!Array.isArray(job.offers)) {
+      return res.status(404).json({ success: false, message: 'No offers found for this job' });
+    }
+    
+    const offerIndex = job.offers.findIndex(offer => String(offer.freelancer.id) === String(freelancerId));
+    if (offerIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Offer not found' });
+    }
+    
+    // Mark the offer as rejected
+    job.offers[offerIndex] = {
+      ...job.offers[offerIndex],
+      status: 'rejected',
+      rejectedAt: new Date().toISOString()
+    };
+    
+    console.log('❌ rejectOffer - offer rejected successfully');
+    
+    res.json({ 
+      success: true, 
+      message: 'Offer rejected successfully',
+      job: job
+    });
+  } catch (error) {
+    console.error('❌ rejectOffer error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reject offer' });
+  }
 };
 
 const payJob = async (req, res) => {

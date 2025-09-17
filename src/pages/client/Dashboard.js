@@ -199,6 +199,56 @@ const ClientDashboard = () => {
     }
   };
 
+  const handleAcceptOffer = async (jobId, freelancerId) => {
+    if (!window.confirm('Are you sure you want to accept this offer? This will assign the job to the freelancer.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      const result = await clientService.acceptOffer(jobId, freelancerId);
+      if (result.success) {
+        // Refresh the jobs list and close offers modal
+        await loadClientData();
+        setActiveJobOffers(null);
+        setError('');
+      } else {
+        setError(result.message || 'Failed to accept offer');
+      }
+    } catch (error) {
+      console.error('Error accepting offer:', error);
+      setError(error.message || 'Failed to accept offer');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectOffer = async (jobId, freelancerId) => {
+    if (!window.confirm('Are you sure you want to reject this offer?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      const result = await clientService.rejectOffer(jobId, freelancerId);
+      if (result.success) {
+        // Refresh the jobs list and close offers modal
+        await loadClientData();
+        setActiveJobOffers(null);
+        setError('');
+      } else {
+        setError(result.message || 'Failed to reject offer');
+      }
+    } catch (error) {
+      console.error('Error rejecting offer:', error);
+      setError(error.message || 'Failed to reject offer');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRoleSwitch = async () => {
     if (!canSwitchRole) {
       setError('You still have an active job. Complete it before switching role.');
@@ -641,7 +691,16 @@ const ClientDashboard = () => {
                       </div>
                       <div className="flex items-center space-x-3">
                         <span className="font-semibold">₹{offer.amount}</span>
-                        <Button size="sm" onClick={() => alert('Accept flow TBD')}>Accept</Button>
+                        {offer.status === 'accepted' ? (
+                          <span className="text-green-600 font-medium text-sm">✓ Accepted</span>
+                        ) : offer.status === 'rejected' ? (
+                          <span className="text-red-600 font-medium text-sm">✗ Rejected</span>
+                        ) : (
+                          <div className="flex space-x-2">
+                            <Button size="sm" onClick={() => handleAcceptOffer(activeJobOffers.id, offer.freelancer.id)}>Accept</Button>
+                            <Button size="sm" variant="outline" onClick={() => handleRejectOffer(activeJobOffers.id, offer.freelancer.id)}>Reject</Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))
