@@ -219,6 +219,30 @@ const ClientDashboard = () => {
     }
   };
 
+  const handlePayment = async (jobId, paymentMethod) => {
+    if (!window.confirm(`Are you sure you want to pay via ${paymentMethod.toUpperCase()}? This will complete the job.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      const result = await clientService.payJob(jobId, paymentMethod);
+      if (result.success) {
+        // Refresh the jobs list
+        await loadClientData();
+        setError('');
+      } else {
+        setError(result.message || 'Failed to process payment');
+      }
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      setError(error.message || 'Failed to process payment');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAcceptOffer = async (jobId, freelancerId) => {
     if (!window.confirm('Are you sure you want to accept this offer? This will assign the job to the freelancer.')) {
       return;
@@ -482,9 +506,11 @@ const ClientDashboard = () => {
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Button size="sm" variant="outline" onClick={() => setActiveJobOffers(job)}>
-                      View Offers
-                    </Button>
+                    {job.status === 'open' && (
+                      <Button size="sm" variant="outline" onClick={() => setActiveJobOffers(job)}>
+                        View Offers
+                      </Button>
+                    )}
                     {job.status === 'assigned' && job.assignedFreelancer?.id && (
                       <Button 
                         size="sm" 
@@ -494,6 +520,49 @@ const ClientDashboard = () => {
                       >
                         View Freelancer
                       </Button>
+                    )}
+                    {job.status === 'work_done' && (
+                      <div className="flex space-x-2">
+                        <Button 
+                          size="sm" 
+                          onClick={() => handlePayment(job.id, 'cash')}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          Pay Cash
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          onClick={() => handlePayment(job.id, 'upi')}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          Pay UPI
+                        </Button>
+                        {job.assignedFreelancer?.id && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => openViewFreelancer(job.assignedFreelancer.id)}
+                            className="text-green-700 hover:text-green-800 hover:bg-green-50"
+                          >
+                            View Freelancer
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    {job.status === 'completed' && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-green-600 font-medium">✓ Payment Completed</span>
+                        {job.assignedFreelancer?.id && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => openViewFreelancer(job.assignedFreelancer.id)}
+                            className="text-green-700 hover:text-green-800 hover:bg-green-50"
+                          >
+                            View Freelancer
+                          </Button>
+                        )}
+                      </div>
                     )}
                     {canEditJob(job) && (
                       <Button 

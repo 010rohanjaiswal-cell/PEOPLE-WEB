@@ -179,5 +179,18 @@ export const clientService = {
       console.error('❌ Delete job error:', error);
       throw error.response?.data || error;
     }
+  },
+
+  // Pay for job
+  payJob: async (jobId, paymentMethod) => {
+    try {
+      console.log('💳 Paying for job:', jobId, 'method:', paymentMethod);
+      const response = await api.post(`/client/pay/${jobId}`, { paymentMethod });
+      console.log('💳 Pay job response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Pay job error:', error);
+      throw error.response?.data || error;
+    }
   }
 };

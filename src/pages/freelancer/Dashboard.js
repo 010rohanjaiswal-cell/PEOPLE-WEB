@@ -400,22 +400,57 @@ const FreelancerDashboard = () => {
                   )}
                 </div>
                 
-                {job.status === 'in_progress' && (
-                  <Button 
-                    onClick={() => handleJobComplete(job.id)}
-                    disabled={loading}
-                  >
-                    Mark as Complete
-                  </Button>
+                {job.status === 'assigned' && (
+                  <div className="flex space-x-2">
+                    <Button 
+                      onClick={() => handleJobComplete(job.id)}
+                      disabled={loading}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-1" />
+                      Work Done
+                    </Button>
+                    {job.clientId && (
+                      <Button 
+                        variant="outline"
+                        onClick={() => openViewClient(job.clientId)}
+                      >
+                        View Client
+                      </Button>
+                    )}
+                  </div>
                 )}
-                {job.status === 'assigned' && job.clientId && (
-                  <Button 
-                    variant="outline"
-                    className="ml-2"
-                    onClick={() => openViewClient(job.clientId)}
-                  >
-                    View Client
-                  </Button>
+                {job.status === 'work_done' && (
+                  <div className="flex items-center space-x-2">
+                    <div className="flex items-center text-orange-600">
+                      <Clock className="w-4 h-4 mr-1 animate-spin" />
+                      <span className="text-sm font-medium">Waiting for Payment</span>
+                    </div>
+                    {job.clientId && (
+                      <Button 
+                        variant="outline"
+                        onClick={() => openViewClient(job.clientId)}
+                      >
+                        View Client
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {job.status === 'completed' && (
+                  <div className="flex items-center space-x-2">
+                    <div className="flex items-center text-green-600">
+                      <CheckCircle className="w-4 h-4 mr-1" />
+                      <span className="text-sm font-medium">Payment Received</span>
+                    </div>
+                    {job.clientId && (
+                      <Button 
+                        variant="outline"
+                        onClick={() => openViewClient(job.clientId)}
+                      >
+                        View Client
+                      </Button>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>

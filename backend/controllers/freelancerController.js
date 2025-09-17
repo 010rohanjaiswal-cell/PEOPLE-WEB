@@ -195,22 +195,65 @@ const getAssignedJobs = async (req, res) => {
   }
 };
 
-// Mark job as complete
+// Mark job as work done
 const markJobComplete = async (req, res) => {
   try {
     const { jobId } = req.params;
     const user = req.user;
+    const freelancerId = String(user._id);
 
-    // In a real implementation, you'd update the job status
-    console.log('✅ Job marked complete:', { jobId, userId: user._id });
+    console.log('✅ markJobComplete - jobId:', jobId);
+    console.log('✅ markJobComplete - freelancerId:', freelancerId);
+
+    // Get jobs from in-memory store
+    const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
+    
+    if (!Array.isArray(inMemoryJobs)) {
+      return res.status(404).json({
+        success: false,
+        message: 'No jobs found'
+      });
+    }
+
+    // Find the job
+    const jobIndex = inMemoryJobs.findIndex(job => job.id === jobId);
+    if (jobIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found'
+      });
+    }
+
+    const job = inMemoryJobs[jobIndex];
+    console.log('✅ markJobComplete - found job:', { id: job.id, title: job.title, status: job.status });
+
+    // Check if job is assigned to this freelancer
+    if (job.status !== 'assigned' || !job.assignedFreelancer || String(job.assignedFreelancer.id) !== freelancerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Job is not assigned to you or cannot be marked as complete'
+      });
+    }
+
+    // Update job status to work done
+    job.status = 'work_done';
+    job.workDoneAt = new Date().toISOString();
+    job.workDoneBy = freelancerId;
+
+    console.log('✅ markJobComplete - job marked as work done');
+    console.log('✅ markJobComplete - work done at:', job.workDoneAt);
+    
+    // Save to file for persistence
+    saveJobsToFile();
 
     res.json({
       success: true,
-      message: 'Job marked as complete successfully'
+      message: 'Work marked as done successfully',
+      job: job
     });
 
   } catch (error) {
-    console.error('Mark job complete error:', error);
+    console.error('❌ markJobComplete error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to mark job as complete'

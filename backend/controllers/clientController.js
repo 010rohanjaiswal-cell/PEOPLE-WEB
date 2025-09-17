@@ -61,8 +61,8 @@ const getMyJobs = async (req, res) => {
     console.log('🔍 getMyJobs - total jobs in store:', inMemoryJobs.length);
     console.log('🔍 getMyJobs - all jobs:', inMemoryJobs.map(j => ({ id: j.id, clientId: j.clientId, status: j.status })));
     
-    // Show jobs that are active (open, assigned, in-progress) but not completed or cancelled
-    const activeStatuses = ['open', 'assigned', 'in-progress'];
+    // Show jobs that are active (open, assigned, in-progress, work_done) but not completed or cancelled
+    const activeStatuses = ['open', 'assigned', 'in-progress', 'work_done'];
     const jobs = inMemoryJobs.filter(j => 
       String(j.clientId) === String(clientId) && 
       activeStatuses.includes(j.status)
@@ -238,7 +238,60 @@ const rejectOffer = async (req, res) => {
 };
 
 const payJob = async (req, res) => {
-  res.json({ success: true, message: 'Payment processed successfully' });
+  try {
+    const { jobId } = req.params;
+    const { paymentMethod } = req.body;
+    const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
+
+    console.log('💳 payJob - jobId:', jobId);
+    console.log('💳 payJob - paymentMethod:', paymentMethod);
+    console.log('💳 payJob - clientId:', clientId);
+
+    // Find the job
+    const jobIndex = inMemoryJobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
+    if (jobIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+    
+    const job = inMemoryJobs[jobIndex];
+    
+    // Check if client owns the job
+    if (String(job.clientId) !== String(clientId)) {
+      return res.status(403).json({ success: false, message: 'You can only pay for your own jobs' });
+    }
+    
+    // Check if job is in work_done status
+    if (job.status !== 'work_done') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Job must be marked as work done before payment' 
+      });
+    }
+
+    // Update job status to completed
+    job.status = 'completed';
+    job.paymentMethod = paymentMethod;
+    job.paidAt = new Date().toISOString();
+    job.paidBy = clientId;
+
+    console.log('💳 payJob - job marked as completed');
+    console.log('💳 payJob - payment method:', paymentMethod);
+    
+    // Save to file for persistence
+    saveJobsToFile();
+
+    res.json({ 
+      success: true, 
+      message: 'Payment processed successfully',
+      job: job
+    });
+  } catch (error) {
+    console.error('❌ payJob error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to process payment' 
+    });
+  }
 };
 
 const updateJob = async (req, res) => {
