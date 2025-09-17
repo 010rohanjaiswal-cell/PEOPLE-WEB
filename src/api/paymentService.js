@@ -1,4 +1,40 @@
-import api from './api';
+import axios from 'axios';
+import { storage } from '../utils/storage';
+
+const runtimeApiBaseUrl = (() => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const override = localStorage.getItem('apiBaseUrlOverride');
+      if (override) return override;
+    }
+  } catch (_) {}
+  
+  return process.env.REACT_APP_API_BASE_URL || 'https://freelancing-platform-backend-backup.onrender.com/api';
+})();
+
+// Create axios instance for payment API calls
+const api = axios.create({
+  baseURL: runtimeApiBaseUrl,
+  timeout: 30000,
+});
+
+// Add request interceptor to attach auth token
+api.interceptors.request.use(
+  (config) => {
+    try {
+      const token = storage.getAuthToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.warn('Failed to attach auth token:', error);
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 const paymentService = {
   // Create UPI payment request
