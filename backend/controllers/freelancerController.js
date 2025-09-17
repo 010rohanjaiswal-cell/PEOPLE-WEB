@@ -169,7 +169,7 @@ const getAssignedJobs = async (req, res) => {
     console.log('📋 getAssignedJobs - freelancerId:', freelancerId);
 
     // Get jobs from in-memory store where this freelancer is assigned
-    const { inMemoryJobs } = require('./sharedJobsStore');
+    const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
     const assignedJobs = Array.isArray(inMemoryJobs) 
       ? inMemoryJobs.filter(job => 
           job.status === 'assigned' && 
@@ -229,7 +229,7 @@ const pickupJob = async (req, res) => {
     console.log('🎯 pickupJob - freelancerId:', freelancerId);
 
     // Get jobs from in-memory store
-    const { inMemoryJobs } = require('./sharedJobsStore');
+    const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
     
     if (!Array.isArray(inMemoryJobs)) {
       return res.status(404).json({
@@ -292,6 +292,9 @@ const pickupJob = async (req, res) => {
 
     console.log('✅ pickupJob - job assigned successfully');
     console.log('✅ pickupJob - assigned freelancer:', job.assignedFreelancer);
+    
+    // Save to file for persistence
+    saveJobsToFile();
 
     res.json({
       success: true,
@@ -320,7 +323,7 @@ const makeOffer = async (req, res) => {
     console.log('💵 Offer amount:', amount);
 
     // Save to in-memory job store so client can view offers
-    const { inMemoryJobs } = require('./sharedJobsStore');
+    const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
     const job = Array.isArray(inMemoryJobs) ? inMemoryJobs.find(j => (j.id || (j._id && String(j._id))) === jobId) : null;
     if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
@@ -367,6 +370,9 @@ const makeOffer = async (req, res) => {
     
     // Store cooldown timestamp
     job.cooldowns[freelancerId] = now;
+    
+    // Save to file for persistence
+    saveJobsToFile();
 
     res.json({
       success: true,

@@ -1,5 +1,5 @@
 // In-memory store for demo (replace with DB in production)
-const { inMemoryJobs } = require('./sharedJobsStore');
+const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
 
 const postJob = async (req, res) => {
   try {
@@ -36,6 +36,11 @@ const postJob = async (req, res) => {
     console.log('📝 postJob - created job:', job);
     inMemoryJobs.unshift(job);
     console.log('📝 postJob - total jobs after posting:', inMemoryJobs.length);
+    console.log('📝 postJob - job added to in-memory store with clientId:', clientId);
+    console.log('📝 postJob - current timestamp:', new Date().toISOString());
+    
+    // Save to file for persistence
+    saveJobsToFile();
 
     res.json({ success: true, job });
   } catch (error) {
@@ -56,9 +61,21 @@ const getMyJobs = async (req, res) => {
     console.log('🔍 getMyJobs - total jobs in store:', inMemoryJobs.length);
     console.log('🔍 getMyJobs - all jobs:', inMemoryJobs.map(j => ({ id: j.id, clientId: j.clientId, status: j.status })));
     
-    const jobs = inMemoryJobs.filter(j => String(j.clientId) === String(clientId) && j.status !== 'completed');
+    // Show jobs that are active (open, assigned, in-progress) but not completed or cancelled
+    const activeStatuses = ['open', 'assigned', 'in-progress'];
+    const jobs = inMemoryJobs.filter(j => 
+      String(j.clientId) === String(clientId) && 
+      activeStatuses.includes(j.status)
+    );
+    
+    console.log('🔍 getMyJobs - activeStatuses:', activeStatuses);
+    console.log('🔍 getMyJobs - clientId type:', typeof clientId, 'value:', clientId);
     console.log('🔍 getMyJobs - filtered jobs:', jobs.length);
     console.log('🔍 getMyJobs - filtered jobs details:', jobs);
+    
+    // Additional debug: show jobs that match clientId but have different status
+    const clientJobs = inMemoryJobs.filter(j => String(j.clientId) === String(clientId));
+    console.log('🔍 getMyJobs - all client jobs (any status):', clientJobs.map(j => ({ id: j.id, status: j.status })));
     
     res.json({ success: true, jobs });
   } catch (error) {
@@ -149,6 +166,9 @@ const acceptOffer = async (req, res) => {
     console.log('✅ acceptOffer - job updated successfully');
     console.log('✅ acceptOffer - assigned freelancer:', job.assignedFreelancer);
     
+    // Save to file for persistence
+    saveJobsToFile();
+    
     res.json({ 
       success: true, 
       message: 'Offer accepted successfully',
@@ -202,6 +222,9 @@ const rejectOffer = async (req, res) => {
     };
     
     console.log('❌ rejectOffer - offer rejected successfully');
+    
+    // Save to file for persistence
+    saveJobsToFile();
     
     res.json({ 
       success: true, 
@@ -281,6 +304,9 @@ const updateJob = async (req, res) => {
     console.log('✏️ updateJob - job updated successfully');
     console.log('✏️ updateJob - updated job:', inMemoryJobs[jobIndex]);
     
+    // Save to file for persistence
+    saveJobsToFile();
+    
     res.json({ success: true, message: 'Job updated successfully', job: inMemoryJobs[jobIndex] });
   } catch (error) {
     console.error('❌ updateJob error:', error);
@@ -332,6 +358,9 @@ const deleteJob = async (req, res) => {
     inMemoryJobs.splice(jobIndex, 1);
     console.log('🗑️ deleteJob - job deleted successfully');
     console.log('🗑️ deleteJob - remaining jobs:', inMemoryJobs.length);
+    
+    // Save to file for persistence
+    saveJobsToFile();
     
     res.json({ success: true, message: 'Job deleted successfully' });
   } catch (error) {
