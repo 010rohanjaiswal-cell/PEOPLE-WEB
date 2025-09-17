@@ -2,12 +2,17 @@ const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
 
 // Lazy load payment service to avoid build issues
 let paymentService;
+let paymentServiceAvailable = false;
+
 const getPaymentService = () => {
-  if (!paymentService) {
+  if (!paymentService && !paymentServiceAvailable) {
     try {
       paymentService = require('../services/paymentService');
+      paymentServiceAvailable = true;
+      console.log('✅ Payment service loaded successfully');
     } catch (error) {
-      console.error('Failed to load payment service:', error);
+      console.error('❌ Failed to load payment service:', error);
+      paymentServiceAvailable = false;
       throw new Error('Payment service not available');
     }
   }
@@ -272,12 +277,26 @@ const testPaymentService = async (req, res) => {
     }
     
     // Try to get payment service
-    const service = getPaymentService();
-    console.log('🧪 Payment service loaded successfully');
+    let service = null;
+    let testAmounts = null;
+    let serviceInfo = null;
     
-    // Test amount calculation
-    const testAmounts = service.calculateAmounts(1000);
-    console.log('🧪 Test amounts calculation:', testAmounts);
+    try {
+      service = getPaymentService();
+      console.log('🧪 Payment service loaded successfully');
+      
+      // Test amount calculation
+      testAmounts = service.calculateAmounts(1000);
+      console.log('🧪 Test amounts calculation:', testAmounts);
+      
+      serviceInfo = {
+        merchantId: service.merchantId,
+        baseUrl: service.baseUrl,
+        redirectUrl: service.redirectUrl
+      };
+    } catch (serviceError) {
+      console.log('❌ Payment service not available:', serviceError.message);
+    }
     
     res.json({
       success: true,
@@ -286,12 +305,9 @@ const testPaymentService = async (req, res) => {
         axios: axiosAvailable,
         cryptoJs: cryptoAvailable
       },
+      paymentServiceAvailable: paymentServiceAvailable,
       testAmounts,
-      serviceInfo: {
-        merchantId: service.merchantId,
-        baseUrl: service.baseUrl,
-        redirectUrl: service.redirectUrl
-      }
+      serviceInfo
     });
     
   } catch (error) {
