@@ -9,10 +9,10 @@ const postJob = async (req, res) => {
     console.log('📝 postJob - req.user.userId:', req.user?.userId);
     
     const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
-    const { title, address, pincode, budget, category, gender } = req.body;
+    const { title, address, pincode, budget, category, gender, description } = req.body;
 
     console.log('📝 postJob - final clientId:', clientId);
-    console.log('📝 postJob - job data:', { title, address, pincode, budget, category, gender });
+    console.log('📝 postJob - job data:', { title, address, pincode, budget, category, gender, description });
 
     if (!title || !address || !pincode || !budget || !category || !gender) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
@@ -26,6 +26,7 @@ const postJob = async (req, res) => {
       budget: Number(budget),
       category,
       gender,
+      description: description || '', // Optional field
       status: 'open',
       clientId,
       createdAt: new Date().toISOString(),

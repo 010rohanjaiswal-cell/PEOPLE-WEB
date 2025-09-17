@@ -38,7 +38,8 @@ const ClientDashboard = () => {
     pincode: '',
     budget: '',
     category: '',
-    gender: ''
+    gender: '',
+    description: ''
   });
 
   useEffect(() => {
@@ -99,7 +100,8 @@ const ClientDashboard = () => {
           pincode: '',
           budget: '',
           category: '',
-          gender: ''
+          gender: '',
+          description: ''
         });
         setActiveTab('my-jobs');
         loadClientData(); // Refresh data
@@ -291,6 +293,18 @@ const ClientDashboard = () => {
                   <option value="Any">Any</option>
                 </select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Job Description (Optional)</Label>
+              <textarea
+                id="description"
+                value={jobForm.description}
+                onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
+                placeholder="Describe the job requirements, tasks, or any additional details..."
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                rows={3}
+              />
             </div>
 
             <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg" loading={loading}>
