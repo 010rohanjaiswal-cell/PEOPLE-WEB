@@ -286,12 +286,21 @@ const AdminDashboard = () => {
             <div key={verification._id || verification.id} className="bg-white border border-gray-200 rounded-lg shadow-sm">
               <div className="bg-gray-50 p-6 rounded-t-lg">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold text-gray-900">{verification.fullName}</h3>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 border">
+                      {verification.profilePhoto ? (
+                        <img src={verification.profilePhoto} alt={verification.fullName} className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-6 h-6 text-gray-500 m-3" />
+                      )}
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900">{verification.fullName}</h3>
+                  </div>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-600 bg-blue-100 px-3 py-1 rounded-full">
                       {verification.phoneNumber || verification.phone}
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded-full ${verification.verificationStatus === 'approved' ? 'bg-green-100 text-green-700' : verification.verificationStatus === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                    <span className={`text-xs px-2 py-1 rounded-full ${((verification.verificationStatus || verification.status) === 'approved') ? 'bg-green-100 text-green-700' : ((verification.verificationStatus || verification.status) === 'rejected') ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
                       {verification.verificationStatus || verification.status}
                     </span>
                   </div>
@@ -340,7 +349,7 @@ const AdminDashboard = () => {
                   </div>
 
                   {/* Action buttons - only show for pending verifications */}
-                  {verification.verificationStatus === 'pending' ? (
+                  {(verification.verificationStatus || verification.status) === 'pending' ? (
                     <div className="flex space-x-3">
                       <button 
                         onClick={() => handleVerificationAction(verification._id || verification.id, 'approve')}

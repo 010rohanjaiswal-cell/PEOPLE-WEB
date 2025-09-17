@@ -10,7 +10,7 @@ const getFreelancerVerifications = async (req, res) => {
     }
 
     const verifications = await User.find(filter)
-      .select('_id fullName phoneNumber verificationStatus verificationDocuments createdAt updatedAt')
+      .select('_id fullName phoneNumber verificationStatus verificationDocuments profilePhoto createdAt updatedAt')
       .sort({ updatedAt: -1 });
 
     res.json({
