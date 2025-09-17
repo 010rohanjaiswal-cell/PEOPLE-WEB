@@ -4,6 +4,7 @@ import { useRole } from '../../context/RoleContext';
 import { authService } from '../../api/authService';
 import { clientService } from '../../api/clientService';
 import { userService } from '../../api/userService';
+import paymentService from '../../api/paymentService';
 import { Button } from '../../components/common/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
@@ -254,9 +255,6 @@ const ClientDashboard = () => {
       setLoading(true);
       setError('');
       
-      // Import payment service dynamically
-      const paymentService = (await import('../api/paymentService')).default;
-      
       // Create UPI payment request
       const result = await paymentService.createUPIPayment(jobId);
       
@@ -297,7 +295,6 @@ You will be redirected to the payment gateway.`;
     const checkStatus = async () => {
       try {
         attempts++;
-        const paymentService = (await import('../api/paymentService')).default;
         const result = await paymentService.verifyUPIPayment(orderId);
         
         if (result.success && result.isSuccess) {
