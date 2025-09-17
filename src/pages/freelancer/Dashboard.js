@@ -32,6 +32,7 @@ const FreelancerDashboard = () => {
   const [assignedJobs, setAssignedJobs] = useState([]);
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletTransactions, setWalletTransactions] = useState([]);
+  const [freelancerId, setFreelancerId] = useState(null);
   const [withdrawalForm, setWithdrawalForm] = useState({
     amount: '',
     upiId: ''
@@ -53,6 +54,7 @@ const FreelancerDashboard = () => {
       setAvailableJobs(jobsRes.jobs || []);
       setAssignedJobs(assignedRes.jobs || []);
       setWalletBalance(walletRes.data?.balance || 0);
+      setFreelancerId(walletRes.data?.freelancerId || null);
       setWalletTransactions(walletRes.data?.transactions || []);
     } catch (error) {
       console.error('Error loading freelancer data:', error);
@@ -424,6 +426,9 @@ const FreelancerDashboard = () => {
             <div>
               <h3 className="font-semibold">{user?.fullName}</h3>
               <p className="text-sm text-muted-foreground">{user?.phone}</p>
+              {freelancerId && (
+                <p className="text-xs text-blue-600 mt-1">Freelancer ID: <span className="font-mono font-semibold">{freelancerId}</span></p>
+              )}
             </div>
           </div>
 

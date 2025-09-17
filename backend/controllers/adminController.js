@@ -41,11 +41,38 @@ const approveFreelancer = async (req, res) => {
     }
 
     user.verificationStatus = 'approved';
+    // Assign freelancerId if not set: 5-9 digit numeric string
+    if (!user.freelancerId) {
+      // Helper to generate 5-9 digit numeric ID
+      const generateId = () => {
+        const length = Math.floor(Math.random() * 5) + 5; // 5 to 9
+        let s = '';
+        for (let i = 0; i < length; i++) {
+          s += Math.floor(Math.random() * 10).toString();
+        }
+        // Ensure it does not start with 0 for readability
+        if (s[0] === '0') s = '1' + s.slice(1);
+        return s;
+      };
+
+      let newId = generateId();
+      // Best-effort uniqueness check
+      let tries = 0;
+      while (tries < 5) {
+        // eslint-disable-next-line no-await-in-loop
+        const existing = await User.findOne({ freelancerId: newId });
+        if (!existing) break;
+        newId = generateId();
+        tries += 1;
+      }
+      user.freelancerId = newId;
+    }
     await user.save();
 
     res.json({
       success: true,
-      message: 'Freelancer approved successfully'
+      message: 'Freelancer approved successfully',
+      freelancerId: user.freelancerId
     });
 
   } catch (error) {

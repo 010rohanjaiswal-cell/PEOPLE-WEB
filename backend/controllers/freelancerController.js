@@ -95,7 +95,8 @@ const getWallet = async (req, res) => {
       data: {
         balance: user.wallet.balance,
         totalEarnings: user.wallet.totalEarnings,
-        currency: 'INR'
+      currency: 'INR',
+      freelancerId: user.freelancerId || null
       }
     });
 

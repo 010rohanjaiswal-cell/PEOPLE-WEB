@@ -30,6 +30,13 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  freelancerId: {
+    type: String,
+    default: null,
+    index: true,
+    sparse: true,
+    unique: false
+  },
   profileSetupCompleted: {
     type: Boolean,
     default: false
@@ -73,5 +80,6 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ firebaseUid: 1 });
 userSchema.index({ phoneNumber: 1 });
 userSchema.index({ role: 1 });
+userSchema.index({ freelancerId: 1 }, { sparse: true });
 
 module.exports = mongoose.model('User', userSchema);
