@@ -35,6 +35,26 @@ const FreelancerDashboard = () => {
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [freelancerId, setFreelancerId] = useState(null);
   const [offerModal, setOfferModal] = useState({ open: false, jobId: null, amount: '', message: '' });
+  const [offerCooldowns, setOfferCooldowns] = useState({});
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setOfferCooldowns(prev => {
+        const next = { ...prev };
+        let changed = false;
+        for (const key in next) {
+          if (Object.prototype.hasOwnProperty.call(next, key)) {
+            if (next[key] > 0) {
+              next[key] = Math.max(0, next[key] - 1000);
+              changed = true;
+            }
+          }
+        }
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
   const [withdrawalForm, setWithdrawalForm] = useState({
     amount: '',
     upiId: ''
@@ -89,12 +109,18 @@ const FreelancerDashboard = () => {
       const result = await freelancerService.makeOffer(jobId, { amount: offerAmount, message });
       if (result.success) {
         loadFreelancerData(); // Refresh data
+        // If backend returns retryAfterMs on failure, we set cooldown; on success, start 5m cooldown
+        setOfferCooldowns(prev => ({ ...prev, [jobId]: 5 * 60 * 1000 }));
       } else {
         setError(result.message || 'Failed to make offer');
       }
     } catch (error) {
       console.error('Error making offer:', error);
-      setError(error.message || 'Failed to make offer');
+      const retryAfterMs = error?.retryAfterMs || error?.data?.retryAfterMs || error?.response?.data?.retryAfterMs;
+      if (retryAfterMs) {
+        setOfferCooldowns(prev => ({ ...prev, [jobId]: retryAfterMs }));
+      }
+      setError((error.response?.data?.message) || error.message || 'Failed to make offer');
     } finally {
       setLoading(false);
     }
@@ -225,9 +251,9 @@ const FreelancerDashboard = () => {
                     size="sm" 
                     variant="outline"
                     onClick={() => setOfferModal({ open: true, jobId: job.id, amount: '', message: '' })}
-                    disabled={loading}
+                    disabled={loading || (offerCooldowns[job.id] > 0)}
                   >
-                    Make Offer
+                    {offerCooldowns[job.id] > 0 ? `${Math.ceil((offerCooldowns[job.id] || 0) / 60000)}m` : 'Make Offer'}
                   </Button>
                   <Button size="sm" variant="ghost">
                     <Eye className="w-4 h-4" />

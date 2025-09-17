@@ -247,6 +247,24 @@ const makeOffer = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
 
+    // Enforce 5-minute cooldown per freelancer per job
+    const COOLDOWN_MS = 5 * 60 * 1000;
+    const now = Date.now();
+    const lastOffer = Array.isArray(job.offers)
+      ? job.offers.find(o => o.freelancer && String(o.freelancer.id || o.freelancer._id) === String(user._id))
+      : null;
+    if (lastOffer && lastOffer.submittedAt) {
+      const lastAt = new Date(lastOffer.submittedAt).getTime();
+      const remaining = COOLDOWN_MS - (now - lastAt);
+      if (remaining > 0) {
+        return res.status(429).json({
+          success: false,
+          message: 'Please wait before sending another offer',
+          retryAfterMs: remaining
+        });
+      }
+    }
+
     const offer = {
       id: 'offer-' + Date.now(),
       amount: Number(amount),
