@@ -224,13 +224,18 @@ const FreelancerDashboard = () => {
                 <CardDescription>{job.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-3 mb-6">
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center space-x-4">
                       <span className="flex items-center">
-                        <DollarSign className="w-4 h-4 mr-1" />
                         ₹{job.budget}
                       </span>
+                      {job.gender && (
+                        <span className="flex items-center">
+                          <User className="w-4 h-4 mr-1" />
+                          Gender: {job.gender}
+                        </span>
+                      )}
                       <span className="flex items-center">
                         <Clock className="w-4 h-4 mr-1" />
                         Posted: {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : 'Recently'}
@@ -243,13 +248,6 @@ const FreelancerDashboard = () => {
                       <MapPin className="w-4 h-4 mr-2" />
                       <span>{job.address}</span>
                       {job.pincode && <span className="ml-2">- {job.pincode}</span>}
-                    </div>
-                  )}
-                  
-                  {job.gender && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <User className="w-4 h-4 mr-2" />
-                      <span>Gender Preference: {job.gender}</span>
                     </div>
                   )}
                 </div>
