@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useRole } from '../../context/RoleContext';
 import { authService } from '../../api/authService';
 import { clientService } from '../../api/clientService';
+import { userService } from '../../api/userService';
 import { Button } from '../../components/common/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
@@ -32,6 +33,7 @@ const ClientDashboard = () => {
   const [jobHistory, setJobHistory] = useState([]);
   const [activeJobOffers, setActiveJobOffers] = useState(null);
   const [editJobModal, setEditJobModal] = useState({ open: false, job: null });
+  const [viewProfileModal, setViewProfileModal] = useState({ open: false, data: null });
 
   // Job posting form state
   const [jobForm, setJobForm] = useState({
@@ -194,6 +196,24 @@ const ClientDashboard = () => {
     } catch (error) {
       console.error('Error updating job:', error);
       setError(error.message || 'Failed to update job');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openViewFreelancer = async (freelancerUserId) => {
+    try {
+      setLoading(true);
+      setError('');
+      const res = await userService.getPublicProfile(freelancerUserId);
+      if (res.success) {
+        setViewProfileModal({ open: true, data: res.data });
+      } else {
+        setError(res.message || 'Failed to load profile');
+      }
+    } catch (err) {
+      console.error('Error loading profile:', err);
+      setError(err.message || 'Failed to load profile');
     } finally {
       setLoading(false);
     }
@@ -465,6 +485,16 @@ const ClientDashboard = () => {
                     <Button size="sm" variant="outline" onClick={() => setActiveJobOffers(job)}>
                       View Offers
                     </Button>
+                    {job.status === 'assigned' && job.assignedFreelancer?.id && (
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => openViewFreelancer(job.assignedFreelancer.id)}
+                        className="text-green-700 hover:text-green-800 hover:bg-green-50"
+                      >
+                        View Freelancer
+                      </Button>
+                    )}
                     {canEditJob(job) && (
                       <Button 
                         size="sm" 
@@ -708,6 +738,46 @@ const ClientDashboard = () => {
               </div>
               <div className="p-6 border-t text-right">
                 <Button variant="outline" onClick={() => setActiveJobOffers(null)}>Close</Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View Freelancer Modal */}
+        {viewProfileModal.open && viewProfileModal.data && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setViewProfileModal({ open: false, data: null })}>
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6 border-b flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Freelancer Details</h3>
+                <button className="text-gray-500 hover:text-gray-700" onClick={() => setViewProfileModal({ open: false, data: null })}>Close</button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 border">
+                    {viewProfileModal.data.profilePhoto ? (
+                      <img src={viewProfileModal.data.profilePhoto} alt={viewProfileModal.data.fullName} className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-7 h-7 text-gray-500 m-4" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-lg font-semibold">{viewProfileModal.data.fullName}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-3 text-sm">
+                  {viewProfileModal.data.dateOfBirth && (
+                    <div><span className="font-medium">DOB:</span> {new Date(viewProfileModal.data.dateOfBirth).toLocaleDateString()}</div>
+                  )}
+                  {viewProfileModal.data.gender && (
+                    <div><span className="font-medium">Gender:</span> {viewProfileModal.data.gender}</div>
+                  )}
+                  {viewProfileModal.data.address && (
+                    <div><span className="font-medium">Address:</span> {viewProfileModal.data.address}</div>
+                  )}
+                </div>
+              </div>
+              <div className="p-4 border-t text-right">
+                <Button variant="outline" onClick={() => setViewProfileModal({ open: false, data: null })}>Close</Button>
               </div>
             </div>
           </div>

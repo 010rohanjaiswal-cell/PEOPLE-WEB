@@ -8,5 +8,7 @@ router.post('/profile-setup', authMiddleware.verifyToken, userController.profile
 router.get('/profile', authMiddleware.verifyToken, userController.getProfile);
 router.put('/update-profile', authMiddleware.verifyToken, userController.updateProfile);
 router.get('/active-jobs-status', authMiddleware.verifyToken, userController.getActiveJobsStatus);
+// Public profile (limited fields) for viewing assigned counterpart
+router.get('/public-profile/:id', authMiddleware.verifyToken, userController.getPublicProfile);
 
 module.exports = router;

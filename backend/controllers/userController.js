@@ -118,9 +118,48 @@ const getActiveJobsStatus = async (req, res) => {
   }
 };
 
+// Get limited public profile by user ID
+const getPublicProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id).select(
+      'fullName profilePhoto role verificationDocuments'
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const publicProfile = {
+      id: user._id,
+      fullName: user.fullName,
+      profilePhoto: user.profilePhoto || null,
+      role: user.role,
+      // Flatten commonly needed fields for freelancer visibility
+      dateOfBirth: user.verificationDocuments?.dateOfBirth || null,
+      gender: user.verificationDocuments?.gender || null,
+      address: user.verificationDocuments?.address || null
+    };
+
+    res.json({ success: true, data: publicProfile });
+
+  } catch (error) {
+    console.error('Get public profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch public profile'
+    });
+  }
+};
+
 module.exports = {
   profileSetup,
   getProfile,
   updateProfile,
-  getActiveJobsStatus
+  getActiveJobsStatus,
+  getPublicProfile
 };

@@ -190,5 +190,15 @@ export const userService = {
     } catch (error) {
       throw error.response?.data || error;
     }
+  },
+
+  // Get public profile (limited fields) by user ID
+  getPublicProfile: async (userId) => {
+    try {
+      const response = await api.get(`/users/public-profile/${userId}`);
+      return response.data; // { success, data }
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   }
 };

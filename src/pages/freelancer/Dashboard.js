@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useRole } from '../../context/RoleContext';
 import { authService } from '../../api/authService';
 import { freelancerService } from '../../api/freelancerService';
+import { userService } from '../../api/userService';
 import { Button } from '../../components/common/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
@@ -35,6 +36,7 @@ const FreelancerDashboard = () => {
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [freelancerId, setFreelancerId] = useState(null);
   const [offerModal, setOfferModal] = useState({ open: false, jobId: null, amount: '', message: '' });
+  const [viewProfileModal, setViewProfileModal] = useState({ open: false, data: null });
   const [offerCooldowns, setOfferCooldowns] = useState({});
 
   // Check cooldown status for all jobs when component loads
@@ -191,6 +193,24 @@ const FreelancerDashboard = () => {
     } catch (error) {
       console.error('Error requesting withdrawal:', error);
       setError(error.message || 'Withdrawal request failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openViewClient = async (clientUserId) => {
+    try {
+      setLoading(true);
+      setError('');
+      const res = await userService.getPublicProfile(clientUserId);
+      if (res.success) {
+        setViewProfileModal({ open: true, data: res.data });
+      } else {
+        setError(res.message || 'Failed to load profile');
+      }
+    } catch (err) {
+      console.error('Error loading profile:', err);
+      setError(err.message || 'Failed to load profile');
     } finally {
       setLoading(false);
     }
@@ -386,6 +406,15 @@ const FreelancerDashboard = () => {
                     disabled={loading}
                   >
                     Mark as Complete
+                  </Button>
+                )}
+                {job.status === 'assigned' && job.clientId && (
+                  <Button 
+                    variant="outline"
+                    className="ml-2"
+                    onClick={() => openViewClient(job.clientId)}
+                  >
+                    View Client
                   </Button>
                 )}
               </CardContent>
@@ -671,6 +700,35 @@ const FreelancerDashboard = () => {
               >
                 Submit Offer
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Client Modal */}
+      {viewProfileModal.open && viewProfileModal.data && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setViewProfileModal({ open: false, data: null })}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Client Details</h3>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => setViewProfileModal({ open: false, data: null })}>Close</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 border">
+                  {viewProfileModal.data.profilePhoto ? (
+                    <img src={viewProfileModal.data.profilePhoto} alt={viewProfileModal.data.fullName} className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-7 h-7 text-gray-500 m-4" />
+                  )}
+                </div>
+                <div>
+                  <div className="text-lg font-semibold">{viewProfileModal.data.fullName}</div>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t text-right">
+              <Button variant="outline" onClick={() => setViewProfileModal({ open: false, data: null })}>Close</Button>
             </div>
           </div>
         </div>
