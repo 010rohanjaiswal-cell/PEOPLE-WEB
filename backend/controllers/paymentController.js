@@ -251,6 +251,26 @@ const testPaymentService = async (req, res) => {
   try {
     console.log('🧪 Testing payment service availability...');
     
+    // Test if dependencies are available
+    let axiosAvailable = false;
+    let cryptoAvailable = false;
+    
+    try {
+      require('axios');
+      axiosAvailable = true;
+      console.log('✅ axios is available');
+    } catch (e) {
+      console.log('❌ axios not available:', e.message);
+    }
+    
+    try {
+      require('crypto-js');
+      cryptoAvailable = true;
+      console.log('✅ crypto-js is available');
+    } catch (e) {
+      console.log('❌ crypto-js not available:', e.message);
+    }
+    
     // Try to get payment service
     const service = getPaymentService();
     console.log('🧪 Payment service loaded successfully');
@@ -261,7 +281,11 @@ const testPaymentService = async (req, res) => {
     
     res.json({
       success: true,
-      message: 'Payment service is working',
+      message: 'Payment service test completed',
+      dependencies: {
+        axios: axiosAvailable,
+        cryptoJs: cryptoAvailable
+      },
       testAmounts,
       serviceInfo: {
         merchantId: service.merchantId,
