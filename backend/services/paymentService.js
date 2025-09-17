@@ -1,11 +1,16 @@
 // Check if dependencies are available
 let axios, crypto;
+let dependenciesAvailable = false;
+
 try {
   axios = require('axios');
   crypto = require('crypto-js');
+  dependenciesAvailable = true;
+  console.log('✅ Payment service dependencies loaded successfully');
 } catch (error) {
-  console.error('Payment service dependencies not available:', error.message);
-  throw new Error('Payment service dependencies not installed');
+  console.warn('⚠️ Payment service dependencies not available:', error.message);
+  console.warn('⚠️ Payment service will be disabled');
+  dependenciesAvailable = false;
 }
 
 class PaymentService {
@@ -19,6 +24,9 @@ class PaymentService {
 
   // Generate checksum for PhonePe API
   generateChecksum(payload) {
+    if (!dependenciesAvailable) {
+      throw new Error('Payment service dependencies not available');
+    }
     const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
     const checksumString = base64Payload + '/pg/v1/pay' + this.saltKey;
     const checksum = crypto.SHA256(checksumString).toString();
@@ -27,9 +35,14 @@ class PaymentService {
 
   // Create payment request
   async createPaymentRequest(amount, orderId, userId, jobId, jobTitle) {
+    if (!dependenciesAvailable) {
+      return {
+        success: false,
+        error: 'Payment service dependencies not available'
+      };
+    }
+    
     try {
-      console.log('🔧 PaymentService - createPaymentRequest called with:', { amount, orderId, userId, jobId, jobTitle });
-      
       const payload = {
         merchantId: this.merchantId,
         merchantTransactionId: orderId,
@@ -44,18 +57,11 @@ class PaymentService {
         }
       };
 
-      console.log('🔧 PaymentService - payload:', payload);
-      console.log('🔧 PaymentService - baseUrl:', this.baseUrl);
-      console.log('🔧 PaymentService - redirectUrl:', this.redirectUrl);
-
       const checksum = this.generateChecksum(payload);
-      console.log('🔧 PaymentService - generated checksum:', checksum);
       
       const requestData = {
         request: Buffer.from(JSON.stringify(payload)).toString('base64')
       };
-
-      console.log('🔧 PaymentService - making API call to PhonePe...');
 
       const response = await axios.post(`${this.baseUrl}/pg/v1/pay`, requestData, {
         headers: {
@@ -65,8 +71,6 @@ class PaymentService {
         }
       });
 
-      console.log('🔧 PaymentService - PhonePe response:', response.data);
-
       return {
         success: true,
         data: response.data,
@@ -74,21 +78,23 @@ class PaymentService {
       };
 
     } catch (error) {
-      console.error('❌ PaymentService - Payment request creation error:', error);
-      console.error('❌ PaymentService - Error response:', error.response?.data);
-      console.error('❌ PaymentService - Error status:', error.response?.status);
-      console.error('❌ PaymentService - Error message:', error.message);
-      
+      console.error('Payment request creation error:', error.response?.data || error.message);
       return {
         success: false,
-        error: error.response?.data || error.message,
-        status: error.response?.status
+        error: error.response?.data || error.message
       };
     }
   }
 
   // Verify payment status
   async verifyPayment(merchantTransactionId) {
+    if (!dependenciesAvailable) {
+      return {
+        success: false,
+        error: 'Payment service dependencies not available'
+      };
+    }
+    
     try {
       const url = `/pg/v1/status/${this.merchantId}/${merchantTransactionId}`;
       const checksumString = url + this.saltKey;
