@@ -51,6 +51,7 @@ class PaymentService {
     // token cache
     this._authToken = null;
     this._authTokenExpiryMs = 0;
+    this._tokenType = 'O-Bearer';
   }
 
   // Generate checksum for PhonePe API
@@ -99,6 +100,7 @@ class PaymentService {
 
       let data = resp.data || {};
       let token = data.accessToken || data.access_token || data.token || data.data?.accessToken || data.data?.access_token || data.data?.token;
+      let tokenType = data.token_type || data.data?.token_type || 'O-Bearer';
       let expiresInSec = data.expires_in || data.expiresIn || data.data?.expires_in || data.data?.expiresIn || 3300; // default ~55min
 
       // Fallback to JSON body if token not found
@@ -115,6 +117,7 @@ class PaymentService {
         });
         data = resp.data || {};
         token = data.accessToken || data.access_token || data.token || data.data?.accessToken || data.data?.access_token || data.data?.token;
+        tokenType = data.token_type || data.data?.token_type || tokenType;
         expiresInSec = data.expires_in || data.expiresIn || data.data?.expires_in || data.data?.expiresIn || 3300;
       }
 
@@ -124,6 +127,7 @@ class PaymentService {
       }
       this._authToken = token;
       this._authTokenExpiryMs = now + (expiresInSec * 1000);
+      this._tokenType = tokenType;
       return token;
     } catch (e) {
       console.error('❌ PhonePe OAuth Error:', e.response?.data || e.message);
@@ -181,7 +185,7 @@ class PaymentService {
           'Content-Type': 'application/json',
           'X-VERIFY': checksum,
           'X-MERCHANT-ID': this.merchantId,
-          ...(this.flowMode === 'hermes' ? {} : { 'Authorization': `Bearer ${bearer}` }),
+          ...(this.flowMode === 'hermes' ? {} : { 'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}` }),
           ...(this.flowMode === 'hermes' ? {} : { 'X-CLIENT-ID': this.clientId }),
           ...(this.flowMode === 'hermes' ? {} : { 'X-CLIENT-VERSION': this.clientVersion }),
           'accept': 'application/json'
@@ -247,7 +251,7 @@ class PaymentService {
                 paymentInstrument: { type: 'PAY_PAGE' }
               }),
               'X-MERCHANT-ID': this.merchantId,
-              'Authorization': `Bearer ${bearer}`,
+              'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}`,
               'X-CLIENT-ID': this.clientId,
               'X-CLIENT-VERSION': this.clientVersion,
               'accept': 'application/json'
@@ -298,7 +302,7 @@ class PaymentService {
           'Content-Type': 'application/json',
           'X-VERIFY': checksum,
           'X-MERCHANT-ID': this.merchantId,
-          ...(this.flowMode === 'hermes' ? {} : { 'Authorization': `Bearer ${bearer}` }),
+          ...(this.flowMode === 'hermes' ? {} : { 'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}` }),
           ...(this.flowMode === 'hermes' ? {} : { 'X-CLIENT-ID': this.clientId }),
           ...(this.flowMode === 'hermes' ? {} : { 'X-CLIENT-VERSION': this.clientVersion }),
           'accept': 'application/json'
