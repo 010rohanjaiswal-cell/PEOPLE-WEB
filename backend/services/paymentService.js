@@ -34,7 +34,7 @@ class PaymentService {
     // Client credentials for OAuth
     this.clientId = process.env.PHONEPE_CLIENT_ID || this.merchantId;
     this.clientSecret = process.env.PHONEPE_CLIENT_SECRET || this.saltKey;
-    this.clientVersion = process.env.PHONEPE_CLIENT_VERSION || '1.0';
+    this.clientVersion = process.env.PHONEPE_CLIENT_VERSION || '1';
     this.redirectUrl = process.env.PAYMENT_REDIRECT_URL || 'https://freelancing-platform-backend-backup.onrender.com/payment/callback';
     this.dependenciesAvailable = dependenciesAvailable;
     this.axios = axios;
@@ -71,7 +71,10 @@ class PaymentService {
 
       // Attempt x-www-form-urlencoded first
       const formBody = new URLSearchParams({
-        grant_type: 'client_credentials'
+        grant_type: 'client_credentials',
+        client_id: this.clientId,
+        client_secret: this.clientSecret,
+        client_version: String(this.clientVersion)
       }).toString();
       let resp = await this.axios.post(url, formBody, {
         headers: {
