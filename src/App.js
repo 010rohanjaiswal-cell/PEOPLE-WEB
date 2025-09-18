@@ -24,6 +24,7 @@ import AdminDashboard from './pages/admin/CLI';
 
 // Debug Pages
 import DebugAuth from './pages/DebugAuth';
+import PaymentDebug from './pages/debug/PaymentDebug';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requiredRole = null }) => {
@@ -120,6 +121,7 @@ function App() {
               <Route path="/unauthorized" element={<Unauthorized />} />
               <Route path="/debug" element={<DebugPage />} />
               <Route path="/debug-auth" element={<DebugAuth />} />
+              <Route path="/debug-payment" element={<PaymentDebug />} />
               
               {/* Admin Routes */}
               <Route path="/admin/login" element={<AdminLogin />} />

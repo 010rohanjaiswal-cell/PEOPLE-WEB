@@ -78,10 +78,12 @@ const createUPIPayment = async (req, res) => {
     console.log('💳 createUPIPayment - payment service result:', paymentResult);
 
     if (!paymentResult.success) {
+      console.error('❌ createUPIPayment - payment service failed:', paymentResult);
       return res.status(500).json({
         success: false,
         message: 'Failed to create payment request',
-        error: paymentResult.error
+        error: paymentResult.error,
+        details: paymentResult
       });
     }
 
