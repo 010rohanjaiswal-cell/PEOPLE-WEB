@@ -282,13 +282,16 @@ app.get('/api/debug-phonepe-config', (req, res) => {
       service = require('./services/paymentServiceMinimal');
     }
 
+    const dependencyTest = service.testDependencies ? service.testDependencies() : { success: false, error: 'testDependencies method not available' };
+    
     const config = {
       merchantId: service.merchantId,
       saltKey: service.saltKey ? '***' + service.saltKey.slice(-4) : 'Not set',
       saltIndex: service.saltIndex,
       baseUrl: service.baseUrl,
       redirectUrl: service.redirectUrl,
-      dependenciesAvailable: service.dependenciesAvailable || false
+      dependenciesAvailable: service.dependenciesAvailable || false,
+      dependencyTest: dependencyTest
     };
 
     res.json({

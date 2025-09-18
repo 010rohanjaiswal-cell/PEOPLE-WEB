@@ -20,6 +20,9 @@ class PaymentService {
     this.saltIndex = 1;
     this.baseUrl = 'https://api.phonepe.com/apis/hermes';
     this.redirectUrl = process.env.PAYMENT_REDIRECT_URL || 'https://freelancing-platform-backend-backup.onrender.com/payment/callback';
+    this.dependenciesAvailable = dependenciesAvailable;
+    this.axios = axios;
+    this.crypto = crypto;
   }
 
   // Generate checksum for PhonePe API
@@ -156,6 +159,36 @@ class PaymentService {
       commission,
       freelancerAmount
     };
+  }
+
+  // Test dependencies
+  testDependencies() {
+    try {
+      if (!this.dependenciesAvailable) {
+        return {
+          success: false,
+          error: 'Dependencies not available'
+        };
+      }
+
+      // Test axios
+      const axiosTest = typeof this.axios === 'function' || typeof this.axios.post === 'function';
+      
+      // Test crypto
+      const cryptoTest = typeof this.crypto === 'object' && typeof this.crypto.SHA256 === 'function';
+
+      return {
+        success: true,
+        axios: axiosTest,
+        crypto: cryptoTest,
+        dependenciesAvailable: this.dependenciesAvailable
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 }
 
