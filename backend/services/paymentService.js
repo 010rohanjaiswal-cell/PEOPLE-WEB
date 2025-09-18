@@ -25,10 +25,23 @@ class PaymentService {
       || (envMode === 'preprod'
             ? 'https://api-preprod.phonepe.com/apis/pg-sandbox'
             : 'https://api.phonepe.com/apis/pg');
+    // Authorization (OAuth) base URL
+    const envAuthBaseUrl = process.env.PHONEPE_AUTH_BASE_URL;
+    this.authBaseUrl = envAuthBaseUrl
+      || (envMode === 'preprod'
+            ? 'https://api-preprod.phonepe.com/apis/pg-sandbox'
+            : 'https://api.phonepe.com/apis/identity-manager');
+    // Client credentials for OAuth
+    this.clientId = process.env.PHONEPE_CLIENT_ID || this.merchantId;
+    this.clientSecret = process.env.PHONEPE_CLIENT_SECRET || this.saltKey;
+    this.clientVersion = process.env.PHONEPE_CLIENT_VERSION || '1.0';
     this.redirectUrl = process.env.PAYMENT_REDIRECT_URL || 'https://freelancing-platform-backend-backup.onrender.com/payment/callback';
     this.dependenciesAvailable = dependenciesAvailable;
     this.axios = axios;
     this.crypto = crypto;
+    // token cache
+    this._authToken = null;
+    this._authTokenExpiryMs = 0;
   }
 
   // Generate checksum for PhonePe API
@@ -43,6 +56,41 @@ class PaymentService {
     return checksum + '###' + this.saltIndex;
   }
 
+  // Fetch OAuth token and cache it
+  async getAuthToken() {
+    if (!dependenciesAvailable) {
+      throw new Error('Payment service dependencies not available');
+    }
+    const now = Date.now();
+    if (this._authToken && now < this._authTokenExpiryMs - 30000) {
+      return this._authToken;
+    }
+    try {
+      const url = `${this.authBaseUrl}/v1/oauth/token`;
+      const payload = {
+        clientId: this.clientId,
+        clientSecret: this.clientSecret,
+        clientVersion: this.clientVersion
+      };
+      const resp = await this.axios.post(url, payload, {
+        headers: { 'Content-Type': 'application/json', 'accept': 'application/json' },
+        timeout: 15000
+      });
+      const data = resp.data || {};
+      const token = data.accessToken || data.token || data.data?.accessToken || data.data?.token;
+      const expiresInSec = data.expiresIn || data.data?.expiresIn || 3300; // default ~55min
+      if (!token) {
+        throw new Error('OAuth token missing in response');
+      }
+      this._authToken = token;
+      this._authTokenExpiryMs = now + (expiresInSec * 1000);
+      return token;
+    } catch (e) {
+      console.error('❌ PhonePe OAuth Error:', e.response?.data || e.message);
+      throw e;
+    }
+  }
+
   // Create payment request
   async createPaymentRequest(amount, orderId, userId, jobId, jobTitle) {
     if (!dependenciesAvailable) {
@@ -53,6 +101,8 @@ class PaymentService {
     }
     
     try {
+      // Ensure Authorization token
+      let bearer = await this.getAuthToken();
       const payload = {
         merchantId: this.merchantId,
         merchantTransactionId: orderId,
@@ -90,6 +140,7 @@ class PaymentService {
           'Content-Type': 'application/json',
           'X-VERIFY': checksum,
           'X-MERCHANT-ID': this.merchantId,
+          'Authorization': `Bearer ${bearer}`,
           'accept': 'application/json'
         },
         timeout: 30000
@@ -122,7 +173,53 @@ class PaymentService {
       console.error('  Message:', error.message);
       console.error('  URL:', error.config?.url);
       console.error('  Method:', error.config?.method);
-      
+      // If 401, try refreshing token once
+      if (error.response?.status === 401) {
+        try {
+          this._authToken = null;
+          const bearer = await this.getAuthToken();
+          const apiUrl = `${this.baseUrl}/checkout/v2/pay`;
+          const response = await axios.post(apiUrl, { request: Buffer.from(JSON.stringify({
+            merchantId: this.merchantId,
+            merchantTransactionId: orderId,
+            merchantUserId: userId,
+            amount: amount * 100,
+            redirectUrl: this.redirectUrl,
+            redirectMode: 'POST',
+            callbackUrl: this.redirectUrl,
+            mobileNumber: '',
+            paymentInstrument: { type: 'PAY_PAGE' }
+          })).toString('base64') }, {
+            headers: {
+              'Content-Type': 'application/json',
+              'X-VERIFY': this.generateChecksum({
+                merchantId: this.merchantId,
+                merchantTransactionId: orderId,
+                merchantUserId: userId,
+                amount: amount * 100,
+                redirectUrl: this.redirectUrl,
+                redirectMode: 'POST',
+                callbackUrl: this.redirectUrl,
+                mobileNumber: '',
+                paymentInstrument: { type: 'PAY_PAGE' }
+              }),
+              'X-MERCHANT-ID': this.merchantId,
+              'Authorization': `Bearer ${bearer}`,
+              'accept': 'application/json'
+            },
+            timeout: 30000
+          });
+          const data = response.data;
+          const redirectUrl = data?.data?.instrumentResponse?.redirectInfo?.url
+            || data?.data?.redirectInfo?.url
+            || data?.data?.url
+            || data?.redirectUrl
+            || data?.url;
+          return { success: true, data, paymentUrl: redirectUrl };
+        } catch (retryErr) {
+          console.error('❌ Retry after OAuth refresh failed:', retryErr.response?.data || retryErr.message);
+        }
+      }
       return {
         success: false,
         error: error.response?.data || error.message,
@@ -147,11 +244,14 @@ class PaymentService {
       const checksumString = url + this.saltKey;
       const checksum = crypto.SHA256(checksumString).toString() + '###' + this.saltIndex;
 
+      // Ensure Authorization token
+      const bearer = await this.getAuthToken();
       const response = await axios.get(`${this.baseUrl}${url}`, {
         headers: {
           'Content-Type': 'application/json',
           'X-VERIFY': checksum,
           'X-MERCHANT-ID': this.merchantId,
+          'Authorization': `Bearer ${bearer}`,
           'accept': 'application/json'
         }
       });
