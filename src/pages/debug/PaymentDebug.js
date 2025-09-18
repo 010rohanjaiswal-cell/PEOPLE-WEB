@@ -84,9 +84,15 @@ const PaymentDebug = () => {
       
       console.log('🧪 Testing UPI payment for job:', testJobId);
       
-      // Add debug mode header for testing
-      const result = await paymentService.createUPIPayment(testJobId, { 'x-debug-mode': 'true' });
+      // Use debug endpoint that doesn't require authentication
+      const response = await fetch(`https://freelancing-platform-backend-backup.onrender.com/api/debug-payment-test/${testJobId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
       
+      const result = await response.json();
       console.log('🧪 UPI payment test result:', result);
       
       if (result.success) {

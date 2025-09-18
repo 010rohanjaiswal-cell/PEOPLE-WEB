@@ -272,6 +272,49 @@ app.post('/api/debug-create-jobs', (req, res) => {
   }
 });
 
+// Test UPI payment without authentication (for debugging)
+app.post('/api/debug-payment-test/:jobId', (req, res) => {
+  try {
+    const { jobId } = req.params;
+    console.log('🧪 Debug payment test for job:', jobId);
+    
+    // Import payment controller
+    const paymentController = require('./controllers/paymentController');
+    
+    // Create a mock request object
+    const mockReq = {
+      params: { jobId },
+      user: { _id: 'debug-user', id: 'debug-user', userId: 'debug-user' },
+      headers: { 'x-debug-mode': 'true' }
+    };
+    
+    // Create a mock response object
+    const mockRes = {
+      status: (code) => ({
+        json: (data) => {
+          console.log('🧪 Debug payment test result:', { status: code, data });
+          res.status(code).json(data);
+        }
+      }),
+      json: (data) => {
+        console.log('🧪 Debug payment test result:', { status: 200, data });
+        res.json(data);
+      }
+    };
+    
+    // Call the payment controller
+    paymentController.createUPIPayment(mockReq, mockRes);
+    
+  } catch (error) {
+    console.error('❌ Debug payment test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Debug payment test failed',
+      error: error.message
+    });
+  }
+});
+
 // List all jobs for debugging
 app.get('/api/debug-jobs', (req, res) => {
   try {
