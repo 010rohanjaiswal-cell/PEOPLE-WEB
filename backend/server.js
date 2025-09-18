@@ -184,6 +184,94 @@ app.get('/api/payment-test/:jobId', (req, res) => {
   }
 });
 
+// Create test jobs for debugging
+app.post('/api/debug-create-jobs', (req, res) => {
+  try {
+    const { inMemoryJobs, saveJobsToFile } = require('./controllers/sharedJobsStore');
+    
+    const testJobs = [
+      {
+        id: `test-job-${Date.now()}-1`,
+        title: 'Test Job 1 - Website Design',
+        description: 'Create a simple website design for testing payment functionality',
+        clientId: 'test-client-1',
+        budget: 10,
+        status: 'work_done',
+        createdAt: new Date().toISOString(),
+        assignedFreelancer: {
+          id: 'test-freelancer-1',
+          name: 'Test Freelancer 1'
+        }
+      },
+      {
+        id: `test-job-${Date.now()}-2`,
+        title: 'Test Job 2 - Logo Design',
+        description: 'Design a logo for testing payment gateway integration',
+        clientId: 'test-client-2',
+        budget: 10,
+        status: 'work_done',
+        createdAt: new Date().toISOString(),
+        assignedFreelancer: {
+          id: 'test-freelancer-2',
+          name: 'Test Freelancer 2'
+        }
+      },
+      {
+        id: `test-job-${Date.now()}-3`,
+        title: 'Test Job 3 - Content Writing',
+        description: 'Write content for testing commission calculation',
+        clientId: 'test-client-3',
+        budget: 10,
+        status: 'work_done',
+        createdAt: new Date().toISOString(),
+        assignedFreelancer: {
+          id: 'test-freelancer-3',
+          name: 'Test Freelancer 3'
+        }
+      },
+      {
+        id: `test-job-${Date.now()}-4`,
+        title: 'Test Job 4 - Data Entry',
+        description: 'Data entry task for testing UPI payment flow',
+        clientId: 'test-client-4',
+        budget: 10,
+        status: 'work_done',
+        createdAt: new Date().toISOString(),
+        assignedFreelancer: {
+          id: 'test-freelancer-4',
+          name: 'Test Freelancer 4'
+        }
+      }
+    ];
+    
+    // Add test jobs to inMemoryJobs
+    testJobs.forEach(job => {
+      inMemoryJobs.push(job);
+    });
+    
+    // Save to file
+    saveJobsToFile();
+    
+    res.json({
+      success: true,
+      message: `Created ${testJobs.length} test jobs successfully`,
+      jobs: testJobs.map(job => ({
+        id: job.id,
+        title: job.title,
+        status: job.status,
+        budget: job.budget
+      }))
+    });
+  } catch (error) {
+    console.error('Error creating test jobs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create test jobs',
+      error: error.message
+    });
+  }
+});
+
 // List all jobs for debugging
 app.get('/api/debug-jobs', (req, res) => {
   try {

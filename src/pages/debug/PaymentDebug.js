@@ -268,6 +268,36 @@ Commission Breakdown:
     setSuccess(`Selected job ${jobId} for testing`);
   };
 
+  const createTestJobs = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+      
+      const response = await fetch('https://freelancing-platform-backend-backup.onrender.com/api/debug-create-jobs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccess(`Created ${data.jobs.length} test jobs successfully!`);
+        // Refresh the jobs list
+        loadAvailableJobs();
+      } else {
+        setError(data.message || 'Failed to create test jobs');
+      }
+    } catch (error) {
+      console.error('Error creating test jobs:', error);
+      setError('Failed to create test jobs: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -327,6 +357,9 @@ Commission Breakdown:
           <div className="flex space-x-4 mb-4">
             <Button onClick={loadAvailableJobs} disabled={loading}>
               {loading ? 'Loading...' : 'Refresh Jobs'}
+            </Button>
+            <Button onClick={createTestJobs} disabled={loading} className="bg-green-600 hover:bg-green-700">
+              {loading ? 'Creating...' : 'Create Test Jobs (₹10 each)'}
             </Button>
           </div>
           
