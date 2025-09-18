@@ -272,6 +272,34 @@ app.post('/api/debug-create-jobs', (req, res) => {
   }
 });
 
+// Test PhonePe API directly
+app.get('/api/debug-phonepe-test', async (req, res) => {
+  try {
+    let service = null;
+    try {
+      service = require('./services/paymentService');
+    } catch (e) {
+      service = require('./services/paymentServiceMinimal');
+    }
+
+    // Test with minimal data
+    const testResult = await service.createPaymentRequest(1000, 'test-order-123', 'test-user', 'test-job', 'Test Job');
+    
+    res.json({
+      success: true,
+      message: 'PhonePe API test completed',
+      result: testResult
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'PhonePe API test failed',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Test PhonePe API configuration
 app.get('/api/debug-phonepe-config', (req, res) => {
   try {
