@@ -253,8 +253,12 @@ Commission Breakdown:
       setLoading(true);
       setError('');
       
+      console.log('🧪 Loading available jobs...');
+      
       const response = await fetch('https://freelancing-platform-backend-backup.onrender.com/api/debug-jobs');
       const data = await response.json();
+      
+      console.log('🧪 Available jobs response:', data);
       
       if (data.success) {
         setAvailableJobs(data.jobs || []);
@@ -263,7 +267,7 @@ Commission Breakdown:
         setError(data.message || 'Failed to load jobs');
       }
     } catch (error) {
-      console.error('Error loading available jobs:', error);
+      console.error('❌ Error loading available jobs:', error);
       setError('Failed to load available jobs: ' + error.message);
     } finally {
       setLoading(false);
@@ -310,6 +314,8 @@ Commission Breakdown:
       setError('');
       setSuccess('');
       
+      console.log('🧪 Creating test jobs...');
+      
       const response = await fetch('https://freelancing-platform-backend-backup.onrender.com/api/debug-create-jobs', {
         method: 'POST',
         headers: {
@@ -317,7 +323,11 @@ Commission Breakdown:
         }
       });
       
+      console.log('🧪 Test jobs response status:', response.status);
+      console.log('🧪 Test jobs response:', response);
+      
       const data = await response.json();
+      console.log('🧪 Test jobs data:', data);
       
       if (data.success) {
         setSuccess(`Created ${data.jobs.length} test jobs successfully!`);
@@ -327,7 +337,7 @@ Commission Breakdown:
         setError(data.message || 'Failed to create test jobs');
       }
     } catch (error) {
-      console.error('Error creating test jobs:', error);
+      console.error('❌ Error creating test jobs:', error);
       setError('Failed to create test jobs: ' + error.message);
     } finally {
       setLoading(false);
