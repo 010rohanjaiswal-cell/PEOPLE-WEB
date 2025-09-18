@@ -275,6 +275,35 @@ Commission Breakdown:
     setSuccess(`Selected job ${jobId} for testing`);
   };
 
+  const checkPhonePeConfig = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+      
+      const response = await fetch('https://freelancing-platform-backend-backup.onrender.com/api/debug-phonepe-config');
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccess('PhonePe configuration loaded successfully');
+        setPaymentResults(prev => ({
+          ...prev,
+          phonepeConfig: {
+            success: true,
+            config: data.config
+          }
+        }));
+      } else {
+        setError(data.message || 'Failed to load PhonePe configuration');
+      }
+    } catch (error) {
+      console.error('Error checking PhonePe config:', error);
+      setError('Failed to check PhonePe configuration: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const createTestJobs = async () => {
     try {
       setLoading(true);
@@ -453,6 +482,9 @@ Commission Breakdown:
             <Button onClick={testPaymentService} disabled={loading}>
               Test Payment Service
             </Button>
+            <Button onClick={checkPhonePeConfig} disabled={loading}>
+              Check PhonePe Config
+            </Button>
             <Button onClick={testUPIPayment} disabled={loading || !testJobId}>
               Test UPI Payment
             </Button>
@@ -494,6 +526,13 @@ Commission Breakdown:
           <Card>
             <h2 className="text-xl font-semibold mb-4">Test Results</h2>
             <div className="space-y-4">
+              {paymentResults.phonepeConfig && (
+                <div className="bg-gray-50 p-4 rounded">
+                  <h3 className="font-semibold">PhonePe Configuration:</h3>
+                  <pre className="text-sm mt-2">{JSON.stringify(paymentResults.phonepeConfig, null, 2)}</pre>
+                </div>
+              )}
+              
               {paymentResults.upiTest && (
                 <div className="bg-gray-50 p-4 rounded">
                   <h3 className="font-semibold">UPI Payment Test:</h3>

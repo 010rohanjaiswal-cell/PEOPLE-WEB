@@ -63,6 +63,15 @@ class PaymentService {
         request: Buffer.from(JSON.stringify(payload)).toString('base64')
       };
 
+      console.log('🔍 PhonePe API Request Details:');
+      console.log('  URL:', `${this.baseUrl}/pg/v1/pay`);
+      console.log('  Merchant ID:', this.merchantId);
+      console.log('  Order ID:', orderId);
+      console.log('  Amount:', amount, '(₹' + (amount/100) + ')');
+      console.log('  Payload:', JSON.stringify(payload, null, 2));
+      console.log('  Checksum:', checksum);
+      console.log('  Request Data:', JSON.stringify(requestData, null, 2));
+
       const response = await axios.post(`${this.baseUrl}/pg/v1/pay`, requestData, {
         headers: {
           'Content-Type': 'application/json',
@@ -71,6 +80,10 @@ class PaymentService {
         }
       });
 
+      console.log('✅ PhonePe API Response:');
+      console.log('  Status:', response.status);
+      console.log('  Data:', JSON.stringify(response.data, null, 2));
+
       return {
         success: true,
         data: response.data,
@@ -78,10 +91,20 @@ class PaymentService {
       };
 
     } catch (error) {
-      console.error('Payment request creation error:', error.response?.data || error.message);
+      console.error('❌ PhonePe API Error Details:');
+      console.error('  Status:', error.response?.status);
+      console.error('  Status Text:', error.response?.statusText);
+      console.error('  Headers:', error.response?.headers);
+      console.error('  Data:', error.response?.data);
+      console.error('  Message:', error.message);
+      console.error('  URL:', error.config?.url);
+      console.error('  Method:', error.config?.method);
+      
       return {
         success: false,
-        error: error.response?.data || error.message
+        error: error.response?.data || error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText
       };
     }
   }

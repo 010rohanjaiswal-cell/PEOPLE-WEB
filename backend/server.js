@@ -272,6 +272,39 @@ app.post('/api/debug-create-jobs', (req, res) => {
   }
 });
 
+// Test PhonePe API configuration
+app.get('/api/debug-phonepe-config', (req, res) => {
+  try {
+    let service = null;
+    try {
+      service = require('./services/paymentService');
+    } catch (e) {
+      service = require('./services/paymentServiceMinimal');
+    }
+
+    const config = {
+      merchantId: service.merchantId,
+      saltKey: service.saltKey ? '***' + service.saltKey.slice(-4) : 'Not set',
+      saltIndex: service.saltIndex,
+      baseUrl: service.baseUrl,
+      redirectUrl: service.redirectUrl,
+      dependenciesAvailable: service.dependenciesAvailable || false
+    };
+
+    res.json({
+      success: true,
+      message: 'PhonePe configuration retrieved',
+      config: config
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get PhonePe configuration',
+      error: error.message
+    });
+  }
+});
+
 // Test UPI payment without authentication (for debugging)
 app.post('/api/debug-payment-test/:jobId', (req, res) => {
   try {
