@@ -15,10 +15,16 @@ try {
 
 class PaymentService {
   constructor() {
-    this.merchantId = 'SU2509171240249286269937';
-    this.saltKey = 'd74141aa-8762-4d1b-bfa1-dfe2a094d310';
-    this.saltIndex = 1;
-    this.baseUrl = 'https://api.phonepe.com/apis/hermes';
+    this.merchantId = process.env.PHONEPE_MERCHANT_ID || 'SU2509171240249286269937';
+    this.saltKey = process.env.PHONEPE_SALT_KEY || 'd74141aa-8762-4d1b-bfa1-dfe2a094d310';
+    this.saltIndex = Number(process.env.PHONEPE_SALT_INDEX || 1);
+    // Allow overriding base URL via env to switch between prod and preprod
+    const envBaseUrl = process.env.PHONEPE_BASE_URL;
+    const envMode = process.env.PHONEPE_ENV; // 'preprod' | 'prod'
+    this.baseUrl = envBaseUrl
+      || (envMode === 'preprod'
+            ? 'https://api-preprod.phonepe.com/apis/pg-sandbox'
+            : 'https://api.phonepe.com/apis/pg');
     this.redirectUrl = process.env.PAYMENT_REDIRECT_URL || 'https://freelancing-platform-backend-backup.onrender.com/payment/callback';
     this.dependenciesAvailable = dependenciesAvailable;
     this.axios = axios;
@@ -31,7 +37,8 @@ class PaymentService {
       throw new Error('Payment service dependencies not available');
     }
     const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-    const checksumString = base64Payload + '/pg/v1/pay' + this.saltKey;
+    // Standard Checkout pay endpoint
+    const checksumString = base64Payload + '/checkout/v2/pay' + this.saltKey;
     const checksum = crypto.SHA256(checksumString).toString();
     return checksum + '###' + this.saltIndex;
   }
@@ -67,7 +74,7 @@ class PaymentService {
       };
 
       console.log('🔍 PhonePe API Request Details:');
-      console.log('  URL:', `${this.baseUrl}/pg/v1/pay`);
+      console.log('  URL:', `${this.baseUrl}/checkout/v2/pay`);
       console.log('  Merchant ID:', this.merchantId);
       console.log('  Order ID:', orderId);
       console.log('  Amount:', amount, '(₹' + (amount/100) + ')');
@@ -75,7 +82,7 @@ class PaymentService {
       console.log('  Checksum:', checksum);
       console.log('  Request Data:', JSON.stringify(requestData, null, 2));
 
-      const apiUrl = `${this.baseUrl}/pg/v1/pay`;
+      const apiUrl = `${this.baseUrl}/checkout/v2/pay`;
       console.log('🔍 Making request to PhonePe API:', apiUrl);
       
       const response = await axios.post(apiUrl, requestData, {
@@ -92,10 +99,18 @@ class PaymentService {
       console.log('  Status:', response.status);
       console.log('  Data:', JSON.stringify(response.data, null, 2));
 
+      // Try multiple shapes for redirect URL per different API variants
+      const data = response.data;
+      const redirectUrl = data?.data?.instrumentResponse?.redirectInfo?.url
+        || data?.data?.redirectInfo?.url
+        || data?.data?.url
+        || data?.redirectUrl
+        || data?.url;
+
       return {
         success: true,
-        data: response.data,
-        paymentUrl: response.data.data.instrumentResponse.redirectInfo.url
+        data,
+        paymentUrl: redirectUrl
       };
 
     } catch (error) {
@@ -127,7 +142,8 @@ class PaymentService {
     }
     
     try {
-      const url = `/pg/v1/status/${this.merchantId}/${merchantTransactionId}`;
+      // Standard Checkout order status endpoint uses merchantOrderId in path
+      const url = `/checkout/v2/order/${merchantTransactionId}/status`;
       const checksumString = url + this.saltKey;
       const checksum = crypto.SHA256(checksumString).toString() + '###' + this.saltIndex;
 
