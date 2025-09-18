@@ -18,7 +18,7 @@ class PaymentService {
     this.merchantId = 'SU2509171240249286269937';
     this.saltKey = 'd74141aa-8762-4d1b-bfa1-dfe2a094d310';
     this.saltIndex = 1;
-    this.baseUrl = 'https://api-testing.phonepe.com/apis/hermes';
+    this.baseUrl = 'https://api.phonepe.com/apis/hermes';
     this.redirectUrl = process.env.PAYMENT_REDIRECT_URL || 'https://freelancing-platform-backend-backup.onrender.com/payment/callback';
     this.dependenciesAvailable = dependenciesAvailable;
     this.axios = axios;
@@ -191,6 +191,39 @@ class PaymentService {
       return {
         success: false,
         error: error.message
+      };
+    }
+  }
+
+  // Test PhonePe API endpoint connectivity
+  async testPhonePeConnectivity() {
+    try {
+      if (!this.dependenciesAvailable) {
+        return {
+          success: false,
+          error: 'Dependencies not available'
+        };
+      }
+
+      // Test basic connectivity to PhonePe API
+      const response = await this.axios.get(this.baseUrl, {
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'PaymentService-Test/1.0'
+        }
+      });
+
+      return {
+        success: true,
+        status: response.status,
+        message: 'PhonePe API endpoint is reachable'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText
       };
     }
   }
