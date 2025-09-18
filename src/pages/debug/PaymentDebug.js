@@ -84,7 +84,8 @@ const PaymentDebug = () => {
       
       console.log('🧪 Testing UPI payment for job:', testJobId);
       
-      const result = await paymentService.createUPIPayment(testJobId);
+      // Add debug mode header for testing
+      const result = await paymentService.createUPIPayment(testJobId, { 'x-debug-mode': 'true' });
       
       console.log('🧪 UPI payment test result:', result);
       

@@ -38,10 +38,10 @@ api.interceptors.request.use(
 
 const paymentService = {
   // Create UPI payment request
-  createUPIPayment: async (jobId) => {
+  createUPIPayment: async (jobId, headers = {}) => {
     try {
       console.log('💳 Creating UPI payment for job:', jobId);
-      const response = await api.post(`/payment/upi/${jobId}`);
+      const response = await api.post(`/payment/upi/${jobId}`, {}, { headers });
       console.log('💳 UPI payment response:', response.data);
       return response.data;
     } catch (error) {
