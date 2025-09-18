@@ -121,6 +121,69 @@ try {
 app.use('/api/debug', debugRoutes);
 app.use('/api/debug-payment', require('./routes/debugPayment'));
 
+// Test payment service with specific job
+app.get('/api/payment-test/:jobId', (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      jobId: jobId,
+      dependencies: {
+        axios: testModule('axios'),
+        cryptoJs: testModule('crypto-js')
+      },
+      services: {
+        paymentService: testPaymentService(),
+        paymentController: testPaymentController()
+      },
+      environment: {
+        NODE_ENV: process.env.NODE_ENV,
+        PAYMENT_REDIRECT_URL: process.env.PAYMENT_REDIRECT_URL
+      },
+      testResults: {}
+    };
+
+    // Test payment service methods
+    try {
+      let service = null;
+      try {
+        service = require('./services/paymentService');
+      } catch (e) {
+        service = require('./services/paymentServiceMinimal');
+      }
+
+      // Test calculateAmounts
+      const testAmounts = service.calculateAmounts(1000);
+      debugInfo.testResults.calculateAmounts = {
+        success: true,
+        result: testAmounts
+      };
+
+      // Test createPaymentRequest (without actually calling PhonePe)
+      debugInfo.testResults.createPaymentRequest = {
+        methodAvailable: typeof service.createPaymentRequest === 'function',
+        isAsync: true
+      };
+
+    } catch (error) {
+      debugInfo.testResults.error = error.message;
+    }
+
+    res.json({
+      success: true,
+      message: 'Payment service test completed',
+      debugInfo
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Payment service test failed',
+      error: error.message
+    });
+  }
+});
+
 // Simple payment debug endpoint
 app.get('/api/payment-debug', (req, res) => {
   try {
