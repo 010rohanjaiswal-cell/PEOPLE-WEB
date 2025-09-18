@@ -21,10 +21,19 @@ class PaymentService {
     // Allow overriding base URL via env to switch between prod and preprod
     const envBaseUrl = process.env.PHONEPE_BASE_URL;
     const envMode = process.env.PHONEPE_ENV; // 'preprod' | 'prod'
-    this.baseUrl = envBaseUrl
-      || (envMode === 'preprod'
-            ? 'https://api-preprod.phonepe.com/apis/pg-sandbox'
-            : 'https://api.phonepe.com/apis/pg');
+    this.flowMode = (process.env.PHONEPE_FLOW || 'standard').toLowerCase(); // 'standard' | 'hermes'
+    // Determine base URL based on flow
+    if (envBaseUrl) {
+      this.baseUrl = envBaseUrl;
+    } else if (this.flowMode === 'hermes') {
+      this.baseUrl = envMode === 'preprod'
+        ? 'https://api-preprod.phonepe.com/apis/hermes'
+        : 'https://api.phonepe.com/apis/hermes';
+    } else {
+      this.baseUrl = envMode === 'preprod'
+        ? 'https://api-preprod.phonepe.com/apis/pg-sandbox'
+        : 'https://api.phonepe.com/apis/pg';
+    }
     // Authorization (OAuth) base URL
     const envAuthBaseUrl = process.env.PHONEPE_AUTH_BASE_URL;
     this.authBaseUrl = envAuthBaseUrl
@@ -50,8 +59,9 @@ class PaymentService {
       throw new Error('Payment service dependencies not available');
     }
     const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-    // Standard Checkout pay endpoint
-    const checksumString = base64Payload + '/checkout/v2/pay' + this.saltKey;
+    // Endpoint segment depends on flow
+    const payPath = this.flowMode === 'hermes' ? '/pg/v1/pay' : '/checkout/v2/pay';
+    const checksumString = base64Payload + payPath + this.saltKey;
     const checksum = crypto.SHA256(checksumString).toString();
     return checksum + '###' + this.saltIndex;
   }
@@ -154,7 +164,8 @@ class PaymentService {
       };
 
       console.log('🔍 PhonePe API Request Details:');
-      console.log('  URL:', `${this.baseUrl}/checkout/v2/pay`);
+      console.log('  Flow:', this.flowMode);
+      console.log('  URL:', `${this.baseUrl}${this.flowMode === 'hermes' ? '/pg/v1/pay' : '/checkout/v2/pay'}`);
       console.log('  Merchant ID:', this.merchantId);
       console.log('  Order ID:', orderId);
       console.log('  Amount:', amount, '(₹' + (amount/100) + ')');
@@ -162,7 +173,7 @@ class PaymentService {
       console.log('  Checksum:', checksum);
       console.log('  Request Data:', JSON.stringify(requestData, null, 2));
 
-      const apiUrl = `${this.baseUrl}/checkout/v2/pay`;
+      const apiUrl = `${this.baseUrl}${this.flowMode === 'hermes' ? '/pg/v1/pay' : '/checkout/v2/pay'}`;
       console.log('🔍 Making request to PhonePe API:', apiUrl);
       
       const response = await axios.post(apiUrl, requestData, {
@@ -170,9 +181,9 @@ class PaymentService {
           'Content-Type': 'application/json',
           'X-VERIFY': checksum,
           'X-MERCHANT-ID': this.merchantId,
-          'Authorization': `Bearer ${bearer}`,
-          'X-CLIENT-ID': this.clientId,
-          'X-CLIENT-VERSION': this.clientVersion,
+          ...(this.flowMode === 'hermes' ? {} : { 'Authorization': `Bearer ${bearer}` }),
+          ...(this.flowMode === 'hermes' ? {} : { 'X-CLIENT-ID': this.clientId }),
+          ...(this.flowMode === 'hermes' ? {} : { 'X-CLIENT-VERSION': this.clientVersion }),
           'accept': 'application/json'
         },
         timeout: 30000
@@ -205,8 +216,8 @@ class PaymentService {
       console.error('  Message:', error.message);
       console.error('  URL:', error.config?.url);
       console.error('  Method:', error.config?.method);
-      // If 401, try refreshing token once
-      if (error.response?.status === 401) {
+      // If 401, try refreshing token once (only standard flow)
+      if (error.response?.status === 401 && this.flowMode !== 'hermes') {
         try {
           this._authToken = null;
           const bearer = await this.getAuthToken();
@@ -273,21 +284,23 @@ class PaymentService {
     }
     
     try {
-      // Standard Checkout order status endpoint uses merchantOrderId in path
-      const url = `/checkout/v2/order/${merchantTransactionId}/status`;
+      // Status path depends on flow
+      const url = this.flowMode === 'hermes'
+        ? `/pg/v1/status/${this.merchantId}/${merchantTransactionId}`
+        : `/checkout/v2/order/${merchantTransactionId}/status`;
       const checksumString = url + this.saltKey;
       const checksum = crypto.SHA256(checksumString).toString() + '###' + this.saltIndex;
 
-      // Ensure Authorization token
-      const bearer = await this.getAuthToken();
+      // Ensure Authorization token for standard flow only
+      const bearer = this.flowMode === 'hermes' ? null : await this.getAuthToken();
       const response = await axios.get(`${this.baseUrl}${url}`, {
         headers: {
           'Content-Type': 'application/json',
           'X-VERIFY': checksum,
           'X-MERCHANT-ID': this.merchantId,
-          'Authorization': `Bearer ${bearer}`,
-          'X-CLIENT-ID': this.clientId,
-          'X-CLIENT-VERSION': this.clientVersion,
+          ...(this.flowMode === 'hermes' ? {} : { 'Authorization': `Bearer ${bearer}` }),
+          ...(this.flowMode === 'hermes' ? {} : { 'X-CLIENT-ID': this.clientId }),
+          ...(this.flowMode === 'hermes' ? {} : { 'X-CLIENT-VERSION': this.clientVersion }),
           'accept': 'application/json'
         }
       });
