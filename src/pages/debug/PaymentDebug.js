@@ -18,10 +18,12 @@ const PaymentDebug = () => {
   const [testAmount, setTestAmount] = useState(1000);
   const [paymentResults, setPaymentResults] = useState(null);
   const [jobData, setJobData] = useState(null);
+  const [availableJobs, setAvailableJobs] = useState([]);
 
   // Load debug info on component mount
   useEffect(() => {
     loadDebugInfo();
+    loadAvailableJobs();
   }, []);
 
   const loadDebugInfo = async () => {
@@ -239,6 +241,33 @@ Commission Breakdown:
     setSuccess('Job status flow test completed');
   };
 
+  const loadAvailableJobs = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const response = await fetch('https://freelancing-platform-backend-backup.onrender.com/api/debug-jobs');
+      const data = await response.json();
+      
+      if (data.success) {
+        setAvailableJobs(data.jobs || []);
+        setSuccess(`Loaded ${data.totalJobs} available jobs`);
+      } else {
+        setError(data.message || 'Failed to load jobs');
+      }
+    } catch (error) {
+      console.error('Error loading available jobs:', error);
+      setError('Failed to load available jobs: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectJobForTesting = (jobId) => {
+    setTestJobId(jobId);
+    setSuccess(`Selected job ${jobId} for testing`);
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -292,6 +321,60 @@ Commission Breakdown:
           )}
         </Card>
 
+        {/* Available Jobs */}
+        <Card className="mb-6">
+          <h2 className="text-xl font-semibold mb-4">Available Jobs</h2>
+          <div className="flex space-x-4 mb-4">
+            <Button onClick={loadAvailableJobs} disabled={loading}>
+              {loading ? 'Loading...' : 'Refresh Jobs'}
+            </Button>
+          </div>
+          
+          {availableJobs.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600">Click on a job to select it for testing:</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {availableJobs.map((job) => (
+                  <div
+                    key={job.id}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      testJobId === job.id 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => selectJobForTesting(job.id)}
+                  >
+                    <div className="font-medium text-sm">{job.title}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      ID: {job.id}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Status: <span className={`font-medium ${
+                        job.status === 'work_done' ? 'text-orange-600' :
+                        job.status === 'assigned' ? 'text-blue-600' :
+                        job.status === 'open' ? 'text-green-600' :
+                        'text-gray-600'
+                      }`}>{job.status}</span>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Budget: ₹{job.budget}
+                    </div>
+                    {job.assignedFreelancer && (
+                      <div className="text-xs text-gray-500">
+                        Assigned to: {job.assignedFreelancer.name}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>No jobs available. Create a job first to test payment functionality.</p>
+            </div>
+          )}
+        </Card>
+
         {/* Test Configuration */}
         <Card className="mb-6">
           <h2 className="text-xl font-semibold mb-4">Test Configuration</h2>
@@ -304,6 +387,11 @@ Commission Breakdown:
                 onChange={(e) => setTestJobId(e.target.value)}
                 placeholder="Enter job ID to test"
               />
+              {testJobId && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Selected: {testJobId}
+                </p>
+              )}
             </div>
             <div>
               <Label htmlFor="testAmount">Test Amount (₹)</Label>

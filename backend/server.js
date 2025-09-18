@@ -184,6 +184,41 @@ app.get('/api/payment-test/:jobId', (req, res) => {
   }
 });
 
+// List all jobs for debugging
+app.get('/api/debug-jobs', (req, res) => {
+  try {
+    const { inMemoryJobs } = require('./controllers/sharedJobsStore');
+    const jobs = Array.isArray(inMemoryJobs) ? inMemoryJobs : [];
+    
+    const jobSummary = jobs.map(job => ({
+      id: job.id,
+      title: job.title,
+      status: job.status,
+      clientId: job.clientId,
+      budget: job.budget,
+      createdAt: job.createdAt,
+      assignedFreelancer: job.assignedFreelancer ? {
+        id: job.assignedFreelancer.id,
+        name: job.assignedFreelancer.name
+      } : null
+    }));
+    
+    res.json({
+      success: true,
+      message: 'Jobs retrieved successfully',
+      totalJobs: jobs.length,
+      jobs: jobSummary
+    });
+  } catch (error) {
+    console.error('Error listing jobs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to list jobs',
+      error: error.message
+    });
+  }
+});
+
 // Simple payment debug endpoint
 app.get('/api/payment-debug', (req, res) => {
   try {
