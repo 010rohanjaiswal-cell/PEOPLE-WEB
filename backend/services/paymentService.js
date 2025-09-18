@@ -68,9 +68,8 @@ class PaymentService {
     try {
       const url = `${this.authBaseUrl}/v1/oauth/token`;
       const body = new URLSearchParams({
-        clientId: this.clientId,
-        clientSecret: this.clientSecret,
-        clientVersion: this.clientVersion,
+        client_id: this.clientId,
+        client_secret: this.clientSecret,
         grant_type: 'client_credentials'
       });
       const resp = await this.axios.post(url, body.toString(), {
