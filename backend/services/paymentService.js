@@ -18,7 +18,7 @@ class PaymentService {
     this.merchantId = 'SU2509171240249286269937';
     this.saltKey = 'd74141aa-8762-4d1b-bfa1-dfe2a094d310';
     this.saltIndex = 1;
-    this.baseUrl = 'https://api.phonepe.com/apis/hermes';
+    this.baseUrl = 'https://api-testing.phonepe.com/apis/hermes';
     this.redirectUrl = process.env.PAYMENT_REDIRECT_URL || 'https://freelancing-platform-backend-backup.onrender.com/payment/callback';
     this.dependenciesAvailable = dependenciesAvailable;
     this.axios = axios;
@@ -75,12 +75,16 @@ class PaymentService {
       console.log('  Checksum:', checksum);
       console.log('  Request Data:', JSON.stringify(requestData, null, 2));
 
-      const response = await axios.post(`${this.baseUrl}/pg/v1/pay`, requestData, {
+      const apiUrl = `${this.baseUrl}/pg/v1/pay`;
+      console.log('🔍 Making request to PhonePe API:', apiUrl);
+      
+      const response = await axios.post(apiUrl, requestData, {
         headers: {
           'Content-Type': 'application/json',
           'X-VERIFY': checksum,
           'accept': 'application/json'
-        }
+        },
+        timeout: 30000
       });
 
       console.log('✅ PhonePe API Response:');
