@@ -70,7 +70,8 @@ class PaymentService {
       const body = new URLSearchParams({
         clientId: this.clientId,
         clientSecret: this.clientSecret,
-        clientVersion: this.clientVersion
+        clientVersion: this.clientVersion,
+        grant_type: 'client_credentials'
       });
       const resp = await this.axios.post(url, body.toString(), {
         headers: { 
