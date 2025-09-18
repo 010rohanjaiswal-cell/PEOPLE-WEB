@@ -67,13 +67,16 @@ class PaymentService {
     }
     try {
       const url = `${this.authBaseUrl}/v1/oauth/token`;
-      const payload = {
+      const body = new URLSearchParams({
         clientId: this.clientId,
         clientSecret: this.clientSecret,
         clientVersion: this.clientVersion
-      };
-      const resp = await this.axios.post(url, payload, {
-        headers: { 'Content-Type': 'application/json', 'accept': 'application/json' },
+      });
+      const resp = await this.axios.post(url, body.toString(), {
+        headers: { 
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'accept': 'application/json'
+        },
         timeout: 15000
       });
       const data = resp.data || {};
@@ -141,6 +144,8 @@ class PaymentService {
           'X-VERIFY': checksum,
           'X-MERCHANT-ID': this.merchantId,
           'Authorization': `Bearer ${bearer}`,
+          'X-CLIENT-ID': this.clientId,
+          'X-CLIENT-VERSION': this.clientVersion,
           'accept': 'application/json'
         },
         timeout: 30000
@@ -205,6 +210,8 @@ class PaymentService {
               }),
               'X-MERCHANT-ID': this.merchantId,
               'Authorization': `Bearer ${bearer}`,
+              'X-CLIENT-ID': this.clientId,
+              'X-CLIENT-VERSION': this.clientVersion,
               'accept': 'application/json'
             },
             timeout: 30000
@@ -252,6 +259,8 @@ class PaymentService {
           'X-VERIFY': checksum,
           'X-MERCHANT-ID': this.merchantId,
           'Authorization': `Bearer ${bearer}`,
+          'X-CLIENT-ID': this.clientId,
+          'X-CLIENT-VERSION': this.clientVersion,
           'accept': 'application/json'
         }
       });
