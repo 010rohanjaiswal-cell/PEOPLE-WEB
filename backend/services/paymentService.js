@@ -82,6 +82,7 @@ class PaymentService {
         headers: {
           'Content-Type': 'application/json',
           'X-VERIFY': checksum,
+          'X-MERCHANT-ID': this.merchantId,
           'accept': 'application/json'
         },
         timeout: 30000
