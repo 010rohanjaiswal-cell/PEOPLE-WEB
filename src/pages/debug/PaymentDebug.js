@@ -5,8 +5,8 @@ import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Label } from '../../components/common/Label';
 import paymentService from '../../api/paymentService';
-import clientService from '../../api/clientService';
-import freelancerService from '../../api/freelancerService';
+import { clientService } from '../../api/clientService';
+import { freelancerService } from '../../api/freelancerService';
 
 const PaymentDebug = () => {
   const { user, isAuthenticated } = useAuth();
