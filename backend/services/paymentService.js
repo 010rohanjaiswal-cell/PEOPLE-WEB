@@ -67,22 +67,46 @@ class PaymentService {
     }
     try {
       const url = `${this.authBaseUrl}/v1/oauth/token`;
-      const body = new URLSearchParams({
-        client_id: this.clientId,
-        client_secret: this.clientSecret,
+      const basic = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+
+      // Attempt x-www-form-urlencoded first
+      const formBody = new URLSearchParams({
         grant_type: 'client_credentials'
-      });
-      const resp = await this.axios.post(url, body.toString(), {
-        headers: { 
+      }).toString();
+      let resp = await this.axios.post(url, formBody, {
+        headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'accept': 'application/json'
+          'accept': 'application/json',
+          'Authorization': `Basic ${basic}`,
+          'X-CLIENT-ID': this.clientId,
+          'X-CLIENT-VERSION': this.clientVersion
         },
         timeout: 15000
       });
-      const data = resp.data || {};
-      const token = data.accessToken || data.token || data.data?.accessToken || data.data?.token;
-      const expiresInSec = data.expiresIn || data.data?.expiresIn || 3300; // default ~55min
+
+      let data = resp.data || {};
+      let token = data.accessToken || data.access_token || data.token || data.data?.accessToken || data.data?.access_token || data.data?.token;
+      let expiresInSec = data.expires_in || data.expiresIn || data.data?.expires_in || data.data?.expiresIn || 3300; // default ~55min
+
+      // Fallback to JSON body if token not found
       if (!token) {
+        const jsonPayload = { clientId: this.clientId, clientSecret: this.clientSecret, grantType: 'client_credentials' };
+        resp = await this.axios.post(url, jsonPayload, {
+          headers: {
+            'Content-Type': 'application/json',
+            'accept': 'application/json',
+            'X-CLIENT-ID': this.clientId,
+            'X-CLIENT-VERSION': this.clientVersion
+          },
+          timeout: 15000
+        });
+        data = resp.data || {};
+        token = data.accessToken || data.access_token || data.token || data.data?.accessToken || data.data?.access_token || data.data?.token;
+        expiresInSec = data.expires_in || data.expiresIn || data.data?.expires_in || data.data?.expiresIn || 3300;
+      }
+
+      if (!token) {
+        console.error('❌ PhonePe OAuth unexpected response:', JSON.stringify(data));
         throw new Error('OAuth token missing in response');
       }
       this._authToken = token;
