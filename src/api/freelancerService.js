@@ -317,5 +317,33 @@ export const freelancerService = {
     } catch (error) {
       throw error.response?.data || error;
     }
+  },
+
+  // Commission ledger methods
+  getCommissionLedger: async (freelancerId) => {
+    try {
+      const response = await api.get(`/commission/ledger/${freelancerId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  payCommission: async (entryId, amount) => {
+    try {
+      const response = await api.post(`/commission/pay/${entryId}`, { amount });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  checkCommissionStatus: async (jobId) => {
+    try {
+      const response = await api.get(`/commission/status/${jobId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   }
 };

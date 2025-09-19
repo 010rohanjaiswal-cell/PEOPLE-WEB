@@ -107,6 +107,7 @@ app.use('/api/client', clientRoutes);
 app.use('/api/freelancer', freelancerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/commission', require('./routes/commission'));
 // Try to load payment routes, but don't fail if unavailable
 try {
   app.use('/api/payment', require('./routes/payment'));

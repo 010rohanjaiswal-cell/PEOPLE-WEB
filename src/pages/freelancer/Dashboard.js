@@ -8,6 +8,7 @@ import { Button } from '../../components/common/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Label } from '../../components/common/Label';
+import CommissionLedgerModal from '../../components/modals/CommissionLedgerModal';
 import { 
   Briefcase, 
   Wallet, 
@@ -35,6 +36,8 @@ const FreelancerDashboard = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [freelancerId, setFreelancerId] = useState(null);
+  const [showCommissionLedger, setShowCommissionLedger] = useState(false);
+  const [commissionStatus, setCommissionStatus] = useState({});
   const [offerModal, setOfferModal] = useState({ open: false, jobId: null, amount: '', message: '' });
   const [viewProfileModal, setViewProfileModal] = useState({ open: false, data: null });
   const [offerCooldowns, setOfferCooldowns] = useState({});
@@ -106,6 +109,11 @@ const FreelancerDashboard = () => {
       setWalletBalance(walletRes.data?.balance || 0);
       setFreelancerId(walletRes.data?.freelancerId || null);
       setWalletTransactions(walletRes.data?.transactions || []);
+      
+      // Check commission status for completed jobs
+      setTimeout(() => {
+        checkCommissionStatusForJobs();
+      }, 100);
     } catch (error) {
       console.error('Error loading freelancer data:', error);
       setError('Failed to load data');
@@ -206,6 +214,54 @@ const FreelancerDashboard = () => {
       setError(error.message || 'Failed to mark job as fully completed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePayCommission = async (entryId, amount) => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // TODO: Call backend API to record commission payment
+      const response = await freelancerService.payCommission(entryId, amount);
+      
+      if (response.success) {
+        setError('');
+        // Reload freelancer data to reflect the payment
+        await loadFreelancerData();
+        // Refresh commission status
+        await checkCommissionStatusForJobs();
+      } else {
+        setError(response.message || 'Failed to record commission payment');
+      }
+    } catch (error) {
+      console.error('Error recording commission payment:', error);
+      setError(error.message || 'Failed to record commission payment');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkCommissionStatusForJobs = async () => {
+    try {
+      const statusMap = {};
+      
+      // Check commission status for all assigned jobs
+      for (const job of assignedJobs) {
+        if (job.status === 'completed') {
+          try {
+            const response = await freelancerService.checkCommissionStatus(job.id);
+            statusMap[job.id] = response;
+          } catch (error) {
+            console.error(`Error checking commission status for job ${job.id}:`, error);
+            statusMap[job.id] = { hasCommission: false, status: 'error' };
+          }
+        }
+      }
+      
+      setCommissionStatus(statusMap);
+    } catch (error) {
+      console.error('Error checking commission status:', error);
     }
   };
 
@@ -469,14 +525,21 @@ const FreelancerDashboard = () => {
                 )}
                 {job.status === 'completed' && (
                   <div className="flex space-x-2">
-                    <Button 
-                      onClick={() => handleJobFullyComplete(job.id)}
-                      disabled={loading}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-1" />
-                      Completed
-                    </Button>
+                    {commissionStatus[job.id]?.hasCommission && commissionStatus[job.id]?.status === 'pending' ? (
+                      <div className="flex items-center text-orange-600">
+                        <Clock className="w-4 h-4 mr-1 animate-spin" />
+                        <span className="text-sm font-medium">Pay Commission to Complete</span>
+                      </div>
+                    ) : (
+                      <Button 
+                        onClick={() => handleJobFullyComplete(job.id)}
+                        disabled={loading}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        Completed
+                      </Button>
+                    )}
                     {job.clientId && (
                       <Button 
                         variant="outline"
@@ -512,6 +575,20 @@ const FreelancerDashboard = () => {
           <p className="text-sm text-muted-foreground mt-2">
             Available for withdrawal
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Commission Ledger Button */}
+      <Card>
+        <CardContent className="pt-6">
+          <Button
+            onClick={() => setShowCommissionLedger(true)}
+            variant="outline"
+            className="w-full"
+          >
+            <DollarSign className="w-4 h-4 mr-2" />
+            View Commission Ledger
+          </Button>
         </CardContent>
       </Card>
 
@@ -814,6 +891,14 @@ const FreelancerDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Commission Ledger Modal */}
+      <CommissionLedgerModal
+        isOpen={showCommissionLedger}
+        onClose={() => setShowCommissionLedger(false)}
+        freelancerId={freelancerId}
+        onPayCommission={handlePayCommission}
+      />
     </div>
   );
 };

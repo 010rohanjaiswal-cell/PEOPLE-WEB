@@ -313,6 +313,50 @@ const payJob = async (req, res) => {
       console.error('❌ payJob - wallet credit error:', walletError);
       // Don't fail the payment if wallet update fails
     }
+
+    // For cash payments, add commission entry to freelancer's ledger
+    if (paymentMethod === 'cash') {
+      try {
+        const commissionController = require('./commissionController');
+        const commission = Math.round(jobAmount * 0.1 * 100) / 100; // 10% commission
+        
+        // Add commission entry
+        const commissionEntry = {
+          freelancerId: freelancerId,
+          jobId: job.id,
+          jobTitle: job.title,
+          clientName: req.user.fullName || 'Unknown Client',
+          amount: commission,
+          totalAmount: jobAmount
+        };
+        
+        // Create a mock request/response for the commission controller
+        const mockReq = {
+          body: commissionEntry,
+          user: req.user
+        };
+        
+        const mockRes = {
+          json: (data) => {
+            if (data.success) {
+              console.log('✅ payJob - commission entry added:', data.entry);
+            } else {
+              console.error('❌ payJob - commission entry failed:', data.message);
+            }
+          },
+          status: (code) => ({
+            json: (data) => {
+              console.error(`❌ payJob - commission entry error ${code}:`, data.message);
+            }
+          })
+        };
+        
+        await commissionController.addCommissionEntry(mockReq, mockRes);
+      } catch (commissionError) {
+        console.error('❌ payJob - commission entry error:', commissionError);
+        // Don't fail the payment if commission entry fails
+      }
+    }
     
     // Save to file for persistence
     saveJobsToFile();

@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Input } from '../../components/common/Input';
 import { Label } from '../../components/common/Label';
 import DebugPanel from '../../components/debug/DebugPanel';
+import PayCashModal from '../../components/modals/PayCashModal';
 import { 
   Plus, 
   Briefcase, 
@@ -35,6 +36,8 @@ const ClientDashboard = () => {
   const [activeJobOffers, setActiveJobOffers] = useState(null);
   const [editJobModal, setEditJobModal] = useState({ open: false, job: null });
   const [viewProfileModal, setViewProfileModal] = useState({ open: false, data: null });
+  const [showPayCashModal, setShowPayCashModal] = useState(false);
+  const [selectedJobForCash, setSelectedJobForCash] = useState(null);
 
   // Job posting form state
   const [jobForm, setJobForm] = useState({
@@ -283,6 +286,36 @@ You will be redirected to the payment gateway.`;
     } catch (error) {
       console.error('Error creating UPI payment:', error);
       setError(error.message || 'Failed to create payment request');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePayCash = (job) => {
+    setSelectedJobForCash(job);
+    setShowPayCashModal(true);
+  };
+
+  const handleConfirmCashPayment = async (jobId, paymentDetails) => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Call backend to record cash payment and add commission to ledger
+      const response = await clientService.payJob(jobId, 'cash');
+      
+      if (response.success) {
+        setError('');
+        // Reload active jobs to reflect the payment
+        await loadClientData();
+        setShowPayCashModal(false);
+        setSelectedJobForCash(null);
+      } else {
+        setError(response.message || 'Failed to record cash payment');
+      }
+    } catch (error) {
+      console.error('Error recording cash payment:', error);
+      setError(error.message || 'Failed to record cash payment');
     } finally {
       setLoading(false);
     }
@@ -606,17 +639,17 @@ You will be redirected to the payment gateway.`;
                       <div className="flex space-x-2">
                         <Button 
                           size="sm" 
-                          onClick={() => handlePayment(job.id, 'cash')}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          Pay Cash
-                        </Button>
-                        <Button 
-                          size="sm" 
                           onClick={() => handlePayment(job.id, 'upi')}
                           className="bg-blue-600 hover:bg-blue-700"
                         >
                           Pay UPI
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          onClick={() => handlePayCash(job)}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          Pay Cash
                         </Button>
                         {job.assignedFreelancer?.id && (
                           <Button 
@@ -1060,6 +1093,17 @@ You will be redirected to the payment gateway.`;
           </div>
         )}
       </div>
+
+      {/* Pay Cash Modal */}
+      <PayCashModal
+        isOpen={showPayCashModal}
+        onClose={() => {
+          setShowPayCashModal(false);
+          setSelectedJobForCash(null);
+        }}
+        job={selectedJobForCash}
+        onConfirmPayment={handleConfirmCashPayment}
+      />
     </div>
   );
 };
