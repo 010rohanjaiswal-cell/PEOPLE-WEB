@@ -111,13 +111,22 @@ const getCommissionLedger = async (req, res) => {
       .filter(entry => entry.status === 'paid')
       .reduce((sum, entry) => sum + entry.amount, 0);
 
+    // Check if freelancer has reached the threshold (₹650)
+    const COMMISSION_THRESHOLD = 650;
+    const isThresholdReached = totalPending >= COMMISSION_THRESHOLD;
+    const canWork = !isThresholdReached;
+
     res.json({
       success: true,
       entries: freelancerEntries,
       summary: {
         totalPending,
         totalPaid,
-        totalEntries: freelancerEntries.length
+        totalEntries: freelancerEntries.length,
+        threshold: COMMISSION_THRESHOLD,
+        isThresholdReached,
+        canWork,
+        remainingThreshold: Math.max(0, COMMISSION_THRESHOLD - totalPending)
       }
     });
   } catch (error) {
@@ -229,9 +238,53 @@ const checkCommissionStatus = async (req, res) => {
   }
 };
 
+// Check if freelancer can work (hasn't reached commission threshold)
+const checkFreelancerCanWork = async (req, res) => {
+  try {
+    const { freelancerId } = req.params;
+    
+    if (!freelancerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Freelancer ID is required'
+      });
+    }
+
+    const ledger = loadCommissionLedger();
+    const freelancerEntries = ledger.filter(entry => entry.freelancerId === freelancerId);
+    
+    const totalPending = freelancerEntries
+      .filter(entry => entry.status === 'pending')
+      .reduce((sum, entry) => sum + entry.amount, 0);
+    
+    const COMMISSION_THRESHOLD = 650;
+    const isThresholdReached = totalPending >= COMMISSION_THRESHOLD;
+    const canWork = !isThresholdReached;
+
+    res.json({
+      success: true,
+      canWork,
+      isThresholdReached,
+      totalPending,
+      threshold: COMMISSION_THRESHOLD,
+      remainingThreshold: Math.max(0, COMMISSION_THRESHOLD - totalPending),
+      message: isThresholdReached 
+        ? `Commission threshold reached (₹${totalPending.toFixed(2)}). Please pay your commission to continue working.`
+        : `You can continue working. Commission pending: ₹${totalPending.toFixed(2)}`
+    });
+  } catch (error) {
+    console.error('Error checking freelancer work status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check freelancer work status'
+    });
+  }
+};
+
 module.exports = {
   addCommissionEntry,
   getCommissionLedger,
   payCommission,
-  checkCommissionStatus
+  checkCommissionStatus,
+  checkFreelancerCanWork
 };

@@ -15,4 +15,7 @@ router.post('/pay/:entryId', authMiddleware.verifyToken, commissionController.pa
 // Check commission status for a job
 router.get('/status/:jobId', authMiddleware.verifyToken, commissionController.checkCommissionStatus);
 
+// Check if freelancer can work (hasn't reached threshold)
+router.get('/can-work/:freelancerId', authMiddleware.verifyToken, commissionController.checkFreelancerCanWork);
+
 module.exports = router;

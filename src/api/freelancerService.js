@@ -345,5 +345,14 @@ export const freelancerService = {
     } catch (error) {
       throw error.response?.data || error;
     }
+  },
+
+  checkCanWork: async (freelancerId) => {
+    try {
+      const response = await api.get(`/commission/can-work/${freelancerId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   }
 };

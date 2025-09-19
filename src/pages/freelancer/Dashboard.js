@@ -38,6 +38,8 @@ const FreelancerDashboard = () => {
   const [freelancerId, setFreelancerId] = useState(null);
   const [showCommissionLedger, setShowCommissionLedger] = useState(false);
   const [commissionStatus, setCommissionStatus] = useState({});
+  const [canWork, setCanWork] = useState(true);
+  const [workStatusMessage, setWorkStatusMessage] = useState('');
   const [offerModal, setOfferModal] = useState({ open: false, jobId: null, amount: '', message: '' });
   const [viewProfileModal, setViewProfileModal] = useState({ open: false, data: null });
   const [offerCooldowns, setOfferCooldowns] = useState({});
@@ -110,9 +112,10 @@ const FreelancerDashboard = () => {
       setFreelancerId(walletRes.data?.freelancerId || null);
       setWalletTransactions(walletRes.data?.transactions || []);
       
-      // Check commission status for completed jobs
+      // Check commission status for completed jobs and work status
       setTimeout(() => {
         checkCommissionStatusForJobs();
+        checkFreelancerWorkStatus();
       }, 100);
     } catch (error) {
       console.error('Error loading freelancer data:', error);
@@ -265,6 +268,19 @@ const FreelancerDashboard = () => {
     }
   };
 
+  const checkFreelancerWorkStatus = async () => {
+    if (!freelancerId) return;
+    
+    try {
+      const response = await freelancerService.checkCanWork(freelancerId);
+      setCanWork(response.canWork);
+      setWorkStatusMessage(response.message);
+    } catch (error) {
+      console.error('Error checking freelancer work status:', error);
+      setCanWork(true); // Default to allowing work if check fails
+    }
+  };
+
   const handleWithdrawal = async (e) => {
     e.preventDefault();
     try {
@@ -396,19 +412,20 @@ const FreelancerDashboard = () => {
                   <Button 
                     size="sm" 
                     onClick={() => handleJobPickup(job.id)}
-                    disabled={loading}
+                    disabled={loading || !canWork}
                     className="bg-green-600 hover:bg-green-700"
                   >
                     <CheckCircle className="w-4 h-4 mr-1" />
-                    Pickup Job
+                    {!canWork ? 'Pay Commission First' : 'Pickup Job'}
                   </Button>
                   <Button 
                     size="sm" 
                     variant="outline"
                     onClick={() => setOfferModal({ open: true, jobId: job.id, amount: '', message: '' })}
-                    disabled={loading || (offerCooldowns[job.id] > 0)}
+                    disabled={loading || (offerCooldowns[job.id] > 0) || !canWork}
                   >
-                    {offerCooldowns[job.id] > 0 ? `${Math.ceil((offerCooldowns[job.id] || 0) / 60000)}m` : 'Make Offer'}
+                    {!canWork ? 'Pay Commission First' : 
+                     offerCooldowns[job.id] > 0 ? `${Math.ceil((offerCooldowns[job.id] || 0) / 60000)}m` : 'Make Offer'}
                   </Button>
                   <Button size="sm" variant="ghost">
                     <Eye className="w-4 h-4" />
@@ -773,6 +790,41 @@ const FreelancerDashboard = () => {
           </div>
         </div>
       </header>
+
+      {/* Commission Threshold Warning */}
+      {!canWork && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">
+                  Commission Threshold Reached
+                </h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>{workStatusMessage}</p>
+                  <p className="mt-1">
+                    Please pay your commission through the Commission Ledger to continue working.
+                  </p>
+                </div>
+                <div className="mt-3">
+                  <Button
+                    onClick={() => setShowCommissionLedger(true)}
+                    size="sm"
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    View Commission Ledger
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Navigation Tabs */}
