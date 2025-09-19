@@ -149,7 +149,7 @@ class PaymentService {
       let bearer = await this.getAuthToken();
       const payload = {
         merchantId: this.merchantId,
-        merchantTransactionId: orderId,
+        merchantOrderId: orderId,
         merchantUserId: userId,
         amount: amount * 100, // Amount in paise
         redirectUrl: this.redirectUrl,
@@ -228,7 +228,7 @@ class PaymentService {
           const apiUrl = `${this.baseUrl}/checkout/v2/pay`;
           const response = await axios.post(apiUrl, { request: Buffer.from(JSON.stringify({
             merchantId: this.merchantId,
-            merchantTransactionId: orderId,
+            merchantOrderId: orderId,
             merchantUserId: userId,
             amount: amount * 100,
             redirectUrl: this.redirectUrl,
@@ -241,7 +241,7 @@ class PaymentService {
               'Content-Type': 'application/json',
               'X-VERIFY': this.generateChecksum({
                 merchantId: this.merchantId,
-                merchantTransactionId: orderId,
+                merchantOrderId: orderId,
                 merchantUserId: userId,
                 amount: amount * 100,
                 redirectUrl: this.redirectUrl,
