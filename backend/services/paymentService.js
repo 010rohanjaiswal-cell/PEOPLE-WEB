@@ -45,6 +45,7 @@ class PaymentService {
     this.clientSecret = process.env.PHONEPE_CLIENT_SECRET || this.saltKey;
     this.clientVersion = process.env.PHONEPE_CLIENT_VERSION || '1';
     this.redirectUrl = process.env.PAYMENT_REDIRECT_URL || 'https://freelancing-platform-backend-backup.onrender.com/payment/callback';
+    this.frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     this.dependenciesAvailable = dependenciesAvailable;
     this.axios = axios;
     this.crypto = crypto;
@@ -152,9 +153,9 @@ class PaymentService {
         merchantOrderId: orderId,
         merchantUserId: userId,
         amount: amount * 100, // Amount in paise
-        redirectUrl: this.redirectUrl,
+        redirectUrl: `${this.frontendUrl}/payment/success`, // Frontend success page
         redirectMode: 'POST',
-        callbackUrl: this.redirectUrl,
+        callbackUrl: this.redirectUrl, // Backend callback for webhook
         mobileNumber: '',
         paymentInstrument: {
           type: 'PAY_PAGE'
@@ -232,12 +233,12 @@ class PaymentService {
           this._authToken = null;
           const bearer = await this.getAuthToken();
           const apiUrl = `${this.baseUrl}/checkout/v2/pay`;
-          const response = await axios.post(apiUrl, { request: Buffer.from(JSON.stringify({
+          const response = await axios.post(apiUrl, {           request: Buffer.from(JSON.stringify({
             merchantId: this.merchantId,
             merchantOrderId: orderId,
             merchantUserId: userId,
             amount: amount * 100,
-            redirectUrl: this.redirectUrl,
+            redirectUrl: `${this.frontendUrl}/payment/success`,
             redirectMode: 'POST',
             callbackUrl: this.redirectUrl,
             mobileNumber: '',
@@ -245,17 +246,17 @@ class PaymentService {
           })).toString('base64') }, {
             headers: {
               'Content-Type': 'application/json',
-              'X-VERIFY': this.generateChecksum({
-                merchantId: this.merchantId,
-                merchantOrderId: orderId,
-                merchantUserId: userId,
-                amount: amount * 100,
-                redirectUrl: this.redirectUrl,
-                redirectMode: 'POST',
-                callbackUrl: this.redirectUrl,
-                mobileNumber: '',
-                paymentInstrument: { type: 'PAY_PAGE' }
-              }),
+            'X-VERIFY': this.generateChecksum({
+              merchantId: this.merchantId,
+              merchantOrderId: orderId,
+              merchantUserId: userId,
+              amount: amount * 100,
+              redirectUrl: `${this.frontendUrl}/payment/success`,
+              redirectMode: 'POST',
+              callbackUrl: this.redirectUrl,
+              mobileNumber: '',
+              paymentInstrument: { type: 'PAY_PAGE' }
+            }),
               'X-MERCHANT-ID': this.merchantId,
               'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}`,
               'X-CLIENT-ID': this.clientId,
