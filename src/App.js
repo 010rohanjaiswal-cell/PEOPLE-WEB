@@ -25,6 +25,8 @@ import AdminDashboard from './pages/admin/CLI';
 // Debug Pages
 import DebugAuth from './pages/DebugAuth';
 import PaymentDebug from './pages/debug/PaymentDebug';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentFailed from './pages/PaymentFailed';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requiredRole = null }) => {
@@ -122,6 +124,8 @@ function App() {
               <Route path="/debug" element={<DebugPage />} />
               <Route path="/debug-auth" element={<DebugAuth />} />
               <Route path="/debug-payment" element={<PaymentDebug />} />
+        <Route path="/payment/success" element={<PaymentSuccess />} />
+        <Route path="/payment/failed" element={<PaymentFailed />} />
               
               {/* Admin Routes */}
               <Route path="/admin/login" element={<AdminLogin />} />
