@@ -210,6 +210,10 @@ class PaymentService {
       console.log('  Full response data:', JSON.stringify(data, null, 2));
       console.log('  Extracted redirectUrl:', redirectUrl);
       console.log('  PhonePe orderId:', data?.orderId || data?.data?.orderId);
+      console.log('  Available fields:', Object.keys(data || {}));
+      if (data?.data) {
+        console.log('  Data fields:', Object.keys(data.data || {}));
+      }
       
       return {
         success: true,
