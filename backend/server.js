@@ -118,6 +118,66 @@ try {
     res.status(503).json({ success: false, message: 'Payment service temporarily unavailable' });
   });
 }
+
+// Payment callback endpoint (for PhonePe redirects)
+app.post('/payment/callback', (req, res) => {
+  try {
+    console.log('🔄 Payment callback received:', req.body);
+    
+    // PhonePe sends payment status in the request body
+    const { 
+      orderId, 
+      state, 
+      code, 
+      message, 
+      data 
+    } = req.body;
+    
+    if (state === 'SUCCESS') {
+      console.log('✅ Payment successful for order:', orderId);
+      // TODO: Update job status, credit freelancer wallet, etc.
+      res.json({ 
+        success: true, 
+        message: 'Payment processed successfully',
+        orderId: orderId 
+      });
+    } else {
+      console.log('❌ Payment failed for order:', orderId, 'State:', state);
+      res.json({ 
+        success: false, 
+        message: 'Payment failed',
+        orderId: orderId,
+        state: state 
+      });
+    }
+  } catch (error) {
+    console.error('❌ Payment callback error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Callback processing failed' 
+    });
+  }
+});
+
+// Payment callback GET endpoint (for browser redirects)
+app.get('/payment/callback', (req, res) => {
+  try {
+    console.log('🔄 Payment callback GET received:', req.query);
+    
+    // Redirect to frontend with payment status
+    const { orderId, state, code, message } = req.query;
+    
+    if (state === 'SUCCESS') {
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success?orderId=${orderId}`);
+    } else {
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/failed?orderId=${orderId}&state=${state}`);
+    }
+  } catch (error) {
+    console.error('❌ Payment callback GET error:', error);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/error`);
+  }
+});
+
 app.use('/api/debug', debugRoutes);
 app.use('/api/debug-payment', require('./routes/debugPayment'));
 
