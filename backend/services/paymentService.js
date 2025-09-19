@@ -205,6 +205,11 @@ class PaymentService {
         || data?.redirectUrl
         || data?.url;
 
+      console.log('🎯 PhonePe Response Analysis:');
+      console.log('  Full response data:', JSON.stringify(data, null, 2));
+      console.log('  Extracted redirectUrl:', redirectUrl);
+      console.log('  PhonePe orderId:', data?.orderId || data?.data?.orderId);
+      
       return {
         success: true,
         data,
