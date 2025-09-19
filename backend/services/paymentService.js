@@ -208,7 +208,8 @@ class PaymentService {
       return {
         success: true,
         data,
-        paymentUrl: redirectUrl
+        paymentUrl: redirectUrl,
+        phonepeOrderId: data?.orderId || data?.data?.orderId
       };
 
     } catch (error) {

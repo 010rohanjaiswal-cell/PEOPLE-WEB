@@ -162,15 +162,34 @@ app.post('/payment/callback', (req, res) => {
 // Payment callback GET endpoint (for browser redirects)
 app.get('/payment/callback', (req, res) => {
   try {
-    console.log('🔄 Payment callback GET received:', req.query);
+    console.log('🔄 Payment callback GET received:');
+    console.log('  Query params:', req.query);
+    console.log('  Body:', req.body);
+    console.log('  Headers:', req.headers);
     
-    // Redirect to frontend with payment status
-    const { orderId, state, code, message } = req.query;
+    // PhonePe might send data in different formats
+    const { 
+      orderId, 
+      state, 
+      code, 
+      message,
+      // Alternative parameter names
+      merchantOrderId,
+      status,
+      response
+    } = req.query;
     
-    if (state === 'SUCCESS') {
-      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success?orderId=${orderId}`);
+    // Try to extract order ID from different possible fields
+    const finalOrderId = orderId || merchantOrderId || req.query['order_id'] || req.query['merchant_order_id'];
+    const finalState = state || status || req.query['payment_status'] || req.query['state'];
+    
+    console.log('  Extracted orderId:', finalOrderId);
+    console.log('  Extracted state:', finalState);
+    
+    if (finalState === 'SUCCESS' || finalState === 'success') {
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success?orderId=${finalOrderId}`);
     } else {
-      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/failed?orderId=${orderId}&state=${state}`);
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/failed?orderId=${finalOrderId}&state=${finalState}`);
     }
   } catch (error) {
     console.error('❌ Payment callback GET error:', error);
