@@ -7,6 +7,11 @@ const PaymentFailed = () => {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('orderId');
   const state = searchParams.get('state');
+  
+  // Debug: Log all search params
+  console.log('PaymentFailed - All search params:', Object.fromEntries(searchParams.entries()));
+  console.log('PaymentFailed - orderId:', orderId);
+  console.log('PaymentFailed - state:', state);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">

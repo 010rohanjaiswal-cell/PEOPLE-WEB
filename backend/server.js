@@ -122,7 +122,10 @@ try {
 // Payment callback endpoint (for PhonePe redirects)
 app.post('/payment/callback', (req, res) => {
   try {
-    console.log('🔄 Payment callback received:', req.body);
+    console.log('🔄 Payment callback POST received:');
+    console.log('  Body:', req.body);
+    console.log('  Query:', req.query);
+    console.log('  Headers:', req.headers);
     
     // PhonePe sends payment status in the request body
     const { 
@@ -130,24 +133,38 @@ app.post('/payment/callback', (req, res) => {
       state, 
       code, 
       message, 
-      data 
+      data,
+      // Alternative parameter names
+      merchantOrderId,
+      status,
+      response,
+      // Nested data
+      order_id,
+      payment_status
     } = req.body;
     
-    if (state === 'SUCCESS') {
-      console.log('✅ Payment successful for order:', orderId);
+    // Try to extract order ID from different possible fields
+    const finalOrderId = orderId || merchantOrderId || order_id || req.body['order_id'] || req.body['merchant_order_id'];
+    const finalState = state || status || payment_status || req.body['payment_status'] || req.body['state'];
+    
+    console.log('  Extracted orderId:', finalOrderId);
+    console.log('  Extracted state:', finalState);
+    
+    if (finalState === 'SUCCESS' || finalState === 'success') {
+      console.log('✅ Payment successful for order:', finalOrderId);
       // TODO: Update job status, credit freelancer wallet, etc.
       res.json({ 
         success: true, 
         message: 'Payment processed successfully',
-        orderId: orderId 
+        orderId: finalOrderId 
       });
     } else {
-      console.log('❌ Payment failed for order:', orderId, 'State:', state);
+      console.log('❌ Payment failed for order:', finalOrderId, 'State:', finalState);
       res.json({ 
         success: false, 
         message: 'Payment failed',
-        orderId: orderId,
-        state: state 
+        orderId: finalOrderId,
+        state: finalState 
       });
     }
   } catch (error) {
