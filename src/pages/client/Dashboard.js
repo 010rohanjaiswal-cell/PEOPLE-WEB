@@ -264,16 +264,11 @@ const ClientDashboard = () => {
       if (result.success) {
         console.log('✅ UPI payment request created:', result);
         
-        // Show commission breakdown
-        const commissionBreakdown = `
-Payment Details:
-• Total Amount: ₹${result.amounts.totalAmount}
-• Commission (10%): ₹${result.amounts.commission}
-• Freelancer Amount (90%): ₹${result.amounts.freelancerAmount}
-
-You will be redirected to the payment gateway.`;
+        // Show simple payment confirmation
+        const paymentAmount = result.amounts.totalAmount;
+        const paymentConfirmation = `Pay ₹${paymentAmount} for this job?\n\nYou will be redirected to the payment gateway.`;
         
-        if (window.confirm(commissionBreakdown + '\n\nProceed to payment?')) {
+        if (window.confirm(paymentConfirmation)) {
           // Open payment gateway in new window
           const paymentWindow = window.open(result.paymentUrl, '_blank', 'width=800,height=600');
           

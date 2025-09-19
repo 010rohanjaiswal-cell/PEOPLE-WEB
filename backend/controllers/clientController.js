@@ -285,27 +285,48 @@ const payJob = async (req, res) => {
     try {
       const freelancer = await User.findById(freelancerId);
       if (freelancer) {
-        // Update wallet balance
-        freelancer.wallet.balance = (freelancer.wallet.balance || 0) + jobAmount;
-        freelancer.wallet.totalEarnings = (freelancer.wallet.totalEarnings || 0) + jobAmount;
-        
-        // Add transaction record
-        if (!freelancer.wallet.transactions) {
-          freelancer.wallet.transactions = [];
+        // Calculate freelancer's portion based on payment method
+        let freelancerAmount;
+        if (paymentMethod === 'cash') {
+          // For cash payments, no wallet credit (freelancer already received cash)
+          freelancerAmount = 0;
+          console.log('💰 payJob - cash payment, no wallet credit needed');
+        } else {
+          // For UPI payments, credit only 90% (freelancer's portion)
+          freelancerAmount = Math.round(jobAmount * 0.9 * 100) / 100;
         }
         
-        freelancer.wallet.transactions.unshift({
-          id: 'txn-' + Date.now(),
-          type: 'credit',
-          amount: jobAmount,
-          description: `Payment for job: ${job.title}`,
-          clientName: req.user.fullName,
-          jobId: job.id,
-          createdAt: new Date().toISOString()
-        });
-        
-        await freelancer.save();
-        console.log('💰 payJob - freelancer wallet credited:', { freelancerId, amount: jobAmount });
+        if (freelancerAmount > 0) {
+          // Update wallet balance
+          freelancer.wallet.balance = (freelancer.wallet.balance || 0) + freelancerAmount;
+          freelancer.wallet.totalEarnings = (freelancer.wallet.totalEarnings || 0) + freelancerAmount;
+          
+          // Add transaction record
+          if (!freelancer.wallet.transactions) {
+            freelancer.wallet.transactions = [];
+          }
+          
+          freelancer.wallet.transactions.unshift({
+            id: 'txn-' + Date.now(),
+            type: 'credit',
+            amount: freelancerAmount,
+            description: `Payment for job: ${job.title}`,
+            clientName: req.user.fullName,
+            jobId: job.id,
+            totalAmount: jobAmount, // Store original job amount for reference
+            commission: Math.round(jobAmount * 0.1 * 100) / 100, // 10% commission
+            createdAt: new Date().toISOString()
+          });
+          
+          await freelancer.save();
+          console.log('💰 payJob - freelancer wallet credited:', { 
+            freelancerId, 
+            jobAmount, 
+            freelancerAmount, 
+            commission: Math.round(jobAmount * 0.1 * 100) / 100,
+            paymentMethod 
+          });
+        }
       } else {
         console.log('⚠️ payJob - freelancer not found:', freelancerId);
       }
