@@ -142,10 +142,22 @@ const verifyUPIPayment = async (req, res) => {
     
     console.log('🔍 verifyUPIPayment - orderId:', orderId);
 
+    // Load payment service
+    const paymentService = await loadPaymentService();
+    if (!paymentService) {
+      return res.status(503).json({
+        success: false,
+        message: 'Payment service not available'
+      });
+    }
+
     // Verify payment with PhonePe
-    const verificationResult = await getPaymentService().verifyPayment(orderId);
+    const verificationResult = await paymentService.verifyPayment(orderId);
+    
+    console.log('🔍 verifyUPIPayment - verification result:', verificationResult);
     
     if (!verificationResult.success) {
+      console.error('❌ verifyUPIPayment - verification failed:', verificationResult.error);
       return res.status(500).json({
         success: false,
         message: 'Failed to verify payment',
@@ -153,8 +165,11 @@ const verifyUPIPayment = async (req, res) => {
       });
     }
 
-    const paymentData = verificationResult.data.data;
-    const isSuccess = paymentData.state === 'COMPLETED' && paymentData.responseCode === 'PAYMENT_SUCCESS';
+    const paymentData = verificationResult.data;
+    console.log('🔍 verifyUPIPayment - payment data:', paymentData);
+    
+    const isSuccess = paymentData.state === 'COMPLETED' || paymentData.state === 'SUCCESS';
+    console.log('🔍 verifyUPIPayment - isSuccess:', isSuccess, 'state:', paymentData.state);
 
     if (isSuccess) {
       // Find job by order ID
