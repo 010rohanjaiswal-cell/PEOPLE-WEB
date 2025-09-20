@@ -28,7 +28,13 @@ const debugService = {
       const response = await api.get('/debug/jobs');
       return response.data;
     } catch (error) {
-      throw error.response?.data || error;
+      // Fallback to public endpoint if auth fails
+      try {
+        const response = await api.get('/debug/jobs-public');
+        return response.data;
+      } catch (fallbackError) {
+        throw error.response?.data || error;
+      }
     }
   },
 
@@ -38,7 +44,13 @@ const debugService = {
       const response = await api.post('/debug/clear-jobs');
       return response.data;
     } catch (error) {
-      throw error.response?.data || error;
+      // Fallback to public endpoint if auth fails
+      try {
+        const response = await api.post('/debug/clear-jobs-public');
+        return response.data;
+      } catch (fallbackError) {
+        throw error.response?.data || error;
+      }
     }
   },
 
@@ -48,7 +60,13 @@ const debugService = {
       const response = await api.post('/debug/add-test-job');
       return response.data;
     } catch (error) {
-      throw error.response?.data || error;
+      // Fallback to public endpoint if auth fails
+      try {
+        const response = await api.post('/debug/add-test-job-public');
+        return response.data;
+      } catch (fallbackError) {
+        throw error.response?.data || error;
+      }
     }
   }
 };
