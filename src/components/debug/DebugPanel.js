@@ -409,6 +409,7 @@ const DebugPanel = () => {
             >
               🚀 Test Complete Flow
             </Button>
+          </div>
         </div>
 
         {debugInfo && (
