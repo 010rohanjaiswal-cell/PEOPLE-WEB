@@ -62,7 +62,7 @@ const createUPIPayment = async (req, res) => {
     // Load jobs from file system
     const fs = require('fs');
     const path = require('path');
-    const jobsFile = path.join(__dirname, '../data/jobs.json');
+    const jobsFile = path.join(__dirname, '../../data/jobs.json');
     
     if (!fs.existsSync(jobsFile)) {
       console.error('❌ Jobs file not found');
@@ -236,7 +236,7 @@ const verifyUPIPayment = async (req, res) => {
       // Load jobs from file system
       const fs = require('fs');
       const path = require('path');
-      const jobsFile = path.join(__dirname, '../data/jobs.json');
+      const jobsFile = path.join(__dirname, '../../data/jobs.json');
       
       if (!fs.existsSync(jobsFile)) {
         console.error('❌ Jobs file not found');
