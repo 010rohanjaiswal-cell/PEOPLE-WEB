@@ -1,5 +1,5 @@
 // Debug controller for troubleshooting job posting and retrieval
-const { inMemoryJobs } = require('./sharedJobsStore');
+const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
 
 const debugJobs = async (req, res) => {
   try {
@@ -64,6 +64,9 @@ const clearJobs = async (req, res) => {
     inMemoryJobs.length = 0; // Clear the array
     const afterCount = inMemoryJobs.length;
     
+    // Save the cleared state to file
+    saveJobsToFile();
+    
     res.json({ 
       success: true, 
       message: `Cleared ${beforeCount} jobs. Now ${afterCount} jobs in store.` 
@@ -93,6 +96,9 @@ const addTestJob = async (req, res) => {
     };
     
     inMemoryJobs.unshift(testJob);
+    
+    // Save the job to file so it persists
+    saveJobsToFile();
     
     res.json({ 
       success: true, 
