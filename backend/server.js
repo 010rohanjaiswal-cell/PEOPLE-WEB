@@ -138,6 +138,32 @@ app.get('/dependencies', (req, res) => {
   });
 });
 
+// Payment service test endpoint
+app.get('/test-payment-service', async (req, res) => {
+  try {
+    const paymentService = require('./services/paymentService');
+    
+    // Test dependency check
+    const dependencyTest = paymentService.testDependencies();
+    
+    // Test amount calculation
+    const amounts = paymentService.calculateAmounts(100);
+    
+    res.json({
+      success: true,
+      dependencyTest,
+      amounts,
+      message: 'Payment service is working correctly'
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message,
+      message: 'Payment service test failed'
+    });
+  }
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
