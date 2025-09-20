@@ -2,7 +2,7 @@ import axios from 'axios';
 import { storage } from '../utils/storage';
 
 // Use runtime API override if available
-const API_BASE_URL = localStorage.getItem('apiBaseUrlOverride') || process.env.REACT_APP_API_BASE_URL || 'https://freelancing-platform-backend-backup.onrender.com/api';
+const API_BASE_URL = localStorage.getItem('apiBaseUrlOverride') || process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

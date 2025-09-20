@@ -9,7 +9,7 @@ const runtimeApiBaseUrl = (() => {
     }
   } catch (_) {}
   
-  return process.env.REACT_APP_API_BASE_URL || 'https://freelancing-platform-backend-backup.onrender.com/api';
+  return process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
 })();
 
 // Create axios instance for payment API calls
