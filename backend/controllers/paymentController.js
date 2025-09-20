@@ -115,6 +115,20 @@ const createUPIPayment = async (req, res) => {
       });
     }
 
+    // Debug: Test the payment service
+    console.log('🔍 createUPIPayment - testing payment service...');
+    const dependencyTest = paymentService.testDependencies();
+    console.log('🔍 createUPIPayment - dependency test result:', dependencyTest);
+    
+    if (!dependencyTest.success) {
+      console.error('❌ createUPIPayment - payment service dependency test failed:', dependencyTest);
+      return res.status(503).json({
+        success: false,
+        message: 'Payment service dependencies not available',
+        details: dependencyTest
+      });
+    }
+
     // Calculate amounts
     console.log('💳 createUPIPayment - calculating amounts for budget:', job.budget);
     const amounts = paymentService.calculateAmounts(job.budget);
