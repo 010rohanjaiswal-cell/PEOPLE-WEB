@@ -483,6 +483,24 @@ app.get('/payment/callback', (req, res) => {
 app.use('/api/debug', debugRoutes);
 app.use('/api/debug-payment', require('./routes/debugPayment'));
 
+// Test payment controller loading
+app.get('/api/test-payment-controller', (req, res) => {
+  try {
+    const paymentController = require('./controllers/paymentController');
+    res.json({
+      success: true,
+      message: 'Payment controller loaded successfully',
+      functions: Object.keys(paymentController)
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      message: 'Payment controller failed to load',
+      error: error.message
+    });
+  }
+});
+
 // Test payment service with specific job
 app.get('/api/payment-test/:jobId', (req, res) => {
   try {

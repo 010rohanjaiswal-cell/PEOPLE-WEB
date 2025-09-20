@@ -78,7 +78,9 @@ const DebugPanel = () => {
       console.log('🧪 Testing UPI payment for job:', testJob);
       
       // Test the payment service directly
-      const result = await paymentService.createUPIPayment(testJob.id);
+      const result = await paymentService.createUPIPayment(testJob.id, {
+        'x-debug-mode': 'true'
+      });
       console.log('💳 Debug UPI payment result:', result);
       
       // Store the result for display
@@ -122,7 +124,9 @@ const DebugPanel = () => {
       const testJob = jobs[0];
       console.log('🔄 Step 1: Creating UPI payment for job:', testJob);
       
-      const result = await paymentService.createUPIPayment(testJob.id);
+      const result = await paymentService.createUPIPayment(testJob.id, {
+        'x-debug-mode': 'true'
+      });
       
       const step = {
         step: 1,
@@ -310,6 +314,8 @@ const DebugPanel = () => {
     }
   };
 
+  console.log('🔍 DebugPanel rendering...', { loading, error, paymentFlowSteps });
+
   return (
     <Card className="border-orange-200 bg-orange-50">
       <CardHeader>
@@ -319,6 +325,9 @@ const DebugPanel = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="p-2 bg-yellow-100 border border-yellow-300 rounded text-yellow-700 text-sm">
+          🔍 Debug Panel is rendering - Check console for logs
+        </div>
         {error && (
           <div className="p-3 bg-red-100 border border-red-300 rounded text-red-700 text-sm">
             {error}
