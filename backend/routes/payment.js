@@ -17,21 +17,26 @@ const paymentController = {
 };
 
 // Try to load real payment controller, but don't fail if it's not available
+let realController = null;
 try {
-  const realController = require('../controllers/paymentController');
+  realController = require('../controllers/paymentController');
   console.log('✅ Payment controller loaded successfully');
-  // Override with real controller
-  Object.assign(paymentController, realController);
 } catch (error) {
   console.warn('⚠️ Payment controller not available, trying minimal controller:', error.message);
   try {
-    const minimalController = require('../controllers/paymentControllerMinimal');
+    realController = require('../controllers/paymentControllerMinimal');
     console.log('✅ Minimal payment controller loaded successfully');
-    // Override with minimal controller
-    Object.assign(paymentController, minimalController);
   } catch (minimalError) {
     console.warn('⚠️ Minimal payment controller not available, using dummy controller:', minimalError.message);
   }
+}
+
+// Use real controller if available, otherwise use dummy
+if (realController) {
+  paymentController.createUPIPayment = realController.createUPIPayment;
+  paymentController.verifyUPIPayment = realController.verifyUPIPayment;
+  paymentController.getPaymentStatus = realController.getPaymentStatus;
+  paymentController.testPaymentService = realController.testPaymentService;
 }
 
 // Payment routes
