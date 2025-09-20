@@ -333,7 +333,6 @@ const verifyUPIPayment = async (req, res) => {
         fs.writeFileSync(jobsFile, JSON.stringify(jobsData, null, 2));
         console.log('💾 Jobs data saved');
       }
-    }
 
     res.json({
       success: true,
