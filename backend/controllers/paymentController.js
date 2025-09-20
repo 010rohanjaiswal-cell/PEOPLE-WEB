@@ -70,7 +70,8 @@ const createUPIPayment = async (req, res) => {
     }
     
     const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
-    const jobs = jobsData.jobs || [];
+    // Handle both formats: direct array or wrapped in jobs property
+    const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
     
     // Find the job
     const jobIndex = jobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
@@ -246,7 +247,8 @@ const verifyUPIPayment = async (req, res) => {
       }
       
       const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
-      const jobs = jobsData.jobs || [];
+      // Handle both formats: direct array or wrapped in jobs property
+      const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
       
       // Extract job ID from order ID (format: ORDER_jobId_timestamp)
       const jobIdMatch = orderId.match(/ORDER_(.+)_\d+/);
