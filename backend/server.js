@@ -55,23 +55,42 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 
 const corsOptions = {
   origin: (origin, callback) => {
+    console.log(`🌐 CORS request from origin: ${origin}`);
+    console.log(`🌐 Allowed origins:`, allowedOrigins);
+    
     // Allow non-browser requests (no origin)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('🌐 Allowing request with no origin');
+      return callback(null, true);
+    }
+    
     // Allow explicit list or any localhost:* origin
     const isWhitelisted = allowedOrigins.includes(origin) || /^(http:\/\/|https:\/\/)localhost:\d+$/.test(origin);
+    
     if (isWhitelisted) {
+      console.log(`🌐 Allowing origin: ${origin}`);
       return callback(null, true);
     } else {
-      console.warn(`CORS blocked origin: ${origin}`);
+      console.warn(`🌐 CORS blocked origin: ${origin}`);
       return callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-debug-mode']
 };
 
 app.use(cors(corsOptions));
+
+// CORS test endpoint
+app.get('/api/cors-test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'CORS is working',
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
