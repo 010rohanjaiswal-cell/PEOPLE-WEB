@@ -464,9 +464,144 @@ const testPaymentService = async (req, res) => {
   }
 };
 
+// Simulate successful payment for testing
+const simulateSuccessfulPayment = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    
+    console.log('🧪 simulateSuccessfulPayment - orderId:', orderId);
+
+    // Load jobs from file system
+    const fs = require('fs');
+    const path = require('path');
+    const jobsFile = path.join(__dirname, '../../data/jobs.json');
+    
+    if (!fs.existsSync(jobsFile)) {
+      console.error('❌ Jobs file not found');
+      return res.status(404).json({ success: false, message: 'Jobs data not found' });
+    }
+    
+    const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+    // Handle both formats: direct array or wrapped in jobs property
+    const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
+    
+    // Extract job ID from order ID (format: ORDER_jobId_timestamp)
+    const jobIdMatch = orderId.match(/ORDER_(.+)_\d+/);
+    if (!jobIdMatch) {
+      console.error('❌ Could not extract job ID from order ID:', orderId);
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid order ID format' 
+      });
+    }
+    
+    const jobId = jobIdMatch[1];
+    console.log('📋 Extracted job ID:', jobId);
+    
+    // Find the job
+    const jobIndex = jobs.findIndex(job => job.id === jobId);
+    if (jobIndex === -1) {
+      console.error('❌ Job not found:', jobId);
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Job not found' 
+      });
+    }
+    
+    const job = jobs[jobIndex];
+    
+    // Update job status to completed
+    job.status = 'completed';
+    job.paymentMethod = 'upi';
+    job.paidAt = new Date().toISOString();
+    job.paymentOrderId = orderId;
+
+    // Credit freelancer's wallet (if freelancer is assigned)
+    const User = require('../models/User');
+    const freelancerId = job.assignedFreelancer?.id;
+    const jobAmount = job.budget;
+    
+    let walletCredited = false;
+    let walletMessage = 'No freelancer assigned to job';
+    
+    if (freelancerId) {
+      try {
+        const freelancer = await User.findById(freelancerId);
+        if (freelancer) {
+          // Calculate freelancer's portion (90% of job amount)
+          const freelancerAmount = Math.round(jobAmount * 0.9 * 100) / 100;
+          
+          // Update wallet balance
+          freelancer.wallet.balance = (freelancer.wallet.balance || 0) + freelancerAmount;
+          freelancer.wallet.totalEarnings = (freelancer.wallet.totalEarnings || 0) + freelancerAmount;
+          
+          // Add transaction record
+          if (!freelancer.wallet.transactions) {
+            freelancer.wallet.transactions = [];
+          }
+          
+          freelancer.wallet.transactions.unshift({
+            id: 'txn-' + Date.now(),
+            type: 'credit',
+            amount: freelancerAmount,
+            description: `Payment for job: ${job.title}`,
+            clientName: job.clientName || 'Unknown Client',
+            jobId: job.id,
+            totalAmount: jobAmount,
+            commission: Math.round(jobAmount * 0.1 * 100) / 100,
+            paymentOrderId: orderId,
+            createdAt: new Date().toISOString()
+          });
+          
+          await freelancer.save();
+          walletCredited = true;
+          walletMessage = `₹${freelancerAmount} credited to freelancer wallet (90% of ₹${jobAmount})`;
+          console.log('💰 simulateSuccessfulPayment - freelancer wallet credited:', { 
+            freelancerId, 
+            jobAmount, 
+            freelancerAmount, 
+            commission: Math.round(jobAmount * 0.1 * 100) / 100 
+          });
+        } else {
+          walletMessage = 'Freelancer not found in database';
+        }
+      } catch (walletError) {
+        console.error('❌ simulateSuccessfulPayment - wallet credit error:', walletError);
+        walletMessage = 'Wallet credit failed: ' + walletError.message;
+      }
+    }
+    
+    // Save updated jobs data
+    fs.writeFileSync(jobsFile, JSON.stringify(jobsData, null, 2));
+    console.log('💾 Jobs data saved');
+
+    res.json({
+      success: true,
+      message: 'Payment simulated successfully',
+      orderId,
+      jobId,
+      jobAmount,
+      freelancerAmount: Math.round(jobAmount * 0.9 * 100) / 100,
+      commission: Math.round(jobAmount * 0.1 * 100) / 100,
+      walletCredited,
+      walletMessage,
+      jobStatus: 'completed'
+    });
+
+  } catch (error) {
+    console.error('❌ simulateSuccessfulPayment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to simulate payment',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createUPIPayment,
   verifyUPIPayment,
   getPaymentStatus,
-  testPaymentService
+  testPaymentService,
+  simulateSuccessfulPayment
 };

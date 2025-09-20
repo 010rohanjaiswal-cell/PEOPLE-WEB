@@ -37,6 +37,7 @@ if (realController) {
   paymentController.verifyUPIPayment = realController.verifyUPIPayment;
   paymentController.getPaymentStatus = realController.getPaymentStatus;
   paymentController.testPaymentService = realController.testPaymentService;
+  paymentController.simulateSuccessfulPayment = realController.simulateSuccessfulPayment;
 }
 
 // Payment routes
@@ -49,5 +50,6 @@ router.get('/status/:jobId', authMiddleware.verifyToken, paymentController.getPa
 router.post('/debug/upi/:jobId', paymentController.createUPIPayment);
 router.post('/debug/verify', paymentController.verifyUPIPayment);
 router.get('/debug/status/:jobId', paymentController.getPaymentStatus);
+router.post('/debug/simulate-success/:orderId', paymentController.simulateSuccessfulPayment);
 
 module.exports = router;
