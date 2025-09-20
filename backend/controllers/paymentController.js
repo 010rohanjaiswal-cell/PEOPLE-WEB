@@ -172,60 +172,106 @@ const verifyUPIPayment = async (req, res) => {
     console.log('🔍 verifyUPIPayment - isSuccess:', isSuccess, 'state:', paymentData.state);
 
     if (isSuccess) {
-      // Find job by order ID
-      const jobIndex = inMemoryJobs.findIndex(job => 
-        job.paymentDetails && job.paymentDetails.orderId === orderId
-      );
-
-      if (jobIndex !== -1) {
-        const job = inMemoryJobs[jobIndex];
+      // Load jobs from file system
+      const fs = require('fs');
+      const path = require('path');
+      const jobsFile = path.join(__dirname, '../data/jobs.json');
+      
+      if (!fs.existsSync(jobsFile)) {
+        console.error('❌ Jobs file not found');
+        return res.json({ 
+          success: false, 
+          message: 'Jobs data not found' 
+        });
+      }
+      
+      const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+      const jobs = jobsData.jobs || [];
+      
+      // Extract job ID from order ID (format: ORDER_jobId_timestamp)
+      const jobIdMatch = orderId.match(/ORDER_(.+)_\d+/);
+      if (!jobIdMatch) {
+        console.error('❌ Could not extract job ID from order ID:', orderId);
+        return res.json({ 
+          success: false, 
+          message: 'Invalid order ID format' 
+        });
+      }
+      
+      const jobId = jobIdMatch[1];
+      console.log('📋 Extracted job ID:', jobId);
+      
+      // Find the job
+      const jobIndex = jobs.findIndex(job => job.id === jobId);
+      if (jobIndex === -1) {
+        console.error('❌ Job not found:', jobId);
+        return res.json({ 
+          success: false, 
+          message: 'Job not found' 
+        });
+      }
+      
+      const job = jobs[jobIndex];
         
         // Update job status to completed
         job.status = 'completed';
         job.paymentMethod = 'upi';
         job.paidAt = new Date().toISOString();
-        job.paidBy = job.clientId;
-        job.paymentDetails.status = 'completed';
-        job.paymentDetails.transactionId = paymentData.transactionId;
+        job.paymentOrderId = orderId;
 
         // Credit freelancer's wallet
         const User = require('../models/User');
-        const freelancerId = job.assignedFreelancer.id;
-        const freelancerAmount = job.paymentDetails.freelancerAmount;
+        const freelancerId = job.assignedFreelancer?.id;
+        const jobAmount = job.budget;
         
-        try {
-          const freelancer = await User.findById(freelancerId);
-          if (freelancer) {
-            // Update wallet balance
-            freelancer.wallet.balance = (freelancer.wallet.balance || 0) + freelancerAmount;
-            freelancer.wallet.totalEarnings = (freelancer.wallet.totalEarnings || 0) + freelancerAmount;
-            
-            // Add transaction record
-            if (!freelancer.wallet.transactions) {
-              freelancer.wallet.transactions = [];
+        if (freelancerId) {
+          try {
+            const freelancer = await User.findById(freelancerId);
+            if (freelancer) {
+              // Calculate freelancer's portion (90% of job amount)
+              const freelancerAmount = Math.round(jobAmount * 0.9 * 100) / 100;
+              
+              // Update wallet balance
+              freelancer.wallet.balance = (freelancer.wallet.balance || 0) + freelancerAmount;
+              freelancer.wallet.totalEarnings = (freelancer.wallet.totalEarnings || 0) + freelancerAmount;
+              
+              // Add transaction record
+              if (!freelancer.wallet.transactions) {
+                freelancer.wallet.transactions = [];
+              }
+              
+              freelancer.wallet.transactions.unshift({
+                id: 'txn-' + Date.now(),
+                type: 'credit',
+                amount: freelancerAmount,
+                description: `Payment for job: ${job.title}`,
+                clientName: job.clientName || 'Unknown Client',
+                jobId: job.id,
+                totalAmount: jobAmount,
+                commission: Math.round(jobAmount * 0.1 * 100) / 100,
+                paymentOrderId: orderId,
+                createdAt: new Date().toISOString()
+              });
+              
+              await freelancer.save();
+              console.log('💰 verifyUPIPayment - freelancer wallet credited:', { 
+                freelancerId, 
+                jobAmount, 
+                freelancerAmount, 
+                commission: Math.round(jobAmount * 0.1 * 100) / 100 
+              });
+            } else {
+              console.log('⚠️ Freelancer not found:', freelancerId);
             }
-            
-            freelancer.wallet.transactions.unshift({
-              id: 'txn-' + Date.now(),
-              type: 'credit',
-              amount: freelancerAmount,
-              description: `Payment for job: ${job.title}`,
-              clientName: req.user.fullName,
-              jobId: job.id,
-              commission: job.paymentDetails.commission,
-              totalAmount: job.paymentDetails.totalAmount,
-              createdAt: new Date().toISOString()
-            });
-            
-            await freelancer.save();
-            console.log('💰 verifyUPIPayment - freelancer wallet credited:', { freelancerId, amount: freelancerAmount });
+          } catch (walletError) {
+            console.error('❌ verifyUPIPayment - wallet credit error:', walletError);
+            // Don't fail the payment if wallet update fails
           }
-        } catch (walletError) {
-          console.error('❌ verifyUPIPayment - wallet credit error:', walletError);
         }
         
-        // Save to file for persistence
-        saveJobsToFile();
+        // Save updated jobs data
+        fs.writeFileSync(jobsFile, JSON.stringify(jobsData, null, 2));
+        console.log('💾 Jobs data saved');
       }
     }
 
