@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { Button } from '../common/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../common/Card';
 import debugService from '../../api/debugService';
-import { Bug, RefreshCw, Trash2, Plus } from 'lucide-react';
+import paymentService from '../../api/paymentService';
+import { Bug, RefreshCw, Trash2, Plus, CreditCard } from 'lucide-react';
 
 const DebugPanel = () => {
   const [debugInfo, setDebugInfo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [paymentTestResult, setPaymentTestResult] = useState(null);
 
   const loadDebugInfo = async () => {
     try {
@@ -49,6 +51,51 @@ const DebugPanel = () => {
     } catch (error) {
       console.error('Add test job error:', error);
       setError(error.message || 'Failed to add test job');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const testUPIPayment = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // First, get available jobs
+      const debugResult = await debugService.getDebugInfo();
+      const jobs = debugResult.debug.jobsStore.allJobs;
+      
+      if (!jobs || jobs.length === 0) {
+        setError('No jobs available for testing. Please add a test job first.');
+        return;
+      }
+      
+      // Use the first available job
+      const testJob = jobs[0];
+      console.log('🧪 Testing UPI payment for job:', testJob);
+      
+      // Test the payment service directly
+      const result = await paymentService.createUPIPayment(testJob.id);
+      console.log('💳 Debug UPI payment result:', result);
+      
+      // Store the result for display
+      setPaymentTestResult({
+        jobId: testJob.id,
+        jobTitle: testJob.title,
+        result: result,
+        timestamp: new Date().toISOString()
+      });
+      
+      if (result.success) {
+        setError(''); // Clear any previous errors
+        console.log('✅ Debug UPI payment successful:', result);
+      } else {
+        setError(`UPI payment failed: ${result.message || result.error}`);
+      }
+      
+    } catch (error) {
+      console.error('Debug UPI payment error:', error);
+      setError(`Debug UPI payment error: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -101,6 +148,17 @@ const DebugPanel = () => {
           >
             <Trash2 className="w-4 h-4 mr-1" />
             Clear All Jobs
+          </Button>
+          
+          <Button 
+            onClick={testUPIPayment} 
+            variant="outline" 
+            size="sm"
+            loading={loading}
+            className="border-blue-300 text-blue-700 hover:bg-blue-100"
+          >
+            <CreditCard className="w-4 h-4 mr-1" />
+            Test UPI Payment
           </Button>
         </div>
 
@@ -172,6 +230,29 @@ const DebugPanel = () => {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {paymentTestResult && (
+          <div className="p-3 bg-indigo-50 border border-indigo-200 rounded">
+            <h4 className="font-semibold text-indigo-800 mb-2">Payment Test Results</h4>
+            <div className="text-sm text-indigo-700 space-y-2">
+              <div>
+                <strong>Job ID:</strong> {paymentTestResult.jobId}
+              </div>
+              <div>
+                <strong>Job Title:</strong> {paymentTestResult.jobTitle}
+              </div>
+              <div>
+                <strong>Timestamp:</strong> {new Date(paymentTestResult.timestamp).toLocaleString()}
+              </div>
+              <div>
+                <strong>Result:</strong>
+                <pre className="mt-1 text-xs bg-white p-2 rounded border overflow-auto max-h-32">
+                  {JSON.stringify(paymentTestResult.result, null, 2)}
+                </pre>
+              </div>
+            </div>
           </div>
         )}
       </CardContent>
