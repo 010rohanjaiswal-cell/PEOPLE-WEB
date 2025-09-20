@@ -100,6 +100,44 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Dependency check endpoint
+app.get('/dependencies', (req, res) => {
+  const dependencies = {
+    axios: false,
+    cryptoJs: false,
+    paymentService: false
+  };
+  
+  try {
+    require('axios');
+    dependencies.axios = true;
+  } catch (e) {
+    console.log('❌ axios not available');
+  }
+  
+  try {
+    require('crypto-js');
+    dependencies.cryptoJs = true;
+  } catch (e) {
+    console.log('❌ crypto-js not available');
+  }
+  
+  try {
+    require('./services/paymentService');
+    dependencies.paymentService = true;
+  } catch (e) {
+    console.log('❌ payment service not available');
+  }
+  
+  res.json({
+    dependencies,
+    allAvailable: dependencies.axios && dependencies.cryptoJs && dependencies.paymentService,
+    message: dependencies.axios && dependencies.cryptoJs && dependencies.paymentService 
+      ? 'All payment dependencies are available' 
+      : 'Some payment dependencies are missing'
+  });
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
