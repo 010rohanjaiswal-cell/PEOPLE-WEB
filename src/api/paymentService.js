@@ -41,7 +41,12 @@ const paymentService = {
   createUPIPayment: async (jobId, headers = {}) => {
     try {
       console.log('💳 Creating UPI payment for job:', jobId);
-      const response = await api.post(`/payment/upi/${jobId}`, {}, { headers });
+      
+      // Use debug endpoint if x-debug-mode header is present
+      const isDebugMode = headers['x-debug-mode'] === 'true';
+      const endpoint = isDebugMode ? `/payment/debug/upi/${jobId}` : `/payment/upi/${jobId}`;
+      
+      const response = await api.post(endpoint, {}, { headers });
       console.log('💳 UPI payment response:', response.data);
       return response.data;
     } catch (error) {
@@ -51,10 +56,15 @@ const paymentService = {
   },
 
   // Verify UPI payment
-  verifyUPIPayment: async (orderId) => {
+  verifyUPIPayment: async (orderId, headers = {}) => {
     try {
       console.log('🔍 Verifying UPI payment for order:', orderId);
-      const response = await api.post('/payment/verify', { orderId });
+      
+      // Use debug endpoint if x-debug-mode header is present
+      const isDebugMode = headers['x-debug-mode'] === 'true';
+      const endpoint = isDebugMode ? '/payment/debug/verify' : '/payment/verify';
+      
+      const response = await api.post(endpoint, { orderId }, { headers });
       console.log('🔍 UPI payment verification response:', response.data);
       return response.data;
     } catch (error) {
@@ -64,10 +74,15 @@ const paymentService = {
   },
 
   // Get payment status
-  getPaymentStatus: async (jobId) => {
+  getPaymentStatus: async (jobId, headers = {}) => {
     try {
       console.log('📊 Getting payment status for job:', jobId);
-      const response = await api.get(`/payment/status/${jobId}`);
+      
+      // Use debug endpoint if x-debug-mode header is present
+      const isDebugMode = headers['x-debug-mode'] === 'true';
+      const endpoint = isDebugMode ? `/payment/debug/status/${jobId}` : `/payment/status/${jobId}`;
+      
+      const response = await api.get(endpoint, { headers });
       console.log('📊 Payment status response:', response.data);
       return response.data;
     } catch (error) {

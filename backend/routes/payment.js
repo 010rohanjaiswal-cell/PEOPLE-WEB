@@ -45,4 +45,9 @@ router.post('/upi/:jobId', authMiddleware.verifyToken, paymentController.createU
 router.post('/verify', authMiddleware.verifyToken, paymentController.verifyUPIPayment);
 router.get('/status/:jobId', authMiddleware.verifyToken, paymentController.getPaymentStatus);
 
+// Debug payment routes (no auth required for testing)
+router.post('/debug/upi/:jobId', paymentController.createUPIPayment);
+router.post('/debug/verify', paymentController.verifyUPIPayment);
+router.get('/debug/status/:jobId', paymentController.getPaymentStatus);
+
 module.exports = router;
