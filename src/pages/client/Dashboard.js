@@ -316,6 +316,43 @@ const ClientDashboard = () => {
     }
   };
 
+  const handleManualPaymentConfirmation = async (job) => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Check if job has payment details (orderId)
+      if (!job.paymentDetails?.orderId) {
+        setError('No payment order found for this job. Please create a payment first.');
+        return;
+      }
+      
+      const orderId = job.paymentDetails.orderId;
+      console.log('🧪 Manual payment confirmation for order:', orderId);
+      
+      // Simulate successful payment
+      const result = await paymentService.simulateSuccessfulPayment(orderId);
+      
+      if (result.success) {
+        console.log('✅ Manual payment confirmation successful:', result);
+        setError('');
+        
+        // Show success message
+        alert(`Payment confirmed successfully!\n\nJob Amount: ₹${result.jobAmount}\nFreelancer Amount: ₹${result.freelancerAmount}\nCommission: ₹${result.commission}\n\n${result.walletMessage}`);
+        
+        // Reload data to reflect changes
+        await loadClientData();
+      } else {
+        setError(result.message || 'Failed to confirm payment');
+      }
+    } catch (error) {
+      console.error('Error confirming payment manually:', error);
+      setError(error.message || 'Failed to confirm payment');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const pollPaymentStatus = async (jobId, orderId) => {
     const maxAttempts = 30; // 5 minutes with 10-second intervals
     let attempts = 0;
@@ -713,6 +750,14 @@ const ClientDashboard = () => {
                           className="bg-green-600 hover:bg-green-700"
                         >
                           Pay Cash
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleManualPaymentConfirmation(job)}
+                          className="bg-orange-600 hover:bg-orange-700"
+                          title="Simulate successful payment for testing"
+                        >
+                          ✓ Confirm Payment
                         </Button>
                         {job.assignedFreelancer?.id && (
                           <Button 

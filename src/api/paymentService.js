@@ -89,6 +89,20 @@ const paymentService = {
       console.error('❌ Get payment status error:', error);
       throw error.response?.data || error;
     }
+  },
+
+  // Simulate successful payment (for testing)
+  simulateSuccessfulPayment: async (orderId) => {
+    try {
+      console.log('🧪 Simulating successful payment for order:', orderId);
+      
+      const response = await api.post(`/payment/debug/simulate-success/${orderId}`);
+      console.log('🧪 Simulate payment response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Simulate payment error:', error);
+      throw error.response?.data || error;
+    }
   }
 };
 
