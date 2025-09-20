@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "npm install --production",
-    "postinstall": "npm list axios crypto-js"
+    "postinstall": "npm install axios@1.12.2 crypto-js@4.2.0 --save",
+    "prestart": "npm install axios@1.12.2 crypto-js@4.2.0"
   },
   "keywords": [
     "freelancing",

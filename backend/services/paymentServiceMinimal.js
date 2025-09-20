@@ -22,17 +22,29 @@ class PaymentServiceMinimal {
 
   // Mock payment request (returns error indicating dependencies needed)
   async createPaymentRequest(amount, orderId, userId, jobId, jobTitle) {
+    console.error('❌ Payment service dependencies not available. Please install axios and crypto-js on the server.');
     return {
       success: false,
-      error: 'Payment service dependencies (axios, crypto-js) not installed on server'
+      error: 'Payment service dependencies (axios, crypto-js) not installed on server',
+      message: 'Please contact support to install required dependencies',
+      details: {
+        missingDependencies: ['axios', 'crypto-js'],
+        solution: 'Run: npm install axios@1.12.2 crypto-js@4.2.0'
+      }
     };
   }
 
   // Mock payment verification (returns error indicating dependencies needed)
   async verifyPayment(merchantTransactionId) {
+    console.error('❌ Payment service dependencies not available. Please install axios and crypto-js on the server.');
     return {
       success: false,
-      error: 'Payment service dependencies (axios, crypto-js) not installed on server'
+      error: 'Payment service dependencies (axios, crypto-js) not installed on server',
+      message: 'Please contact support to install required dependencies',
+      details: {
+        missingDependencies: ['axios', 'crypto-js'],
+        solution: 'Run: npm install axios@1.12.2 crypto-js@4.2.0'
+      }
     };
   }
 }

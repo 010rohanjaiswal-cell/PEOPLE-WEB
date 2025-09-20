@@ -34,9 +34,16 @@ const loadPaymentService = async () => {
       paymentServiceAvailable = true;
       console.log('✅ Payment service dependencies loaded successfully');
     } catch (error) {
-      console.error('❌ Payment service loading error:', error);
-      paymentServiceAvailable = false;
-      throw new Error('Payment service not available');
+      console.warn('⚠️ Full payment service not available, using minimal service:', error.message);
+      try {
+        paymentService = require('../services/paymentServiceMinimal');
+        paymentServiceAvailable = true;
+        console.log('✅ Minimal payment service loaded successfully');
+      } catch (minimalError) {
+        console.error('❌ Failed to load any payment service:', minimalError);
+        paymentServiceAvailable = false;
+        throw new Error('Payment service not available');
+      }
     }
   }
   return paymentService;
