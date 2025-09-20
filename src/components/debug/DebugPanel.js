@@ -77,6 +77,13 @@ const DebugPanel = () => {
       const testJob = jobs[0];
       console.log('🧪 Testing UPI payment for job:', testJob);
       
+      // First, update job status to "work_done" if it's not already
+      if (testJob.status !== 'work_done') {
+        console.log('🔄 Updating job status to work_done...');
+        await debugService.updateJobStatus(testJob.id, 'work_done');
+        console.log('✅ Job status updated to work_done');
+      }
+      
       // Test the payment service directly
       const result = await paymentService.createUPIPayment(testJob.id, {
         'x-debug-mode': 'true'
@@ -123,6 +130,13 @@ const DebugPanel = () => {
       
       const testJob = jobs[0];
       console.log('🔄 Step 1: Creating UPI payment for job:', testJob);
+      
+      // First, update job status to "work_done" if it's not already
+      if (testJob.status !== 'work_done') {
+        console.log('🔄 Updating job status to work_done...');
+        await debugService.updateJobStatus(testJob.id, 'work_done');
+        console.log('✅ Job status updated to work_done');
+      }
       
       const result = await paymentService.createUPIPayment(testJob.id, {
         'x-debug-mode': 'true'

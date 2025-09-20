@@ -68,6 +68,16 @@ const debugService = {
         throw error.response?.data || error;
       }
     }
+  },
+
+  // Update job status
+  updateJobStatus: async (jobId, status) => {
+    try {
+      const response = await api.post(`/debug/update-job-status/${jobId}`, { status });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   }
 };
 
