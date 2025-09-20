@@ -548,9 +548,77 @@ const ClientDashboard = () => {
               />
             </div>
 
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg" loading={loading}>
-              Post Job
-            </Button>
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => {
+                    setJobForm({
+                      title: 'Sample Delivery Job',
+                      address: '123 Main Street, Mumbai',
+                      pincode: '400001',
+                      budget: '500',
+                      category: 'Delivery',
+                      gender: 'Any',
+                      description: 'Need someone to deliver a package from point A to point B. Urgent delivery required.'
+                    });
+                  }}
+                >
+                  Auto Fill Sample Data
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={async () => {
+                    const sampleJobs = [
+                      {
+                        title: 'Quick Delivery Task',
+                        address: '456 Park Avenue, Delhi',
+                        pincode: '110001',
+                        budget: '300',
+                        category: 'Delivery',
+                        gender: 'Male',
+                        description: 'Deliver documents to office building. Time sensitive.'
+                      },
+                      {
+                        title: 'Home Cleaning Service',
+                        address: '789 Garden Road, Bangalore',
+                        pincode: '560001',
+                        budget: '800',
+                        category: 'Cleaning',
+                        gender: 'Female',
+                        description: 'Deep cleaning of 2BHK apartment. Need experienced cleaner.'
+                      },
+                      {
+                        title: 'Cooking for Party',
+                        address: '321 Lake View, Pune',
+                        pincode: '411001',
+                        budget: '1200',
+                        category: 'Cooking',
+                        gender: 'Any',
+                        description: 'Prepare food for 20 people party. North Indian cuisine preferred.'
+                      }
+                    ];
+
+                    for (let i = 0; i < sampleJobs.length; i++) {
+                      const job = sampleJobs[i];
+                      setJobForm(job);
+                      await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+                      await handleJobSubmit({ preventDefault: () => {} });
+                      await new Promise(resolve => setTimeout(resolve, 500)); // Delay between jobs
+                    }
+                  }}
+                >
+                  Create 3 Test Jobs
+                </Button>
+              </div>
+              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg" loading={loading}>
+                Post Job
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>
