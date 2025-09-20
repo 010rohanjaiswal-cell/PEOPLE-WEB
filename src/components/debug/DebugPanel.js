@@ -3,6 +3,7 @@ import { Button } from '../common/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../common/Card';
 import debugService from '../../api/debugService';
 import paymentService from '../../api/paymentService';
+import WalletContainer from '../common/WalletContainer';
 import { Bug, RefreshCw, Trash2, Plus, CreditCard, CheckCircle, Wallet, ExternalLink } from 'lucide-react';
 
 const DebugPanel = () => {
@@ -216,14 +217,19 @@ const DebugPanel = () => {
       
       console.log('🔄 Step 4: Verifying payment and crediting wallet for order:', currentPaymentOrderId);
       
+      // Get job amount from the first step
+      const firstStep = paymentFlowSteps.find(step => step.step === 1);
+      const jobAmount = firstStep?.data?.result?.amounts?.totalAmount || 10;
+      const freelancerAmount = Math.floor(jobAmount * 0.9); // 90% to freelancer
+      
       // Simulate payment verification
       const verificationResult = {
         success: true,
         data: {
           state: 'SUCCESS',
           orderId: currentPaymentOrderId,
-          amount: 500,
-          freelancerAmount: 450
+          amount: jobAmount,
+          freelancerAmount: freelancerAmount
         }
       };
       
@@ -234,7 +240,9 @@ const DebugPanel = () => {
         data: {
           orderId: currentPaymentOrderId,
           verificationResult: verificationResult,
-          walletCredited: verificationResult.success ? '₹450 (90% of ₹500)' : 'Failed'
+          walletCredited: verificationResult.success ? `₹${freelancerAmount} (90% of ₹${jobAmount})` : 'Failed',
+          jobAmount: jobAmount,
+          freelancerAmount: freelancerAmount
         },
         timestamp: new Date().toISOString()
       };
@@ -243,7 +251,16 @@ const DebugPanel = () => {
       
       if (verificationResult.success) {
         setError('');
-        console.log('✅ Step 4 completed: Wallet credited');
+        console.log('✅ Step 4 completed: Wallet credited with ₹' + freelancerAmount);
+        
+        // Trigger a custom event to update wallet
+        window.dispatchEvent(new CustomEvent('walletUpdate', {
+          detail: {
+            amount: freelancerAmount,
+            jobAmount: jobAmount,
+            orderId: currentPaymentOrderId
+          }
+        }));
       } else {
         setError('Step 4 failed: Payment verification failed');
       }
@@ -546,6 +563,12 @@ const DebugPanel = () => {
             </div>
           </div>
         )}
+
+        {/* Wallet Container for Testing */}
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold text-orange-800 mb-4">Test Wallet</h3>
+          <WalletContainer user={{ id: 'test-user', name: 'Test User' }} />
+        </div>
       </CardContent>
     </Card>
   );

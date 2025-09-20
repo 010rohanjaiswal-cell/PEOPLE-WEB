@@ -83,7 +83,7 @@ const addTestJob = async (req, res) => {
       title: 'Test Job - ' + new Date().toLocaleTimeString(),
       address: 'Test Address',
       pincode: '123456',
-      budget: 1000,
+      budget: 10,
       category: 'Test',
       gender: 'Any',
       status: 'open',

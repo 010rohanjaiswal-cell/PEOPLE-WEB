@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Input } from '../../components/common/Input';
 import { Label } from '../../components/common/Label';
 import CommissionLedgerModal from '../../components/modals/CommissionLedgerModal';
+import WalletContainer from '../../components/common/WalletContainer';
 import { 
   Briefcase, 
   Wallet, 
@@ -577,37 +578,8 @@ const FreelancerDashboard = () => {
 
   const renderWallet = () => (
     <div className="space-y-6">
-      {/* Wallet Balance */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Wallet className="w-5 h-5 mr-2" />
-            Wallet Balance
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-green-600">
-            ₹{walletBalance.toLocaleString()}
-          </div>
-          <p className="text-sm text-muted-foreground mt-2">
-            Available for withdrawal
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Commission Ledger Button */}
-      <Card>
-        <CardContent className="pt-6">
-          <Button
-            onClick={() => setShowCommissionLedger(true)}
-            variant="outline"
-            className="w-full"
-          >
-            <DollarSign className="w-4 h-4 mr-2" />
-            View Commission Ledger
-          </Button>
-        </CardContent>
-      </Card>
+      {/* Wallet Container */}
+      <WalletContainer user={user} onRefresh={loadFreelancerData} />
 
       {/* Withdrawal Form */}
       <Card>
