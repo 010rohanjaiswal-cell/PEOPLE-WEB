@@ -120,6 +120,144 @@ try {
   });
 }
 
+// Process successful payment
+const processSuccessfulPayment = async (orderId, req, res) => {
+  try {
+    console.log('🔄 Processing successful payment for order:', orderId);
+    
+    // Extract job ID from order ID (format: ORDER_jobId_timestamp)
+    const jobIdMatch = orderId.match(/ORDER_(.+)_\d+/);
+    if (!jobIdMatch) {
+      console.error('❌ Could not extract job ID from order ID:', orderId);
+      return res.json({ 
+        success: false, 
+        message: 'Invalid order ID format',
+        orderId: orderId 
+      });
+    }
+    
+    const jobId = jobIdMatch[1];
+    console.log('📋 Extracted job ID:', jobId);
+    
+    // Load jobs data
+    const fs = require('fs');
+    const path = require('path');
+    const jobsFile = path.join(__dirname, 'data/jobs.json');
+    
+    if (!fs.existsSync(jobsFile)) {
+      console.error('❌ Jobs file not found');
+      return res.json({ 
+        success: false, 
+        message: 'Jobs data not found',
+        orderId: orderId 
+      });
+    }
+    
+    const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+    const jobs = jobsData.jobs || [];
+    
+    // Find the job
+    const jobIndex = jobs.findIndex(job => job.id === jobId);
+    if (jobIndex === -1) {
+      console.error('❌ Job not found:', jobId);
+      return res.json({ 
+        success: false, 
+        message: 'Job not found',
+        orderId: orderId 
+      });
+    }
+    
+    const job = jobs[jobIndex];
+    
+    // Check if job is in work_done status
+    if (job.status !== 'work_done') {
+      console.log('⚠️ Job not in work_done status:', job.status);
+      return res.json({ 
+        success: false, 
+        message: 'Job not ready for payment',
+        orderId: orderId 
+      });
+    }
+    
+    // Update job status to completed
+    job.status = 'completed';
+    job.paymentMethod = 'upi';
+    job.paidAt = new Date().toISOString();
+    job.paymentOrderId = orderId;
+    
+    console.log('✅ Job status updated to completed');
+    
+    // Credit freelancer's wallet
+    const User = require('./models/User');
+    const freelancerId = job.assignedFreelancer?.id;
+    const jobAmount = job.budget;
+    
+    if (freelancerId) {
+      try {
+        const freelancer = await User.findById(freelancerId);
+        if (freelancer) {
+          // Calculate freelancer's portion (90% of job amount)
+          const freelancerAmount = Math.round(jobAmount * 0.9 * 100) / 100;
+          
+          // Update wallet balance
+          freelancer.wallet.balance = (freelancer.wallet.balance || 0) + freelancerAmount;
+          freelancer.wallet.totalEarnings = (freelancer.wallet.totalEarnings || 0) + freelancerAmount;
+          
+          // Add transaction record
+          if (!freelancer.wallet.transactions) {
+            freelancer.wallet.transactions = [];
+          }
+          
+          freelancer.wallet.transactions.unshift({
+            id: 'txn-' + Date.now(),
+            type: 'credit',
+            amount: freelancerAmount,
+            description: `Payment for job: ${job.title}`,
+            clientName: job.clientName || 'Unknown Client',
+            jobId: job.id,
+            totalAmount: jobAmount,
+            commission: Math.round(jobAmount * 0.1 * 100) / 100,
+            paymentOrderId: orderId,
+            createdAt: new Date().toISOString()
+          });
+          
+          await freelancer.save();
+          console.log('💰 Freelancer wallet credited:', { 
+            freelancerId, 
+            jobAmount, 
+            freelancerAmount, 
+            commission: Math.round(jobAmount * 0.1 * 100) / 100 
+          });
+        } else {
+          console.log('⚠️ Freelancer not found:', freelancerId);
+        }
+      } catch (walletError) {
+        console.error('❌ Wallet credit error:', walletError);
+        // Don't fail the payment if wallet update fails
+      }
+    }
+    
+    // Save updated jobs data
+    fs.writeFileSync(jobsFile, JSON.stringify(jobsData, null, 2));
+    console.log('💾 Jobs data saved');
+    
+    res.json({ 
+      success: true, 
+      message: 'Payment processed successfully',
+      orderId: orderId,
+      jobId: jobId
+    });
+    
+  } catch (error) {
+    console.error('❌ Error processing successful payment:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Payment processing failed',
+      orderId: orderId 
+    });
+  }
+};
+
 // Payment callback endpoint (for PhonePe redirects)
 app.post('/payment/callback', (req, res) => {
   try {
@@ -153,12 +291,9 @@ app.post('/payment/callback', (req, res) => {
     
     if (finalState === 'SUCCESS' || finalState === 'success') {
       console.log('✅ Payment successful for order:', finalOrderId);
-      // TODO: Update job status, credit freelancer wallet, etc.
-      res.json({ 
-        success: true, 
-        message: 'Payment processed successfully',
-        orderId: finalOrderId 
-      });
+      
+      // Process successful payment
+      processSuccessfulPayment(finalOrderId, req, res);
     } else {
       console.log('❌ Payment failed for order:', finalOrderId, 'State:', finalState);
       res.json({ 
