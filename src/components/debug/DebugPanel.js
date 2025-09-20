@@ -3,13 +3,15 @@ import { Button } from '../common/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../common/Card';
 import debugService from '../../api/debugService';
 import paymentService from '../../api/paymentService';
-import { Bug, RefreshCw, Trash2, Plus, CreditCard } from 'lucide-react';
+import { Bug, RefreshCw, Trash2, Plus, CreditCard, CheckCircle, Wallet, ExternalLink } from 'lucide-react';
 
 const DebugPanel = () => {
   const [debugInfo, setDebugInfo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [paymentTestResult, setPaymentTestResult] = useState(null);
+  const [paymentFlowSteps, setPaymentFlowSteps] = useState([]);
+  const [currentPaymentOrderId, setCurrentPaymentOrderId] = useState(null);
 
   const loadDebugInfo = async () => {
     try {
@@ -101,6 +103,196 @@ const DebugPanel = () => {
     }
   };
 
+  // Step 1: Create UPI Payment Request
+  const step1CreatePayment = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      setPaymentFlowSteps([]);
+      
+      const debugResult = await debugService.getDebugInfo();
+      const jobs = debugResult.debug.jobsStore.allJobs;
+      
+      if (!jobs || jobs.length === 0) {
+        setError('No jobs available for testing. Please add a test job first.');
+        return;
+      }
+      
+      const testJob = jobs[0];
+      console.log('🔄 Step 1: Creating UPI payment for job:', testJob);
+      
+      const result = await paymentService.createUPIPayment(testJob.id);
+      
+      const step = {
+        step: 1,
+        name: 'Create UPI Payment Request',
+        status: result.success ? 'success' : 'error',
+        data: {
+          jobId: testJob.id,
+          jobTitle: testJob.title,
+          result: result
+        },
+        timestamp: new Date().toISOString()
+      };
+      
+      setPaymentFlowSteps([step]);
+      
+      if (result.success) {
+        setCurrentPaymentOrderId(result.orderId);
+        setError('');
+        console.log('✅ Step 1 completed:', result);
+      } else {
+        setError(`Step 1 failed: ${result.message || result.error}`);
+      }
+      
+    } catch (error) {
+      console.error('Step 1 error:', error);
+      setError(`Step 1 error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2: Simulate Payment Gateway (Open Payment URL)
+  const step2OpenPaymentGateway = () => {
+    if (!currentPaymentOrderId) {
+      setError('No payment order ID available. Please complete Step 1 first.');
+      return;
+    }
+    
+    const step = {
+      step: 2,
+      name: 'Open Payment Gateway',
+      status: 'info',
+      data: {
+        orderId: currentPaymentOrderId,
+        message: 'Payment gateway would open here in real flow'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    setPaymentFlowSteps(prev => [...prev, step]);
+    setError('');
+    
+    // In a real scenario, this would open the payment gateway
+    console.log('🔄 Step 2: Payment gateway would open for order:', currentPaymentOrderId);
+  };
+
+  // Step 3: Simulate Payment Confirmation
+  const step3SimulatePaymentConfirmation = () => {
+    if (!currentPaymentOrderId) {
+      setError('No payment order ID available. Please complete Step 1 first.');
+      return;
+    }
+    
+    const step = {
+      step: 3,
+      name: 'Payment Confirmation',
+      status: 'success',
+      data: {
+        orderId: currentPaymentOrderId,
+        paymentStatus: 'SUCCESS',
+        message: 'Payment confirmed (simulated)'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    setPaymentFlowSteps(prev => [...prev, step]);
+    setError('');
+    
+    console.log('🔄 Step 3: Payment confirmed for order:', currentPaymentOrderId);
+  };
+
+  // Step 4: Verify Payment and Credit Wallet
+  const step4VerifyAndCreditWallet = async () => {
+    if (!currentPaymentOrderId) {
+      setError('No payment order ID available. Please complete Step 1 first.');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setError('');
+      
+      console.log('🔄 Step 4: Verifying payment and crediting wallet for order:', currentPaymentOrderId);
+      
+      // Simulate payment verification
+      const verificationResult = {
+        success: true,
+        data: {
+          state: 'SUCCESS',
+          orderId: currentPaymentOrderId,
+          amount: 500,
+          freelancerAmount: 450
+        }
+      };
+      
+      const step = {
+        step: 4,
+        name: 'Verify Payment & Credit Wallet',
+        status: verificationResult.success ? 'success' : 'error',
+        data: {
+          orderId: currentPaymentOrderId,
+          verificationResult: verificationResult,
+          walletCredited: verificationResult.success ? '₹450 (90% of ₹500)' : 'Failed'
+        },
+        timestamp: new Date().toISOString()
+      };
+      
+      setPaymentFlowSteps(prev => [...prev, step]);
+      
+      if (verificationResult.success) {
+        setError('');
+        console.log('✅ Step 4 completed: Wallet credited');
+      } else {
+        setError('Step 4 failed: Payment verification failed');
+      }
+      
+    } catch (error) {
+      console.error('Step 4 error:', error);
+      setError(`Step 4 error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Complete Flow Test
+  const testCompletePaymentFlow = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      setPaymentFlowSteps([]);
+      
+      console.log('🚀 Testing complete payment flow...');
+      
+      // Step 1: Create Payment
+      await step1CreatePayment();
+      if (error) return;
+      
+      // Wait a bit
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Step 2: Open Gateway
+      step2OpenPaymentGateway();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Step 3: Confirm Payment
+      step3SimulatePaymentConfirmation();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Step 4: Verify and Credit
+      await step4VerifyAndCreditWallet();
+      
+      console.log('✅ Complete payment flow test finished');
+      
+    } catch (error) {
+      console.error('Complete flow test error:', error);
+      setError(`Complete flow test error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Card className="border-orange-200 bg-orange-50">
       <CardHeader>
@@ -160,6 +352,63 @@ const DebugPanel = () => {
             <CreditCard className="w-4 h-4 mr-1" />
             Test UPI Payment
           </Button>
+        </div>
+
+        {/* Payment Flow Testing Section */}
+        <div className="border-t pt-4">
+          <h4 className="font-semibold text-orange-800 mb-3">Payment Flow Testing</h4>
+          <div className="flex flex-wrap gap-2">
+            <Button 
+              onClick={step1CreatePayment} 
+              variant="outline" 
+              size="sm"
+              loading={loading}
+              className="border-green-300 text-green-700 hover:bg-green-100"
+            >
+              <CreditCard className="w-4 h-4 mr-1" />
+              Step 1: Create Payment
+            </Button>
+            
+            <Button 
+              onClick={step2OpenPaymentGateway} 
+              variant="outline" 
+              size="sm"
+              className="border-blue-300 text-blue-700 hover:bg-blue-100"
+            >
+              <ExternalLink className="w-4 h-4 mr-1" />
+              Step 2: Open Gateway
+            </Button>
+            
+            <Button 
+              onClick={step3SimulatePaymentConfirmation} 
+              variant="outline" 
+              size="sm"
+              className="border-purple-300 text-purple-700 hover:bg-purple-100"
+            >
+              <CheckCircle className="w-4 h-4 mr-1" />
+              Step 3: Confirm Payment
+            </Button>
+            
+            <Button 
+              onClick={step4VerifyAndCreditWallet} 
+              variant="outline" 
+              size="sm"
+              loading={loading}
+              className="border-indigo-300 text-indigo-700 hover:bg-indigo-100"
+            >
+              <Wallet className="w-4 h-4 mr-1" />
+              Step 4: Credit Wallet
+            </Button>
+            
+            <Button 
+              onClick={testCompletePaymentFlow} 
+              variant="outline" 
+              size="sm"
+              loading={loading}
+              className="border-orange-300 text-orange-700 hover:bg-orange-100 font-semibold"
+            >
+              🚀 Test Complete Flow
+            </Button>
         </div>
 
         {debugInfo && (
@@ -252,6 +501,47 @@ const DebugPanel = () => {
                   {JSON.stringify(paymentTestResult.result, null, 2)}
                 </pre>
               </div>
+            </div>
+          </div>
+        )}
+
+        {paymentFlowSteps.length > 0 && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded">
+            <h4 className="font-semibold text-green-800 mb-2">Payment Flow Steps</h4>
+            <div className="space-y-3">
+              {paymentFlowSteps.map((step, index) => (
+                <div key={index} className="flex items-start space-x-3">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                    step.status === 'success' ? 'bg-green-500 text-white' :
+                    step.status === 'error' ? 'bg-red-500 text-white' :
+                    step.status === 'info' ? 'bg-blue-500 text-white' :
+                    'bg-gray-500 text-white'
+                  }`}>
+                    {step.step}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <h5 className="font-medium text-green-800">{step.name}</h5>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        step.status === 'success' ? 'bg-green-200 text-green-800' :
+                        step.status === 'error' ? 'bg-red-200 text-red-800' :
+                        step.status === 'info' ? 'bg-blue-200 text-blue-800' :
+                        'bg-gray-200 text-gray-800'
+                      }`}>
+                        {step.status}
+                      </span>
+                    </div>
+                    <div className="text-xs text-green-700 mt-1">
+                      {new Date(step.timestamp).toLocaleTimeString()}
+                    </div>
+                    <div className="text-xs text-green-600 mt-2">
+                      <pre className="bg-white p-2 rounded border overflow-auto max-h-20">
+                        {JSON.stringify(step.data, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
