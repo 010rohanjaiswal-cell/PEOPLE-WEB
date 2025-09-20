@@ -15,58 +15,56 @@ try {
 
 class PaymentService {
   constructor() {
-    this.merchantId = process.env.PHONEPE_MERCHANT_ID || 'SU2509171240249286269937';
-    this.saltKey = process.env.PHONEPE_SALT_KEY || 'd74141aa-8762-4d1b-bfa1-dfe2a094d310';
-    this.saltIndex = Number(process.env.PHONEPE_SALT_INDEX || 1);
-    // Allow overriding base URL via env to switch between prod and preprod
+    // PhonePe V2 Configuration (OAuth-based, no salt keys)
+    this.merchantId = process.env.PHONEPE_MERCHANT_ID || 'M23OKIGC1N363';
+    this.clientId = process.env.PHONEPE_CLIENT_ID || 'SU2509171240249286269937';
+    this.clientSecret = process.env.PHONEPE_CLIENT_SECRET || 'd74141aa-8762-4d1b-bfa1-dfe2a094d310';
+    this.clientVersion = process.env.PHONEPE_CLIENT_VERSION || '1';
+    
+    // Environment configuration
+    const envMode = process.env.PHONEPE_ENV || 'prod'; // 'preprod' | 'prod'
     const envBaseUrl = process.env.PHONEPE_BASE_URL;
-    const envMode = process.env.PHONEPE_ENV; // 'preprod' | 'prod'
-    this.flowMode = (process.env.PHONEPE_FLOW || 'standard').toLowerCase(); // 'standard' | 'hermes'
-    // Determine base URL based on flow
+    const envAuthBaseUrl = process.env.PHONEPE_AUTH_BASE_URL;
+    
+    // Set base URLs
     if (envBaseUrl) {
       this.baseUrl = envBaseUrl;
-    } else if (this.flowMode === 'hermes') {
-      this.baseUrl = envMode === 'preprod'
-        ? 'https://api-preprod.phonepe.com/apis/hermes'
-        : 'https://api.phonepe.com/apis/hermes';
     } else {
       this.baseUrl = envMode === 'preprod'
-        ? 'https://api-preprod.phonepe.com/apis/pg-sandbox'
+        ? 'https://api-preprod.phonepe.com/apis/pg'
         : 'https://api.phonepe.com/apis/pg';
     }
-    // Authorization (OAuth) base URL
-    const envAuthBaseUrl = process.env.PHONEPE_AUTH_BASE_URL;
-    this.authBaseUrl = envAuthBaseUrl
-      || (envMode === 'preprod'
-            ? 'https://api-preprod.phonepe.com/apis/pg-sandbox'
-            : 'https://api.phonepe.com/apis/identity-manager');
-    // Client credentials for OAuth
-    this.clientId = process.env.PHONEPE_CLIENT_ID || this.merchantId;
-    this.clientSecret = process.env.PHONEPE_CLIENT_SECRET || this.saltKey;
-    this.clientVersion = process.env.PHONEPE_CLIENT_VERSION || '1';
+    
+    // Set OAuth base URL
+    if (envAuthBaseUrl) {
+      this.authBaseUrl = envAuthBaseUrl;
+    } else {
+      this.authBaseUrl = envMode === 'preprod'
+        ? 'https://api-preprod.phonepe.com/apis/identity-manager'
+        : 'https://api.phonepe.com/apis/identity-manager';
+    }
+    
+    // Other configuration
     this.redirectUrl = process.env.PAYMENT_REDIRECT_URL || 'https://freelancing-platform-backend-backup.onrender.com/payment/callback';
     this.frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     this.dependenciesAvailable = dependenciesAvailable;
     this.axios = axios;
     this.crypto = crypto;
-    // token cache
+    
+    // OAuth token cache
     this._authToken = null;
     this._authTokenExpiryMs = 0;
     this._tokenType = 'O-Bearer';
+    
+    console.log('🔧 PhonePe V2 Payment Service initialized:');
+    console.log('  Environment:', envMode);
+    console.log('  Base URL:', this.baseUrl);
+    console.log('  Auth URL:', this.authBaseUrl);
+    console.log('  Client ID:', this.clientId);
+    console.log('  Merchant ID:', this.merchantId);
   }
 
-  // Generate checksum for PhonePe API
-  generateChecksum(payload) {
-    if (!this.dependenciesAvailable) {
-      throw new Error('Payment service dependencies not available');
-    }
-    const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-    // Endpoint segment depends on flow
-    const payPath = this.flowMode === 'hermes' ? '/pg/v1/pay' : '/checkout/v2/pay';
-    const checksumString = base64Payload + payPath + this.saltKey;
-    const checksum = crypto.SHA256(checksumString).toString();
-    return checksum + '###' + this.saltIndex;
-  }
+  // Note: PhonePe V2 uses OAuth tokens only, no checksums needed
 
   // Fetch OAuth token and cache it
   async getAuthToken() {
@@ -136,7 +134,7 @@ class PaymentService {
     }
   }
 
-  // Create payment request
+  // Create payment request (PhonePe V2 - OAuth only, no checksums)
   async createPaymentRequest(amount, orderId, userId, jobId, jobTitle) {
     if (!this.dependenciesAvailable) {
       return {
@@ -146,8 +144,9 @@ class PaymentService {
     }
     
     try {
-      // Ensure Authorization token
-      let bearer = await this.getAuthToken();
+      // Get OAuth token
+      const bearer = await this.getAuthToken();
+      
       const payload = {
         merchantId: this.merchantId,
         merchantOrderId: orderId,
@@ -162,33 +161,27 @@ class PaymentService {
         }
       };
 
-      const checksum = this.generateChecksum(payload);
-      
       const requestData = {
         request: Buffer.from(JSON.stringify(payload)).toString('base64')
       };
 
-      console.log('🔍 PhonePe API Request Details:');
-      console.log('  Flow:', this.flowMode);
-      console.log('  URL:', `${this.baseUrl}${this.flowMode === 'hermes' ? '/pg/v1/pay' : '/checkout/v2/pay'}`);
+      console.log('🔍 PhonePe V2 API Request Details:');
+      console.log('  URL:', `${this.baseUrl}/checkout/v2/pay`);
       console.log('  Merchant ID:', this.merchantId);
       console.log('  Order ID:', orderId);
       console.log('  Amount:', amount, '(₹' + (amount/100) + ')');
       console.log('  Payload:', JSON.stringify(payload, null, 2));
-      console.log('  Checksum:', checksum);
       console.log('  Request Data:', JSON.stringify(requestData, null, 2));
 
-      const apiUrl = `${this.baseUrl}${this.flowMode === 'hermes' ? '/pg/v1/pay' : '/checkout/v2/pay'}`;
-      console.log('🔍 Making request to PhonePe API:', apiUrl);
+      const apiUrl = `${this.baseUrl}/checkout/v2/pay`;
+      console.log('🔍 Making request to PhonePe V2 API:', apiUrl);
       
       const response = await axios.post(apiUrl, requestData, {
         headers: {
           'Content-Type': 'application/json',
-          'X-VERIFY': checksum,
-          'X-MERCHANT-ID': this.merchantId,
-          ...(this.flowMode === 'hermes' ? {} : { 'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}` }),
-          ...(this.flowMode === 'hermes' ? {} : { 'X-CLIENT-ID': this.clientId }),
-          ...(this.flowMode === 'hermes' ? {} : { 'X-CLIENT-VERSION': this.clientVersion }),
+          'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}`,
+          'X-CLIENT-ID': this.clientId,
+          'X-CLIENT-VERSION': this.clientVersion,
           'accept': 'application/json'
         },
         timeout: 30000
@@ -289,7 +282,7 @@ class PaymentService {
     }
   }
 
-  // Verify payment status
+  // Verify payment status (PhonePe V2 - OAuth only, no checksums)
   async verifyPayment(merchantTransactionId) {
     if (!this.dependenciesAvailable) {
       return {
@@ -299,23 +292,16 @@ class PaymentService {
     }
     
     try {
-      // Status path depends on flow
-      const url = this.flowMode === 'hermes'
-        ? `/pg/v1/status/${this.merchantId}/${merchantTransactionId}`
-        : `/checkout/v2/order/${merchantTransactionId}/status`;
-      const checksumString = url + this.saltKey;
-      const checksum = crypto.SHA256(checksumString).toString() + '###' + this.saltIndex;
-
-      // Ensure Authorization token for standard flow only
-      const bearer = this.flowMode === 'hermes' ? null : await this.getAuthToken();
+      // Get OAuth token
+      const bearer = await this.getAuthToken();
+      
+      const url = `/checkout/v2/order/${merchantTransactionId}/status`;
       const response = await axios.get(`${this.baseUrl}${url}`, {
         headers: {
           'Content-Type': 'application/json',
-          'X-VERIFY': checksum,
-          'X-MERCHANT-ID': this.merchantId,
-          ...(this.flowMode === 'hermes' ? {} : { 'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}` }),
-          ...(this.flowMode === 'hermes' ? {} : { 'X-CLIENT-ID': this.clientId }),
-          ...(this.flowMode === 'hermes' ? {} : { 'X-CLIENT-VERSION': this.clientVersion }),
+          'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}`,
+          'X-CLIENT-ID': this.clientId,
+          'X-CLIENT-VERSION': this.clientVersion,
           'accept': 'application/json'
         }
       });
