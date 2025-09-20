@@ -57,7 +57,7 @@ class PaymentService {
 
   // Generate checksum for PhonePe API
   generateChecksum(payload) {
-    if (!dependenciesAvailable) {
+    if (!this.dependenciesAvailable) {
       throw new Error('Payment service dependencies not available');
     }
     const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
@@ -70,7 +70,7 @@ class PaymentService {
 
   // Fetch OAuth token and cache it
   async getAuthToken() {
-    if (!dependenciesAvailable) {
+    if (!this.dependenciesAvailable) {
       throw new Error('Payment service dependencies not available');
     }
     const now = Date.now();
@@ -138,7 +138,7 @@ class PaymentService {
 
   // Create payment request
   async createPaymentRequest(amount, orderId, userId, jobId, jobTitle) {
-    if (!dependenciesAvailable) {
+    if (!this.dependenciesAvailable) {
       return {
         success: false,
         error: 'Payment service dependencies not available'
@@ -291,7 +291,7 @@ class PaymentService {
 
   // Verify payment status
   async verifyPayment(merchantTransactionId) {
-    if (!dependenciesAvailable) {
+    if (!this.dependenciesAvailable) {
       return {
         success: false,
         error: 'Payment service dependencies not available'
