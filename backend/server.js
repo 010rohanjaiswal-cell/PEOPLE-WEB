@@ -164,6 +164,56 @@ app.get('/test-payment-service', async (req, res) => {
   }
 });
 
+// Test payment controller specifically
+app.get('/test-payment-controller', async (req, res) => {
+  try {
+    // Simulate the same loading logic as payment controller
+    let paymentService;
+    let paymentServiceAvailable = false;
+
+    const loadPaymentService = async () => {
+      if (!paymentService && !paymentServiceAvailable) {
+        try {
+          paymentService = require('./services/paymentService');
+          paymentServiceAvailable = true;
+          console.log('✅ Payment service dependencies loaded successfully');
+        } catch (error) {
+          console.warn('⚠️ Full payment service not available, using minimal service:', error.message);
+          try {
+            paymentService = require('./services/paymentServiceMinimal');
+            paymentServiceAvailable = true;
+            console.log('✅ Minimal payment service loaded successfully');
+          } catch (minimalError) {
+            console.error('❌ Failed to load any payment service:', minimalError);
+            paymentServiceAvailable = false;
+            throw new Error('Payment service not available');
+          }
+        }
+      }
+      return paymentService;
+    };
+
+    const service = await loadPaymentService();
+    const dependencyTest = service.testDependencies();
+    const amounts = service.calculateAmounts(100);
+
+    res.json({
+      success: true,
+      serviceLoaded: !!service,
+      serviceAvailable: paymentServiceAvailable,
+      dependencyTest,
+      amounts,
+      message: 'Payment controller test successful'
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message,
+      message: 'Payment controller test failed'
+    });
+  }
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
