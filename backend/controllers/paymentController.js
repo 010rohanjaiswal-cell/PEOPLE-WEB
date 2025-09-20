@@ -26,6 +26,22 @@ const getPaymentService = () => {
   return paymentService;
 };
 
+// Async version for loading payment service
+const loadPaymentService = async () => {
+  if (!paymentService && !paymentServiceAvailable) {
+    try {
+      paymentService = require('../services/paymentService');
+      paymentServiceAvailable = true;
+      console.log('✅ Payment service dependencies loaded successfully');
+    } catch (error) {
+      console.error('❌ Payment service loading error:', error);
+      paymentServiceAvailable = false;
+      throw new Error('Payment service not available');
+    }
+  }
+  return paymentService;
+};
+
 // Create UPI payment request
 const createUPIPayment = async (req, res) => {
   try {
@@ -36,13 +52,26 @@ const createUPIPayment = async (req, res) => {
     console.log('💳 createUPIPayment - clientId:', clientId);
     console.log('💳 createUPIPayment - user:', req.user);
 
+    // Load jobs from file system
+    const fs = require('fs');
+    const path = require('path');
+    const jobsFile = path.join(__dirname, '../data/jobs.json');
+    
+    if (!fs.existsSync(jobsFile)) {
+      console.error('❌ Jobs file not found');
+      return res.status(404).json({ success: false, message: 'Jobs data not found' });
+    }
+    
+    const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+    const jobs = jobsData.jobs || [];
+    
     // Find the job
-    const jobIndex = inMemoryJobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
+    const jobIndex = jobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
     if (jobIndex === -1) {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
     
-    const job = inMemoryJobs[jobIndex];
+    const job = jobs[jobIndex];
     
     // Check if client owns the job (bypass for test jobs or debug mode)
     const isDebugMode = process.env.NODE_ENV === 'development' || req.headers['x-debug-mode'] === 'true';
@@ -70,9 +99,18 @@ const createUPIPayment = async (req, res) => {
       });
     }
 
+    // Load payment service
+    const paymentService = await loadPaymentService();
+    if (!paymentService) {
+      return res.status(503).json({
+        success: false,
+        message: 'Payment service not available'
+      });
+    }
+
     // Calculate amounts
     console.log('💳 createUPIPayment - calculating amounts for budget:', job.budget);
-    const amounts = getPaymentService().calculateAmounts(job.budget);
+    const amounts = paymentService.calculateAmounts(job.budget);
     console.log('💳 createUPIPayment - calculated amounts:', amounts);
     
     // Generate unique order ID
@@ -81,7 +119,7 @@ const createUPIPayment = async (req, res) => {
     
     // Create payment request
     console.log('💳 createUPIPayment - calling payment service...');
-    const paymentResult = await getPaymentService().createPaymentRequest(
+    const paymentResult = await paymentService.createPaymentRequest(
       amounts.totalAmount,
       orderId,
       clientId,
@@ -112,8 +150,9 @@ const createUPIPayment = async (req, res) => {
       createdAt: new Date().toISOString()
     };
 
-    // Save to file for persistence
-    saveJobsToFile();
+    // Save updated jobs data
+    fs.writeFileSync(jobsFile, JSON.stringify(jobsData, null, 2));
+    console.log('💾 Jobs data saved');
 
     console.log('💳 createUPIPayment - payment request created:', orderId);
     console.log('💳 createUPIPayment - amounts:', amounts);
