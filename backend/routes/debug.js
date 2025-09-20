@@ -16,4 +16,7 @@ router.post('/add-test-job-public', debugController.addTestJob);
 // Payment debug route (always available)
 router.get('/payment', debugController.debugPayment);
 
+// Update job status for testing
+router.post('/update-job-status/:jobId', debugController.updateJobStatus);
+
 module.exports = router;

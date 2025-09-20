@@ -186,9 +186,39 @@ function testPaymentController() {
   }
 }
 
+const updateJobStatus = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { status } = req.body;
+    
+    // Find the job
+    const jobIndex = inMemoryJobs.findIndex(j => j.id === jobId);
+    if (jobIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+    
+    // Update job status
+    inMemoryJobs[jobIndex].status = status;
+    inMemoryJobs[jobIndex].updatedAt = new Date().toISOString();
+    
+    // Save to file
+    saveJobsToFile();
+    
+    res.json({ 
+      success: true, 
+      message: `Job status updated to ${status}`,
+      job: inMemoryJobs[jobIndex]
+    });
+  } catch (error) {
+    console.error('Update job status error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update job status', error: error.message });
+  }
+};
+
 module.exports = {
   debugJobs,
   clearJobs,
   addTestJob,
-  debugPayment
+  debugPayment,
+  updateJobStatus
 };
