@@ -258,6 +258,22 @@ const processSuccessfulPayment = async (orderId, req, res) => {
   }
 };
 
+// Manual payment processing endpoint (for testing when callback doesn't work)
+app.post('/payment/process/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    console.log('🔄 Manual payment processing for order:', orderId);
+    
+    await processSuccessfulPayment(orderId, req, res);
+  } catch (error) {
+    console.error('❌ Manual payment processing error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Manual payment processing failed' 
+    });
+  }
+});
+
 // Payment callback endpoint (for PhonePe redirects)
 app.post('/payment/callback', (req, res) => {
   try {
