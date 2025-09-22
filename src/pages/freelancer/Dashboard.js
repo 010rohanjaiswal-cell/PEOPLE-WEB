@@ -406,6 +406,11 @@ const FreelancerDashboard = () => {
         </Button>
       </div>
 
+      {/* Debug visibility marker */}
+      <div className="text-xs text-blue-600">
+        Debug: Pickup panel enabled
+      </div>
+
       {/* Debug Panel */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
