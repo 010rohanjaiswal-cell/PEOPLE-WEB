@@ -181,10 +181,20 @@ const createUPIPayment = async (req, res) => {
 
     // Debug: Test the payment service
     console.log('🔍 createUPIPayment - testing payment service...');
-    const dependencyTest = paymentService.testDependencies();
-    console.log('🔍 createUPIPayment - dependency test result:', dependencyTest);
+    let dependencyTest;
+    try {
+      dependencyTest = paymentService.testDependencies();
+      console.log('🔍 createUPIPayment - dependency test result:', dependencyTest);
+    } catch (testError) {
+      console.error('❌ createUPIPayment - dependency test threw error:', testError);
+      return res.status(503).json({
+        success: false,
+        message: 'Payment service dependency test failed',
+        error: testError.message
+      });
+    }
     
-    if (!dependencyTest.success) {
+    if (!dependencyTest || !dependencyTest.success) {
       console.error('❌ createUPIPayment - payment service dependency test failed:', dependencyTest);
       return res.status(503).json({
         success: false,

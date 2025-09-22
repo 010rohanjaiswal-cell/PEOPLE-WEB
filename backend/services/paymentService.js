@@ -343,7 +343,13 @@ class PaymentService {
   // Test dependencies
   testDependencies() {
     try {
+      console.log('🔍 testDependencies - checking dependencies...');
+      console.log('🔍 testDependencies - this.dependenciesAvailable:', this.dependenciesAvailable);
+      console.log('🔍 testDependencies - this.axios:', typeof this.axios);
+      console.log('🔍 testDependencies - this.crypto:', typeof this.crypto);
+      
       if (!this.dependenciesAvailable) {
+        console.log('❌ testDependencies - dependencies not available');
         return {
           success: false,
           error: 'Dependencies not available'
@@ -351,18 +357,22 @@ class PaymentService {
       }
 
       // Test axios
-      const axiosTest = typeof this.axios === 'function' || typeof this.axios.post === 'function';
+      const axiosTest = this.axios && (typeof this.axios === 'function' || typeof this.axios.post === 'function');
       
       // Test crypto
-      const cryptoTest = typeof this.crypto === 'object' && typeof this.crypto.SHA256 === 'function';
+      const cryptoTest = this.crypto && typeof this.crypto === 'object' && typeof this.crypto.SHA256 === 'function';
 
-      return {
+      const result = {
         success: true,
         axios: axiosTest,
         crypto: cryptoTest,
         dependenciesAvailable: this.dependenciesAvailable
       };
+      
+      console.log('✅ testDependencies - result:', result);
+      return result;
     } catch (error) {
+      console.error('❌ testDependencies - error:', error);
       return {
         success: false,
         error: error.message
