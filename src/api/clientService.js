@@ -11,7 +11,7 @@ const runtimeApiBaseUrl = (() => {
   return undefined;
 })();
 
-const API_BASE_URL = runtimeApiBaseUrl || process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
+const API_BASE_URL = runtimeApiBaseUrl || process.env.REACT_APP_API_BASE_URL || 'https://freelancing-platform-backend-backup.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -26,6 +26,18 @@ api.interceptors.request.use(
     const token = storage.getAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('🔒 Attaching Authorization header for client API:', {
+          hasToken: !!token,
+          authHeaderStartsWith: (config.headers.Authorization || '').slice(0, 10),
+          baseURL: API_BASE_URL
+        });
+      }
+    } else if (process.env.NODE_ENV !== 'production') {
+      console.warn('⚠️ No auth token found when calling client API:', {
+        url: config.url,
+        baseURL: API_BASE_URL
+      });
     }
     return config;
   },
