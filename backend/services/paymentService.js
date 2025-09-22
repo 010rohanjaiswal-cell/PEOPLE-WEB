@@ -230,20 +230,8 @@ class PaymentService {
           this._authToken = null;
           const bearer = await this.getAuthToken();
           const apiUrl = `${this.baseUrl}/checkout/v2/pay`;
-          const response = await axios.post(apiUrl, {           request: Buffer.from(JSON.stringify({
-            merchantId: this.merchantId,
-            merchantOrderId: orderId,
-            merchantUserId: userId,
-            amount: amount * 100,
-            redirectUrl: `${this.frontendUrl}/payment/success`,
-            redirectMode: 'POST',
-            callbackUrl: this.redirectUrl,
-            mobileNumber: '',
-            paymentInstrument: { type: 'PAY_PAGE' }
-          })).toString('base64') }, {
-            headers: {
-              'Content-Type': 'application/json',
-            'X-VERIFY': this.generateChecksum({
+          const response = await axios.post(apiUrl, {
+            request: Buffer.from(JSON.stringify({
               merchantId: this.merchantId,
               merchantOrderId: orderId,
               merchantUserId: userId,
@@ -253,8 +241,10 @@ class PaymentService {
               callbackUrl: this.redirectUrl,
               mobileNumber: '',
               paymentInstrument: { type: 'PAY_PAGE' }
-            }),
-              'X-MERCHANT-ID': this.merchantId,
+            })).toString('base64')
+          }, {
+            headers: {
+              'Content-Type': 'application/json',
               'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}`,
               'X-CLIENT-ID': this.clientId,
               'X-CLIENT-VERSION': this.clientVersion,
