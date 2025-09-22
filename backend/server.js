@@ -13,6 +13,7 @@ const freelancerRoutes = require('./routes/freelancer');
 const adminRoutes = require('./routes/admin');
 const jobRoutes = require('./routes/jobs');
 const debugRoutes = require('./routes/debug');
+const databaseService = require('./services/databaseService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -101,8 +102,17 @@ mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => {
+.then(async () => {
   console.log('✅ Connected to MongoDB');
+  
+  // Migrate existing file-based data to MongoDB
+  try {
+    await databaseService.migrateFileDataToMongoDB();
+    console.log('✅ Database migration completed');
+  } catch (error) {
+    console.error('❌ Database migration failed:', error);
+    // Don't exit - continue with fresh MongoDB data
+  }
 })
 .catch((error) => {
   console.error('❌ MongoDB connection error:', error);

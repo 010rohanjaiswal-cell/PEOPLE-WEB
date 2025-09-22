@@ -1,4 +1,5 @@
 const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
+const databaseService = require('../services/databaseService');
 
 // Lazy load payment service to avoid build issues
 let paymentService;
@@ -59,27 +60,11 @@ const createUPIPayment = async (req, res) => {
     console.log('💳 createUPIPayment - clientId:', clientId);
     console.log('💳 createUPIPayment - user:', req.user);
 
-    // Load jobs from file system
-    const fs = require('fs');
-    const path = require('path');
-    const jobsFile = path.join(__dirname, '../../data/jobs.json');
-    
-    if (!fs.existsSync(jobsFile)) {
-      console.error('❌ Jobs file not found');
-      return res.status(404).json({ success: false, message: 'Jobs data not found' });
-    }
-    
-    const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
-    // Handle both formats: direct array or wrapped in jobs property
-    const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
-    
-    // Find the job
-    const jobIndex = jobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
-    if (jobIndex === -1) {
+    // Load job from MongoDB
+    const job = await databaseService.getJobById(jobId);
+    if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
-    
-    const job = jobs[jobIndex];
     
     // Check if client owns the job (bypass for test jobs or debug mode)
     const isDebugMode = process.env.NODE_ENV === 'development' || req.headers['x-debug-mode'] === 'true';
@@ -161,7 +146,7 @@ const createUPIPayment = async (req, res) => {
     }
 
     // Store payment details in job
-    job.paymentDetails = {
+    const paymentDetails = {
       orderId,
       paymentMethod: 'upi',
       totalAmount: amounts.totalAmount,
@@ -169,12 +154,12 @@ const createUPIPayment = async (req, res) => {
       freelancerAmount: amounts.freelancerAmount,
       paymentUrl: paymentResult.paymentUrl,
       status: 'pending',
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     };
 
-    // Save updated jobs data
-    fs.writeFileSync(jobsFile, JSON.stringify(jobsData, null, 2));
-    console.log('💾 Jobs data saved');
+    // Update job in MongoDB
+    await databaseService.updateJob(jobId, { paymentDetails });
+    console.log('💾 Job updated in MongoDB');
 
     console.log('💳 createUPIPayment - payment request created:', orderId);
     console.log('💳 createUPIPayment - amounts:', amounts);
