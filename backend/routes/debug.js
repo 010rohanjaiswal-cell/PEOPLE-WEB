@@ -12,6 +12,9 @@ router.post('/add-test-job', authMiddleware.verifyToken, debugController.addTest
 router.get('/jobs-public', debugController.debugJobs);
 router.post('/clear-jobs-public', debugController.clearJobs);
 router.post('/add-test-job-public', debugController.addTestJob);
+router.post('/create-test-freelancer-public', debugController.createTestFreelancer);
+router.post('/assign-job-public', debugController.assignJobToFreelancer);
+router.post('/mark-work-done-public', debugController.markWorkDone);
 
 // Payment debug route (always available)
 router.get('/payment', debugController.debugPayment);

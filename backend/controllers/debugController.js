@@ -1,6 +1,7 @@
 // Debug controller for troubleshooting job posting and retrieval
 const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
 const databaseService = require('../services/databaseService');
+const User = require('../models/User');
 
 const debugJobs = async (req, res) => {
   try {
@@ -216,6 +217,77 @@ const updateJobStatus = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to update job status', error: error.message });
   }
 };
+
+// Create a test freelancer user
+const createTestFreelancer = async (req, res) => {
+  try {
+    const phone = req.body?.phone || ('+91' + Math.floor(9000000000 + Math.random()*99999999));
+    const user = new User({
+      phone,
+      role: 'freelancer',
+      fullName: req.body?.fullName || 'Test Freelancer',
+      verificationStatus: 'approved',
+      wallet: { balance: 0, totalEarnings: 0, transactions: [] }
+    });
+    await user.save();
+    res.json({ success: true, freelancer: { _id: user._id, phone: user.phone, fullName: user.fullName } });
+  } catch (error) {
+    console.error('Create test freelancer error:', error);
+    res.status(500).json({ success: false, message: 'Failed to create test freelancer', error: error.message });
+  }
+};
+
+// Assign a job to a freelancer directly
+const assignJobToFreelancer = async (req, res) => {
+  try {
+    const { jobId, freelancerId } = req.body;
+    if (!jobId || !freelancerId) {
+      return res.status(400).json({ success: false, message: 'jobId and freelancerId are required' });
+    }
+
+    const user = await User.findById(freelancerId);
+    if (!user) return res.status(404).json({ success: false, message: 'Freelancer not found' });
+
+    const updated = await databaseService.updateJob(jobId, {
+      status: 'assigned',
+      assignedFreelancer: {
+        id: user._id,
+        fullName: user.fullName,
+        profilePhoto: user.profilePhoto || null,
+        freelancerId: user.freelancerId || null
+      },
+      assignedAt: new Date(),
+      pickupMethod: 'direct'
+    });
+
+    if (!updated) return res.status(404).json({ success: false, message: 'Job not found' });
+    res.json({ success: true, job: updated });
+  } catch (error) {
+    console.error('Assign job error:', error);
+    res.status(500).json({ success: false, message: 'Failed to assign job', error: error.message });
+  }
+};
+
+// Mark work done
+const markWorkDone = async (req, res) => {
+  try {
+    const { jobId, freelancerId } = req.body;
+    const updated = await databaseService.updateJob(jobId, {
+      status: 'work_done',
+      workDoneAt: new Date(),
+      workDoneBy: freelancerId
+    });
+    if (!updated) return res.status(404).json({ success: false, message: 'Job not found' });
+    res.json({ success: true, job: updated });
+  } catch (error) {
+    console.error('Mark work done error:', error);
+    res.status(500).json({ success: false, message: 'Failed to mark work done', error: error.message });
+  }
+};
+
+module.exports.createTestFreelancer = createTestFreelancer;
+module.exports.assignJobToFreelancer = assignJobToFreelancer;
+module.exports.markWorkDone = markWorkDone;
 
 module.exports = {
   debugJobs,
