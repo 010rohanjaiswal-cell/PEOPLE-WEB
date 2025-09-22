@@ -682,5 +682,6 @@ module.exports = {
   verifyUPIPayment,
   getPaymentStatus,
   testPaymentService,
-  simulateSuccessfulPayment
+  simulateSuccessfulPayment,
+  createDebugUPIPayment
 };
