@@ -310,26 +310,15 @@ const pickupJob = async (req, res) => {
     console.log('🎯 pickupJob - jobId:', jobId);
     console.log('🎯 pickupJob - freelancerId:', freelancerId);
 
-    // Get jobs from in-memory store
-    const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
-    
-    if (!Array.isArray(inMemoryJobs)) {
-      return res.status(404).json({
-        success: false,
-        message: 'No jobs found'
-      });
-    }
-
-    // Find the job
-    const jobIndex = inMemoryJobs.findIndex(job => job.id === jobId);
-    if (jobIndex === -1) {
+    // Get job from MongoDB
+    const job = await databaseService.getJobById(jobId);
+    if (!job) {
       return res.status(404).json({
         success: false,
         message: 'Job not found'
       });
     }
 
-    const job = inMemoryJobs[jobIndex];
     console.log('🎯 pickupJob - found job:', { id: job.id, title: job.title, status: job.status });
 
     // Check if job is available for pickup
@@ -342,7 +331,7 @@ const pickupJob = async (req, res) => {
 
     // Check if freelancer already has an offer for this job
     if (job.offers && Array.isArray(job.offers)) {
-      const existingOffer = job.offers.find(offer => String(offer.freelancer.id) === freelancerId);
+      const existingOffer = job.offers.find(offer => String(offer.freelancerId) === freelancerId);
       if (existingOffer) {
         return res.status(400).json({
           success: false,
