@@ -151,7 +151,13 @@ class DatabaseService {
   // Get job by ID
   async getJobById(jobId) {
     try {
-      const job = await Job.findOne({ id: jobId });
+      // Support both custom 'id' and MongoDB '_id'
+      const mongoose = require('mongoose');
+      const orConditions = [{ id: jobId }];
+      if (mongoose.Types.ObjectId.isValid(jobId)) {
+        orConditions.push({ _id: jobId });
+      }
+      const job = await Job.findOne({ $or: orConditions });
       return job;
     } catch (error) {
       console.error('❌ Failed to get job by ID:', error);
@@ -175,8 +181,13 @@ class DatabaseService {
   // Update job
   async updateJob(jobId, updateData) {
     try {
+      const mongoose = require('mongoose');
+      const orConditions = [{ id: jobId }];
+      if (mongoose.Types.ObjectId.isValid(jobId)) {
+        orConditions.push({ _id: jobId });
+      }
       const job = await Job.findOneAndUpdate(
-        { id: jobId },
+        { $or: orConditions },
         { ...updateData, updatedAt: new Date() },
         { new: true }
       );
@@ -195,7 +206,12 @@ class DatabaseService {
   // Delete job
   async deleteJob(jobId) {
     try {
-      const result = await Job.findOneAndDelete({ id: jobId });
+      const mongoose = require('mongoose');
+      const orConditions = [{ id: jobId }];
+      if (mongoose.Types.ObjectId.isValid(jobId)) {
+        orConditions.push({ _id: jobId });
+      }
+      const result = await Job.findOneAndDelete({ $or: orConditions });
       if (result) {
         console.log(`✅ Deleted job ${jobId}`);
       }
