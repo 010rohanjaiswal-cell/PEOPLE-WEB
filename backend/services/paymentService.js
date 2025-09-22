@@ -156,11 +156,14 @@ class PaymentService {
       console.log('🔑 OAuth token retrieved:', bearer ? 'Present' : 'Missing');
       console.log('🔑 Token type:', this._tokenType);
       
+      // Convert ObjectId to string if needed
+      const merchantUserId = typeof userId === 'object' ? userId.toString() : userId;
+      
       const payload = {
         merchantId: this.merchantId,
         merchantTransactionId: orderId,
         merchantOrderId: orderId, // PhonePe requires both fields
-        merchantUserId: userId,
+        merchantUserId: merchantUserId,
         amount: amount * 100, // Amount in paise
         redirectUrl: `${this.frontendUrl}/payment/success`, // Frontend success page
         redirectMode: 'POST',
@@ -173,12 +176,25 @@ class PaymentService {
 
       const requestBase64 = Buffer.from(JSON.stringify(payload)).toString('base64');
       const requestData = { request: requestBase64 };
+      
+      // Debug: Verify base64 encoding/decoding
+      try {
+        const decodedPayload = JSON.parse(Buffer.from(requestBase64, 'base64').toString());
+        console.log('🔍 Base64 Decode Test - Original vs Decoded:');
+        console.log('  Original payload keys:', Object.keys(payload));
+        console.log('  Decoded payload keys:', Object.keys(decodedPayload));
+        console.log('  Amount match:', payload.amount === decodedPayload.amount);
+        console.log('  merchantOrderId match:', payload.merchantOrderId === decodedPayload.merchantOrderId);
+      } catch (e) {
+        console.error('❌ Base64 decode test failed:', e.message);
+      }
 
       console.log('🔍 PhonePe V2 API Request Details:');
       console.log('  URL:', `${this.baseUrl}/checkout/v2/pay`);
       console.log('  Merchant ID:', this.merchantId);
       console.log('  Order ID:', orderId);
       console.log('  Amount:', amount, '(₹' + (amount/100) + ')');
+      console.log('  Merchant User ID:', merchantUserId, '(type:', typeof merchantUserId, ')');
       console.log('  Payload:', JSON.stringify(payload, null, 2));
       console.log('  Request Data:', JSON.stringify(requestData, null, 2));
 
