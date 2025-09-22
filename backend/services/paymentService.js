@@ -157,6 +157,7 @@ class PaymentService {
       const payload = {
         merchantId: this.merchantId,
         merchantTransactionId: orderId,
+        merchantOrderId: orderId, // PhonePe requires both fields
         merchantUserId: userId,
         amount: amount * 100, // Amount in paise
         redirectUrl: `${this.frontendUrl}/payment/success`, // Frontend success page
