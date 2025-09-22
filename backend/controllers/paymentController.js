@@ -60,8 +60,28 @@ const createUPIPayment = async (req, res) => {
     console.log('💳 createUPIPayment - clientId:', clientId);
     console.log('💳 createUPIPayment - user:', req.user);
 
-    // Load job from MongoDB
-    const job = await databaseService.getJobById(jobId);
+    // Load job from MongoDB first
+    let job = await databaseService.getJobById(jobId);
+    
+    // Fallback: support legacy jobs stored in file-based store so existing flows keep working
+    if (!job) {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const jobsFile = path.join(__dirname, '../../data/jobs.json');
+        if (fs.existsSync(jobsFile)) {
+          const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+          const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
+          const legacy = jobs.find(j => (j.id || (j._id && String(j._id))) === jobId);
+          if (legacy) {
+            console.log('↩️  Fallback: loaded job from file store');
+            job = legacy;
+          }
+        }
+      } catch (e) {
+        console.warn('Fallback file-store read failed:', e.message);
+      }
+    }
     if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
