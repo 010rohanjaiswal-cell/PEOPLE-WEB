@@ -259,26 +259,11 @@ const markJobFullyComplete = async (req, res) => {
     console.log('✅ markJobFullyComplete - jobId:', jobId);
     console.log('✅ markJobFullyComplete - freelancerId:', freelancerId);
 
-    // Get jobs from in-memory store
-    const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
-    
-    if (!Array.isArray(inMemoryJobs)) {
-      return res.status(404).json({
-        success: false,
-        message: 'No jobs found'
-      });
+    // Load job from MongoDB
+    const job = await databaseService.getJobById(jobId);
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
     }
-
-    // Find the job
-    const jobIndex = inMemoryJobs.findIndex(job => job.id === jobId);
-    if (jobIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        message: 'Job not found'
-      });
-    }
-
-    const job = inMemoryJobs[jobIndex];
     console.log('✅ markJobFullyComplete - found job:', { id: job.id, title: job.title, status: job.status });
 
     // Check if job is completed (payment received)
@@ -367,15 +352,17 @@ const pickupJob = async (req, res) => {
     }
 
     // Assign job to freelancer
-    job.status = 'assigned';
-    job.assignedFreelancer = {
-      id: freelancerId,
-      fullName: user.fullName,
-      profilePhoto: user.profilePhoto || null,
-      freelancerId: user.freelancerId || null
+    const updateData = {
+      status: 'assigned',
+      assignedFreelancer: {
+        id: freelancerId,
+        fullName: user.fullName,
+        profilePhoto: user.profilePhoto || null,
+        freelancerId: user.freelancerId || null
+      },
+      assignedAt: new Date(),
+      pickupMethod: 'direct'
     };
-    job.assignedAt = new Date().toISOString();
-    job.pickupMethod = 'direct'; // Mark as direct pickup vs offer acceptance
 
     // Mark any existing offers as rejected since job is now assigned
     if (job.offers && Array.isArray(job.offers)) {
@@ -385,18 +372,18 @@ const pickupJob = async (req, res) => {
           offer.rejectedAt = new Date().toISOString();
         }
       });
+      updateData.offers = job.offers;
     }
 
     console.log('✅ pickupJob - job assigned successfully');
-    console.log('✅ pickupJob - assigned freelancer:', job.assignedFreelancer);
-    
-    // Save to file for persistence
-    saveJobsToFile();
+    console.log('✅ pickupJob - assigned freelancer:', updateData.assignedFreelancer);
+
+    const updatedJob = await databaseService.updateJob(jobId, updateData);
 
     res.json({
       success: true,
       message: 'Job picked up successfully',
-      job: job
+      job: updatedJob
     });
 
   } catch (error) {
