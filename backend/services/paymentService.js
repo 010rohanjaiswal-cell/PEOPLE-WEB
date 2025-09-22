@@ -20,6 +20,8 @@ class PaymentService {
     this.clientId = process.env.PHONEPE_CLIENT_ID || 'SU2509171240249286269937';
     this.clientSecret = process.env.PHONEPE_CLIENT_SECRET || 'd74141aa-8762-4d1b-bfa1-dfe2a094d310';
     this.clientVersion = process.env.PHONEPE_CLIENT_VERSION || '1';
+    this.saltKey = process.env.PHONEPE_SALT_KEY || '';
+    this.saltIndex = process.env.PHONEPE_SALT_INDEX || '';
     
     // Environment configuration
     const envMode = process.env.PHONEPE_ENV || 'prod'; // 'preprod' | 'prod'
@@ -62,6 +64,11 @@ class PaymentService {
     console.log('  Auth URL:', this.authBaseUrl);
     console.log('  Client ID:', this.clientId);
     console.log('  Merchant ID:', this.merchantId);
+    if (this.saltKey && this.saltIndex) {
+      console.log('  X-VERIFY enabled: yes (salt index: ' + this.saltIndex + ')');
+    } else {
+      console.log('  X-VERIFY enabled: no');
+    }
   }
 
   // Note: PhonePe V2 uses OAuth tokens only, no checksums needed
@@ -161,9 +168,8 @@ class PaymentService {
         }
       };
 
-      const requestData = {
-        request: Buffer.from(JSON.stringify(payload)).toString('base64')
-      };
+      const requestBase64 = Buffer.from(JSON.stringify(payload)).toString('base64');
+      const requestData = { request: requestBase64 };
 
       console.log('🔍 PhonePe V2 API Request Details:');
       console.log('  URL:', `${this.baseUrl}/checkout/v2/pay`);
@@ -176,16 +182,23 @@ class PaymentService {
       const apiUrl = `${this.baseUrl}/checkout/v2/pay`;
       console.log('🔍 Making request to PhonePe V2 API:', apiUrl);
       
-      const response = await axios.post(apiUrl, requestData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}`,
-          'X-CLIENT-ID': this.clientId,
-          'X-CLIENT-VERSION': this.clientVersion,
-          'accept': 'application/json'
-        },
-        timeout: 30000
-      });
+      // Build headers, optionally include X-VERIFY if salt provided (required by PG even on V2)
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}`,
+        'X-CLIENT-ID': this.clientId,
+        'X-CLIENT-VERSION': this.clientVersion,
+        'accept': 'application/json'
+      };
+      if (this.saltKey && this.saltIndex) {
+        const path = '/checkout/v2/pay';
+        const xVerifyRaw = requestBase64 + path + this.saltKey;
+        const xVerifyHash = this.crypto.SHA256(xVerifyRaw).toString();
+        headers['X-VERIFY'] = `${xVerifyHash}###${this.saltIndex}`;
+        headers['X-MERCHANT-ID'] = this.merchantId;
+        console.log('🔐 X-VERIFY attached (index ' + this.saltIndex + ')');
+      }
+      const response = await axios.post(apiUrl, requestData, { headers, timeout: 30000 });
 
       console.log('✅ PhonePe API Response:');
       console.log('  Status:', response.status);
@@ -230,28 +243,33 @@ class PaymentService {
           this._authToken = null;
           const bearer = await this.getAuthToken();
           const apiUrl = `${this.baseUrl}/checkout/v2/pay`;
-          const response = await axios.post(apiUrl, {
-            request: Buffer.from(JSON.stringify({
-              merchantId: this.merchantId,
-              merchantOrderId: orderId,
-              merchantUserId: userId,
-              amount: amount * 100,
-              redirectUrl: `${this.frontendUrl}/payment/success`,
-              redirectMode: 'POST',
-              callbackUrl: this.redirectUrl,
-              mobileNumber: '',
-              paymentInstrument: { type: 'PAY_PAGE' }
-            })).toString('base64')
-          }, {
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}`,
-              'X-CLIENT-ID': this.clientId,
-              'X-CLIENT-VERSION': this.clientVersion,
-              'accept': 'application/json'
-            },
-            timeout: 30000
-          });
+          const retryPayload = {
+            merchantId: this.merchantId,
+            merchantOrderId: orderId,
+            merchantUserId: userId,
+            amount: amount * 100,
+            redirectUrl: `${this.frontendUrl}/payment/success`,
+            redirectMode: 'POST',
+            callbackUrl: this.redirectUrl,
+            mobileNumber: '',
+            paymentInstrument: { type: 'PAY_PAGE' }
+          };
+          const retryBase64 = Buffer.from(JSON.stringify(retryPayload)).toString('base64');
+          const retryHeaders = {
+            'Content-Type': 'application/json',
+            'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}`,
+            'X-CLIENT-ID': this.clientId,
+            'X-CLIENT-VERSION': this.clientVersion,
+            'accept': 'application/json'
+          };
+          if (this.saltKey && this.saltIndex) {
+            const path = '/checkout/v2/pay';
+            const xVerifyRaw = retryBase64 + path + this.saltKey;
+            const xVerifyHash = this.crypto.SHA256(xVerifyRaw).toString();
+            retryHeaders['X-VERIFY'] = `${xVerifyHash}###${this.saltIndex}`;
+            retryHeaders['X-MERCHANT-ID'] = this.merchantId;
+          }
+          const response = await axios.post(apiUrl, { request: retryBase64 }, { headers: retryHeaders, timeout: 30000 });
           const data = response.data;
           const redirectUrl = data?.data?.instrumentResponse?.redirectInfo?.url
             || data?.data?.redirectInfo?.url
