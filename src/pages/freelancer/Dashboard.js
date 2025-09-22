@@ -44,6 +44,9 @@ const FreelancerDashboard = () => {
   const [offerModal, setOfferModal] = useState({ open: false, jobId: null, amount: '', message: '' });
   const [viewProfileModal, setViewProfileModal] = useState({ open: false, data: null });
   const [offerCooldowns, setOfferCooldowns] = useState({});
+  // Debug: pickup logs
+  const [pickupDebugLogs, setPickupDebugLogs] = useState([]);
+  const [showPickupDebug, setShowPickupDebug] = useState(true);
 
   // Check cooldown status for all jobs when component loads
   useEffect(() => {
@@ -134,17 +137,62 @@ const FreelancerDashboard = () => {
     try {
       setLoading(true);
       setError('');
+      const startedAt = new Date().toISOString();
+      const debugEntry = {
+        startedAt,
+        jobId,
+        userRole: 'freelancer',
+        hasUser: !!user,
+        hasUserId: !!user?._id || !!user?.id || !!user?.userId,
+      };
       const result = await freelancerService.pickupJob(jobId);
       if (result.success) {
         console.log('✅ Job picked up successfully:', result.job);
         loadFreelancerData(); // Refresh data
         setError('');
+        setPickupDebugLogs(prev => [
+          {
+            ...debugEntry,
+            endedAt: new Date().toISOString(),
+            success: true,
+            serverMessage: 'picked up',
+            serverStatus: 200,
+            returnedJobId: result.job?.id,
+            returnedStatus: result.job?.status
+          },
+          ...prev
+        ].slice(0, 10));
       } else {
-        setError(result.message || 'Failed to pickup job');
+        const msg = result.message || 'Failed to pickup job';
+        setError(msg);
+        setPickupDebugLogs(prev => [
+          {
+            ...debugEntry,
+            endedAt: new Date().toISOString(),
+            success: false,
+            serverMessage: msg,
+            serverStatus: result.status || null,
+          },
+          ...prev
+        ].slice(0, 10));
       }
     } catch (error) {
       console.error('Error picking up job:', error);
       setError(error.message || 'Failed to pickup job');
+      setPickupDebugLogs(prev => [
+        {
+          startedAt: new Date().toISOString(),
+          jobId,
+          userRole: 'freelancer',
+          hasUser: !!user,
+          hasUserId: !!user?._id || !!user?.id || !!user?.userId,
+          endedAt: new Date().toISOString(),
+          success: false,
+          serverMessage: error?.response?.data?.message || error.message,
+          serverStatus: error?.response?.status || null,
+        },
+        ...prev
+      ].slice(0, 10));
     } finally {
       setLoading(false);
     }
@@ -357,6 +405,51 @@ const FreelancerDashboard = () => {
           Refresh
         </Button>
       </div>
+
+      {/* Debug Panel */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-sm">Pickup Debug</CardTitle>
+          <Button size="sm" variant="ghost" onClick={() => setShowPickupDebug(v => !v)}>
+            {showPickupDebug ? 'Hide' : 'Show'}
+          </Button>
+        </CardHeader>
+        {showPickupDebug && (
+          <CardContent>
+            {pickupDebugLogs.length === 0 ? (
+              <p className="text-xs text-gray-500">No pickup attempts logged yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {pickupDebugLogs.map((log, idx) => (
+                  <div key={idx} className={`p-2 rounded border text-xs ${log.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                    <div className="flex flex-wrap gap-2">
+                      <span><strong>job.id</strong>: {log.jobId}</span>
+                      <span><strong>user?</strong>: {String(log.hasUser)}</span>
+                      <span><strong>hasUserId?</strong>: {String(log.hasUserId)}</span>
+                      <span><strong>status</strong>: {log.serverStatus ?? 'n/a'}</span>
+                      <span><strong>ok</strong>: {String(!!log.success)}</span>
+                    </div>
+                    {log.serverMessage && (
+                      <div className="mt-1 text-gray-700 break-all">
+                        <strong>message</strong>: {log.serverMessage}
+                      </div>
+                    )}
+                    <div className="mt-1 text-gray-500">
+                      <span>{log.startedAt}</span>
+                      {log.endedAt && <span> → {log.endedAt}</span>}
+                    </div>
+                    {log.returnedJobId && (
+                      <div className="mt-1 text-gray-700">
+                        <strong>returnedJobId</strong>: {log.returnedJobId} | <strong>returnedStatus</strong>: {log.returnedStatus}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
       
       {availableJobs.length === 0 ? (
         <Card>
