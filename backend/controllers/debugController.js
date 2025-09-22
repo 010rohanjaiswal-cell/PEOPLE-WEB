@@ -89,9 +89,31 @@ const clearJobs = async (req, res) => {
   }
 };
 
+// Ensure we have a valid test client in DB (for public routes without auth)
+async function ensureTestClient() {
+  let client = await User.findOne({ firebaseUid: 'debug-client', role: 'client' });
+  if (!client) {
+    client = new User({
+      firebaseUid: 'debug-client',
+      phoneNumber: '+910000000001',
+      phone: '+910000000001',
+      role: 'client',
+      fullName: 'Debug Client',
+      profileSetupCompleted: true,
+      verificationStatus: 'approved'
+    });
+    await client.save();
+  }
+  return client;
+}
+
 const addTestJob = async (req, res) => {
   try {
-    const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
+    let clientId = req.user?._id || req.user?.id || req.user?.userId;
+    if (!clientId) {
+      const client = await ensureTestClient();
+      clientId = client._id;
+    }
 
     const testJob = {
       id: 'test-job-' + Date.now(),
@@ -102,7 +124,7 @@ const addTestJob = async (req, res) => {
       category: 'Test',
       gender: 'Any',
       status: 'open',
-      clientId: clientId,
+      clientId,
       createdAt: new Date(),
       offers: []
     };
@@ -223,9 +245,12 @@ const createTestFreelancer = async (req, res) => {
   try {
     const phone = req.body?.phone || ('+91' + Math.floor(9000000000 + Math.random()*99999999));
     const user = new User({
+      firebaseUid: 'debug-freelancer-' + Date.now(),
+      phoneNumber: phone,
       phone,
       role: 'freelancer',
       fullName: req.body?.fullName || 'Test Freelancer',
+      profileSetupCompleted: true,
       verificationStatus: 'approved',
       wallet: { balance: 0, totalEarnings: 0, transactions: [] }
     });
