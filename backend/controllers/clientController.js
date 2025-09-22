@@ -1,5 +1,5 @@
-// In-memory store for demo (replace with DB in production)
-const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
+// Use MongoDB for persistent storage
+const databaseService = require('../services/databaseService');
 
 const postJob = async (req, res) => {
   try {
@@ -18,7 +18,7 @@ const postJob = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
-    const job = {
+    const jobData = {
       id: 'job-' + Date.now(),
       title,
       address,
@@ -29,18 +29,16 @@ const postJob = async (req, res) => {
       description: description || '', // Optional field
       status: 'open',
       clientId,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
       offers: []
     };
     
-    console.log('📝 postJob - created job:', job);
-    inMemoryJobs.unshift(job);
-    console.log('📝 postJob - total jobs after posting:', inMemoryJobs.length);
-    console.log('📝 postJob - job added to in-memory store with clientId:', clientId);
-    console.log('📝 postJob - current timestamp:', new Date().toISOString());
+    console.log('📝 postJob - created job data:', jobData);
     
-    // Save to file for persistence
-    saveJobsToFile();
+    // Save to MongoDB
+    const job = await databaseService.createJob(jobData);
+    console.log('📝 postJob - job saved to MongoDB:', job.id);
+    console.log('📝 postJob - current timestamp:', new Date().toISOString());
 
     res.json({ success: true, job });
   } catch (error) {
@@ -58,12 +56,15 @@ const getMyJobs = async (req, res) => {
     
     const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
     console.log('🔍 getMyJobs - final clientId:', clientId);
-    console.log('🔍 getMyJobs - total jobs in store:', inMemoryJobs.length);
-    console.log('🔍 getMyJobs - all jobs:', inMemoryJobs.map(j => ({ id: j.id, clientId: j.clientId, status: j.status })));
+    
+    // Get all jobs from MongoDB
+    const allJobs = await databaseService.getAllJobs();
+    console.log('🔍 getMyJobs - total jobs in MongoDB:', allJobs.length);
+    console.log('🔍 getMyJobs - all jobs:', allJobs.map(j => ({ id: j.id, clientId: j.clientId, status: j.status })));
     
     // Show jobs that are active (open, assigned, in-progress, work_done, completed) but not fully_completed or cancelled
     const activeStatuses = ['open', 'assigned', 'in-progress', 'work_done', 'completed'];
-    const jobs = inMemoryJobs.filter(j => 
+    const jobs = allJobs.filter(j => 
       String(j.clientId) === String(clientId) && 
       activeStatuses.includes(j.status)
     );
@@ -74,7 +75,7 @@ const getMyJobs = async (req, res) => {
     console.log('🔍 getMyJobs - filtered jobs details:', jobs);
     
     // Additional debug: show jobs that match clientId but have different status
-    const clientJobs = inMemoryJobs.filter(j => String(j.clientId) === String(clientId));
+    const clientJobs = allJobs.filter(j => String(j.clientId) === String(clientId));
     console.log('🔍 getMyJobs - all client jobs (any status):', clientJobs.map(j => ({ id: j.id, status: j.status })));
     
     res.json({ success: true, jobs });
@@ -87,7 +88,8 @@ const getMyJobs = async (req, res) => {
 const getJobHistory = async (req, res) => {
   try {
     const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
-    const jobs = inMemoryJobs.filter(j => String(j.clientId) === String(clientId) && j.status === 'fully_completed');
+    const allJobs = await databaseService.getAllJobs();
+    const jobs = allJobs.filter(j => String(j.clientId) === String(clientId) && j.status === 'fully_completed');
     res.json({ success: true, jobs });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch job history' });
@@ -104,13 +106,11 @@ const acceptOffer = async (req, res) => {
     console.log('✅ acceptOffer - freelancerId:', freelancerId);
     console.log('✅ acceptOffer - clientId:', clientId);
     
-    // Find the job
-    const jobIndex = inMemoryJobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
-    if (jobIndex === -1) {
+    // Find the job in MongoDB
+    const job = await databaseService.getJobById(jobId);
+    if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
-    
-    const job = inMemoryJobs[jobIndex];
     
     // Check if client owns the job
     if (String(job.clientId) !== String(clientId)) {
@@ -153,26 +153,28 @@ const acceptOffer = async (req, res) => {
     });
     
     // Update job status to assigned
-    job.status = 'assigned';
-    job.assignedFreelancer = {
-      id: acceptedOffer.freelancer.id,
-      fullName: acceptedOffer.freelancer.fullName,
-      profilePhoto: acceptedOffer.freelancer.profilePhoto,
-      freelancerId: acceptedOffer.freelancer.freelancerId
+    const updateData = {
+      status: 'assigned',
+      assignedFreelancer: {
+        id: acceptedOffer.freelancer.id,
+        fullName: acceptedOffer.freelancer.fullName,
+        profilePhoto: acceptedOffer.freelancer.profilePhoto,
+        freelancerId: acceptedOffer.freelancer.freelancerId
+      },
+      assignedAt: new Date(),
+      acceptedOffer: acceptedOffer,
+      offers: job.offers // Include the updated offers array
     };
-    job.assignedAt = new Date().toISOString();
-    job.acceptedOffer = acceptedOffer;
+    
+    const updatedJob = await databaseService.updateJob(jobId, updateData);
     
     console.log('✅ acceptOffer - job updated successfully');
-    console.log('✅ acceptOffer - assigned freelancer:', job.assignedFreelancer);
-    
-    // Save to file for persistence
-    saveJobsToFile();
+    console.log('✅ acceptOffer - assigned freelancer:', updatedJob.assignedFreelancer);
     
     res.json({ 
       success: true, 
       message: 'Offer accepted successfully',
-      job: job,
+      job: updatedJob,
       acceptedOffer: acceptedOffer
     });
   } catch (error) {
@@ -191,13 +193,11 @@ const rejectOffer = async (req, res) => {
     console.log('❌ rejectOffer - freelancerId:', freelancerId);
     console.log('❌ rejectOffer - clientId:', clientId);
     
-    // Find the job
-    const jobIndex = inMemoryJobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
-    if (jobIndex === -1) {
+    // Find the job in MongoDB
+    const job = await databaseService.getJobById(jobId);
+    if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
-    
-    const job = inMemoryJobs[jobIndex];
     
     // Check if client owns the job
     if (String(job.clientId) !== String(clientId)) {
@@ -223,8 +223,8 @@ const rejectOffer = async (req, res) => {
     
     console.log('❌ rejectOffer - offer rejected successfully');
     
-    // Save to file for persistence
-    saveJobsToFile();
+    // Update job in MongoDB
+    await databaseService.updateJob(jobId, { offers: job.offers });
     
     res.json({ 
       success: true, 
@@ -247,13 +247,11 @@ const payJob = async (req, res) => {
     console.log('💳 payJob - paymentMethod:', paymentMethod);
     console.log('💳 payJob - clientId:', clientId);
 
-    // Find the job
-    const jobIndex = inMemoryJobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
-    if (jobIndex === -1) {
+    // Find the job in MongoDB
+    const job = await databaseService.getJobById(jobId);
+    if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
-    
-    const job = inMemoryJobs[jobIndex];
     
     // Check if client owns the job
     if (String(job.clientId) !== String(clientId)) {
@@ -269,10 +267,14 @@ const payJob = async (req, res) => {
     }
 
     // Update job status to completed
-    job.status = 'completed';
-    job.paymentMethod = paymentMethod;
-    job.paidAt = new Date().toISOString();
-    job.paidBy = clientId;
+    const updateData = {
+      status: 'completed',
+      paymentMethod: paymentMethod,
+      paidAt: new Date(),
+      paidBy: clientId
+    };
+    
+    const updatedJob = await databaseService.updateJob(jobId, updateData);
 
     console.log('💳 payJob - job marked as completed');
     console.log('💳 payJob - payment method:', paymentMethod);
@@ -378,14 +380,11 @@ const payJob = async (req, res) => {
         // Don't fail the payment if commission entry fails
       }
     }
-    
-    // Save to file for persistence
-    saveJobsToFile();
 
     res.json({ 
       success: true, 
       message: 'Payment processed successfully',
-      job: job
+      job: updatedJob
     });
   } catch (error) {
     console.error('❌ payJob error:', error);
@@ -406,13 +405,11 @@ const updateJob = async (req, res) => {
     console.log('✏️ updateJob - clientId:', clientId);
     console.log('✏️ updateJob - update data:', { title, address, pincode, budget, category, gender, description });
     
-    // Find the job
-    const jobIndex = inMemoryJobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
-    if (jobIndex === -1) {
+    // Find the job in MongoDB
+    const job = await databaseService.getJobById(jobId);
+    if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
-    
-    const job = inMemoryJobs[jobIndex];
     
     // Check if client owns the job
     if (String(job.clientId) !== String(clientId)) {
@@ -443,9 +440,8 @@ const updateJob = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
     
-    // Update the job
-    inMemoryJobs[jobIndex] = {
-      ...job,
+    // Update the job in MongoDB
+    const updateData = {
       title,
       address,
       pincode,
@@ -453,16 +449,15 @@ const updateJob = async (req, res) => {
       category,
       gender,
       description: description || '',
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date()
     };
     
+    const updatedJob = await databaseService.updateJob(jobId, updateData);
+    
     console.log('✏️ updateJob - job updated successfully');
-    console.log('✏️ updateJob - updated job:', inMemoryJobs[jobIndex]);
+    console.log('✏️ updateJob - updated job:', updatedJob);
     
-    // Save to file for persistence
-    saveJobsToFile();
-    
-    res.json({ success: true, message: 'Job updated successfully', job: inMemoryJobs[jobIndex] });
+    res.json({ success: true, message: 'Job updated successfully', job: updatedJob });
   } catch (error) {
     console.error('❌ updateJob error:', error);
     res.status(500).json({ success: false, message: 'Failed to update job' });
@@ -477,13 +472,11 @@ const deleteJob = async (req, res) => {
     console.log('🗑️ deleteJob - jobId:', jobId);
     console.log('🗑️ deleteJob - clientId:', clientId);
     
-    // Find the job
-    const jobIndex = inMemoryJobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
-    if (jobIndex === -1) {
+    // Find the job in MongoDB
+    const job = await databaseService.getJobById(jobId);
+    if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
-    
-    const job = inMemoryJobs[jobIndex];
     
     // Check if client owns the job
     if (String(job.clientId) !== String(clientId)) {
@@ -509,13 +502,9 @@ const deleteJob = async (req, res) => {
       });
     }
     
-    // Delete the job
-    inMemoryJobs.splice(jobIndex, 1);
+    // Delete the job from MongoDB
+    await databaseService.deleteJob(jobId);
     console.log('🗑️ deleteJob - job deleted successfully');
-    console.log('🗑️ deleteJob - remaining jobs:', inMemoryJobs.length);
-    
-    // Save to file for persistence
-    saveJobsToFile();
     
     res.json({ success: true, message: 'Job deleted successfully' });
   } catch (error) {

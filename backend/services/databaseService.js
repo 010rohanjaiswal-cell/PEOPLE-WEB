@@ -109,6 +109,21 @@ class DatabaseService {
     }
   }
 
+  // Delete a job from MongoDB
+  async deleteJob(jobId) {
+    try {
+      const result = await Job.findOneAndDelete({ id: jobId });
+      if (!result) {
+        throw new Error('Job not found');
+      }
+      console.log(`🗑️ Deleted job ${jobId} from MongoDB`);
+      return result;
+    } catch (error) {
+      console.error('❌ Failed to delete job from MongoDB:', error);
+      throw error;
+    }
+  }
+
   // Get jobs by client ID
   async getJobsByClientId(clientId) {
     try {

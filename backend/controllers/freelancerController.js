@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const databaseService = require('../services/databaseService');
 
 // Submit verification documents
 const submitVerification = async (req, res) => {
@@ -168,15 +169,13 @@ const getAssignedJobs = async (req, res) => {
 
     console.log('📋 getAssignedJobs - freelancerId:', freelancerId);
 
-    // Get jobs from in-memory store where this freelancer is assigned
-    const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
-    const assignedJobs = Array.isArray(inMemoryJobs) 
-      ? inMemoryJobs.filter(job => 
-          (job.status === 'assigned' || job.status === 'work_done' || job.status === 'completed') && 
-          job.assignedFreelancer && 
-          String(job.assignedFreelancer.id) === freelancerId
-        )
-      : [];
+    // Get jobs from MongoDB where this freelancer is assigned
+    const allJobs = await databaseService.getAllJobs();
+    const assignedJobs = allJobs.filter(job => 
+      (job.status === 'assigned' || job.status === 'work_done' || job.status === 'completed') && 
+      job.assignedFreelancer && 
+      String(job.assignedFreelancer.id) === freelancerId
+    );
 
     console.log('📋 getAssignedJobs - found jobs:', assignedJobs.length);
     console.log('📋 getAssignedJobs - jobs:', assignedJobs.map(j => ({ id: j.id, title: j.title, status: j.status })));
@@ -205,26 +204,14 @@ const markJobComplete = async (req, res) => {
     console.log('✅ markJobComplete - jobId:', jobId);
     console.log('✅ markJobComplete - freelancerId:', freelancerId);
 
-    // Get jobs from in-memory store
-    const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
-    
-    if (!Array.isArray(inMemoryJobs)) {
-      return res.status(404).json({
-        success: false,
-        message: 'No jobs found'
-      });
-    }
-
-    // Find the job
-    const jobIndex = inMemoryJobs.findIndex(job => job.id === jobId);
-    if (jobIndex === -1) {
+    // Find the job in MongoDB
+    const job = await databaseService.getJobById(jobId);
+    if (!job) {
       return res.status(404).json({
         success: false,
         message: 'Job not found'
       });
     }
-
-    const job = inMemoryJobs[jobIndex];
     console.log('✅ markJobComplete - found job:', { id: job.id, title: job.title, status: job.status });
 
     // Check if job is assigned to this freelancer
@@ -236,20 +223,21 @@ const markJobComplete = async (req, res) => {
     }
 
     // Update job status to work done
-    job.status = 'work_done';
-    job.workDoneAt = new Date().toISOString();
-    job.workDoneBy = freelancerId;
+    const updateData = {
+      status: 'work_done',
+      workDoneAt: new Date(),
+      workDoneBy: freelancerId
+    };
+
+    const updatedJob = await databaseService.updateJob(jobId, updateData);
 
     console.log('✅ markJobComplete - job marked as work done');
-    console.log('✅ markJobComplete - work done at:', job.workDoneAt);
-    
-    // Save to file for persistence
-    saveJobsToFile();
+    console.log('✅ markJobComplete - work done at:', updatedJob.workDoneAt);
 
     res.json({
       success: true,
       message: 'Work marked as done successfully',
-      job: job
+      job: updatedJob
     });
 
   } catch (error) {
