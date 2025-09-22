@@ -174,20 +174,9 @@ class PaymentService {
         }
       };
 
-      const requestBase64 = Buffer.from(JSON.stringify(payload)).toString('base64');
-      const requestData = { request: requestBase64 };
-      
-      // Debug: Verify base64 encoding/decoding
-      try {
-        const decodedPayload = JSON.parse(Buffer.from(requestBase64, 'base64').toString());
-        console.log('🔍 Base64 Decode Test - Original vs Decoded:');
-        console.log('  Original payload keys:', Object.keys(payload));
-        console.log('  Decoded payload keys:', Object.keys(decodedPayload));
-        console.log('  Amount match:', payload.amount === decodedPayload.amount);
-        console.log('  merchantOrderId match:', payload.merchantOrderId === decodedPayload.merchantOrderId);
-      } catch (e) {
-        console.error('❌ Base64 decode test failed:', e.message);
-      }
+      // PhonePe V2 (OAuth) production often expects RAW JSON payload, not base64 envelope
+      // Switch to raw JSON body to avoid decode errors like 'amount must not be null'
+      const requestData = payload;
 
       console.log('🔍 PhonePe V2 API Request Details:');
       console.log('  URL:', `${this.baseUrl}/checkout/v2/pay`);
@@ -196,7 +185,7 @@ class PaymentService {
       console.log('  Amount:', amount, '(₹' + (amount/100) + ')');
       console.log('  Merchant User ID:', merchantUserId, '(type:', typeof merchantUserId, ')');
       console.log('  Payload:', JSON.stringify(payload, null, 2));
-      console.log('  Request Data:', JSON.stringify(requestData, null, 2));
+      console.log('  Request Data (raw JSON):', JSON.stringify(requestData, null, 2));
 
       const apiUrl = `${this.baseUrl}/checkout/v2/pay`;
       console.log('🔍 Making request to PhonePe V2 API:', apiUrl);
@@ -209,14 +198,7 @@ class PaymentService {
         'X-CLIENT-VERSION': this.clientVersion,
         'accept': 'application/json'
       };
-      if (this.saltKey && this.saltIndex) {
-        const path = '/checkout/v2/pay';
-        const xVerifyRaw = requestBase64 + path + this.saltKey;
-        const xVerifyHash = this.crypto.SHA256(xVerifyRaw).toString();
-        headers['X-VERIFY'] = `${xVerifyHash}###${this.saltIndex}`;
-        headers['X-MERCHANT-ID'] = this.merchantId;
-        console.log('🔐 X-VERIFY attached (index ' + this.saltIndex + ')');
-      }
+      // For OAuth JSON flow, X-VERIFY is not required. If provided, API can misinterpret body.
       
       console.log('🔍 Request Headers:', {
         'Content-Type': headers['Content-Type'],
