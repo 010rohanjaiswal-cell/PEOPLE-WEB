@@ -1,13 +1,23 @@
 // Debug controller for troubleshooting job posting and retrieval
 const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
+const databaseService = require('../services/databaseService');
 
 const debugJobs = async (req, res) => {
   try {
     const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
-    
-    const myActiveJobs = inMemoryJobs.filter(j => String(j.clientId) === String(clientId) && j.status !== 'completed');
-    const myCompletedJobs = inMemoryJobs.filter(j => String(j.clientId) === String(clientId) && j.status === 'completed');
-    const otherJobs = inMemoryJobs.filter(j => String(j.clientId) !== String(clientId));
+
+    // Prefer MongoDB for persistence
+    let allJobs = [];
+    try {
+      allJobs = await databaseService.getAllJobs();
+    } catch (e) {
+      // Fallback to in-memory/file if DB not available
+      allJobs = inMemoryJobs;
+    }
+
+    const myActiveJobs = allJobs.filter(j => String(j.clientId) === String(clientId) && j.status !== 'completed');
+    const myCompletedJobs = allJobs.filter(j => String(j.clientId) === String(clientId) && j.status === 'completed');
+    const otherJobs = allJobs.filter(j => String(j.clientId) !== String(clientId));
 
     const debugInfo = {
       timestamp: new Date().toISOString(),
@@ -21,8 +31,8 @@ const debugJobs = async (req, res) => {
         }
       },
       jobsStore: {
-        totalJobs: inMemoryJobs.length,
-        allJobs: inMemoryJobs.map(job => ({
+        totalJobs: allJobs.length,
+        allJobs: allJobs.map(job => ({
           id: job.id,
           title: job.title,
           clientId: job.clientId,
@@ -38,8 +48,8 @@ const debugJobs = async (req, res) => {
       filteringDebug: {
         clientIdType: typeof clientId,
         clientIdValue: clientId,
-        jobClientIds: inMemoryJobs.map(j => ({ id: j.id, clientId: j.clientId, clientIdType: typeof j.clientId })),
-        comparisonResults: inMemoryJobs.map(j => ({
+        jobClientIds: allJobs.map(j => ({ id: j.id, clientId: j.clientId, clientIdType: typeof j.clientId })),
+        comparisonResults: allJobs.map(j => ({
           id: j.id,
           jobClientId: j.clientId,
           extractedClientId: clientId,
@@ -80,7 +90,7 @@ const clearJobs = async (req, res) => {
 const addTestJob = async (req, res) => {
   try {
     const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
-    
+
     const testJob = {
       id: 'test-job-' + Date.now(),
       title: 'Test Job - ' + new Date().toLocaleTimeString(),
@@ -91,20 +101,18 @@ const addTestJob = async (req, res) => {
       gender: 'Any',
       status: 'open',
       clientId: clientId,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
       offers: []
     };
-    
-    inMemoryJobs.unshift(testJob);
-    
-    // Save the job to file so it persists
-    saveJobsToFile();
-    
+
+    // Persist to MongoDB
+    const created = await databaseService.createJob(testJob);
+
     res.json({ 
       success: true, 
       message: 'Test job added',
-      job: testJob,
-      totalJobs: inMemoryJobs.length
+      job: created,
+      totalJobs: (await databaseService.getAllJobs()).length
     });
   } catch (error) {
     console.error('Add test job error:', error);
@@ -190,24 +198,17 @@ const updateJobStatus = async (req, res) => {
   try {
     const { jobId } = req.params;
     const { status } = req.body;
-    
-    // Find the job
-    const jobIndex = inMemoryJobs.findIndex(j => j.id === jobId);
-    if (jobIndex === -1) {
+
+    // Update in MongoDB
+    const updated = await databaseService.updateJob(jobId, { status });
+    if (!updated) {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
-    
-    // Update job status
-    inMemoryJobs[jobIndex].status = status;
-    inMemoryJobs[jobIndex].updatedAt = new Date().toISOString();
-    
-    // Save to file
-    saveJobsToFile();
-    
+
     res.json({ 
       success: true, 
       message: `Job status updated to ${status}`,
-      job: inMemoryJobs[jobIndex]
+      job: updated
     });
   } catch (error) {
     console.error('Update job status error:', error);
