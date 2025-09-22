@@ -156,7 +156,7 @@ class PaymentService {
       
       const payload = {
         merchantId: this.merchantId,
-        merchantOrderId: orderId,
+        merchantTransactionId: orderId,
         merchantUserId: userId,
         amount: amount * 100, // Amount in paise
         redirectUrl: `${this.frontendUrl}/payment/success`, // Frontend success page
@@ -245,7 +245,7 @@ class PaymentService {
           const apiUrl = `${this.baseUrl}/checkout/v2/pay`;
           const retryPayload = {
             merchantId: this.merchantId,
-            merchantOrderId: orderId,
+            merchantTransactionId: orderId,
             merchantUserId: userId,
             amount: amount * 100,
             redirectUrl: `${this.frontendUrl}/payment/success`,
