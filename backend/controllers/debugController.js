@@ -285,14 +285,13 @@ const markWorkDone = async (req, res) => {
   }
 };
 
-module.exports.createTestFreelancer = createTestFreelancer;
-module.exports.assignJobToFreelancer = assignJobToFreelancer;
-module.exports.markWorkDone = markWorkDone;
-
 module.exports = {
   debugJobs,
   clearJobs,
   addTestJob,
   debugPayment,
-  updateJobStatus
+  updateJobStatus,
+  createTestFreelancer,
+  assignJobToFreelancer,
+  markWorkDone
 };
