@@ -34,19 +34,25 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
 
   console.log('🔒 ProtectedRoute check:', { isAuthenticated, user, loading, requiredRole });
 
+  // Show loading spinner while checking authentication
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
       </div>
     );
   }
 
-  if (!isAuthenticated) {
+  // If not authenticated, redirect to login
+  if (!isAuthenticated || !user) {
     console.log('❌ Not authenticated, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
+  // If role is required but doesn't match, redirect to unauthorized
   if (requiredRole && user?.role !== requiredRole) {
     console.log('❌ Role mismatch, redirecting to unauthorized');
     console.log('👤 User role:', user?.role);
@@ -124,8 +130,8 @@ function App() {
               <Route path="/debug" element={<DebugPage />} />
               <Route path="/debug-auth" element={<DebugAuth />} />
               <Route path="/debug-payment" element={<PaymentDebug />} />
-        <Route path="/payment/success" element={<PaymentSuccess />} />
-        <Route path="/payment/failed" element={<PaymentFailed />} />
+              <Route path="/payment/success" element={<PaymentSuccess />} />
+              <Route path="/payment/failed" element={<PaymentFailed />} />
               
               {/* Admin Routes */}
               <Route path="/admin/login" element={<AdminLogin />} />

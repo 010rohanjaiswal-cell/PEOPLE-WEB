@@ -81,6 +81,7 @@ export const AuthProvider = ({ children }) => {
       // Accept if user has phone/phoneNumber, or is admin (email/role based)
       const hasPhone = userData && (userData.phone || userData.phoneNumber);
       const isAdminUser = userData && (userData.role === 'admin' || !!userData.email);
+      
       if (token && userData && (hasPhone || isAdminUser)) {
         console.log('✅ AuthContext: Valid authentication found, setting authenticated state');
         dispatch({
@@ -88,13 +89,19 @@ export const AuthProvider = ({ children }) => {
           payload: { token, user: userData }
         });
       } else {
-        console.log('❌ AuthContext: No valid authentication');
-        // Do NOT clear all storage here to avoid races while login is writing
+        console.log('❌ AuthContext: No valid authentication - clearing any invalid data');
+        // Clear invalid authentication data
+        if (!token || !userData) {
+          storage.clearAll();
+        }
         dispatch({ type: 'AUTH_FAILURE', payload: null });
       }
     };
 
-    checkAuth();
+    // Add a small delay to ensure storage is ready
+    const timeoutId = setTimeout(checkAuth, 100);
+    
+    return () => clearTimeout(timeoutId);
 
     // Listen for storage changes (when user data is updated)
     const handleStorageChange = (e) => {
