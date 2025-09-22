@@ -228,6 +228,18 @@ class DatabaseService {
     }
   }
 
+  // Clear all jobs
+  async clearAllJobs() {
+    try {
+      const result = await Job.deleteMany({});
+      console.log(`🧹 Cleared ${result.deletedCount || 0} jobs from MongoDB`);
+      return { deletedCount: result.deletedCount || 0 };
+    } catch (error) {
+      console.error('❌ Failed to clear jobs from MongoDB:', error);
+      throw error;
+    }
+  }
+
   // Get job statistics
   async getJobStats() {
     try {

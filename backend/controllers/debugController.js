@@ -70,16 +70,17 @@ const debugJobs = async (req, res) => {
 
 const clearJobs = async (req, res) => {
   try {
+    // Clear MongoDB jobs first
+    const result = await databaseService.clearAllJobs();
+    
+    // Also clear in-memory/file for legacy compatibility
     const beforeCount = inMemoryJobs.length;
     inMemoryJobs.length = 0; // Clear the array
-    const afterCount = inMemoryJobs.length;
-    
-    // Save the cleared state to file
     saveJobsToFile();
     
     res.json({ 
       success: true, 
-      message: `Cleared ${beforeCount} jobs. Now ${afterCount} jobs in store.` 
+      message: `Cleared ${result.deletedCount} MongoDB jobs and ${beforeCount} legacy in-memory jobs.`
     });
   } catch (error) {
     console.error('Clear jobs error:', error);
