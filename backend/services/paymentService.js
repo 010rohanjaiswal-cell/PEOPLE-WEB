@@ -153,6 +153,8 @@ class PaymentService {
     try {
       // Get OAuth token
       const bearer = await this.getAuthToken();
+      console.log('🔑 OAuth token retrieved:', bearer ? 'Present' : 'Missing');
+      console.log('🔑 Token type:', this._tokenType);
       
       const payload = {
         merchantId: this.merchantId,
@@ -199,6 +201,15 @@ class PaymentService {
         headers['X-MERCHANT-ID'] = this.merchantId;
         console.log('🔐 X-VERIFY attached (index ' + this.saltIndex + ')');
       }
+      
+      console.log('🔍 Request Headers:', {
+        'Content-Type': headers['Content-Type'],
+        'Authorization': headers['Authorization'] ? `${headers['Authorization'].substring(0, 20)}...` : 'Missing',
+        'X-CLIENT-ID': headers['X-CLIENT-ID'],
+        'X-CLIENT-VERSION': headers['X-CLIENT-VERSION'],
+        'accept': headers['accept']
+      });
+      
       const response = await axios.post(apiUrl, requestData, { headers, timeout: 30000 });
 
       console.log('✅ PhonePe API Response:');
