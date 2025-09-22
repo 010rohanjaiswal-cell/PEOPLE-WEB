@@ -50,6 +50,64 @@ const loadPaymentService = async () => {
   return paymentService;
 };
 
+// Debug-only: create a fake UPI payment without hitting PG
+const createDebugUPIPayment = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    let job = await databaseService.getJobById(jobId);
+    if (!job) {
+      // Fallback to legacy file store
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const jobsFile = path.join(__dirname, '../../data/jobs.json');
+        if (fs.existsSync(jobsFile)) {
+          const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+          const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
+          job = jobs.find(j => (j.id || (j._id && String(j._id))) === jobId) || null;
+        }
+      } catch (_) {}
+    }
+    if (!job) return res.status(404).json({ success: false, message: 'Job not found' });
+
+    if (job.status !== 'work_done') {
+      return res.status(400).json({ success: false, message: 'Job must be marked as work done before payment' });
+    }
+
+    const totalAmount = Number(job.budget || 0);
+    if (!totalAmount || Number.isNaN(totalAmount)) {
+      return res.status(400).json({ success: false, message: 'Invalid job amount' });
+    }
+    const commission = Math.round(totalAmount * 0.1 * 100) / 100;
+    const freelancerAmount = Math.round((totalAmount - commission) * 100) / 100;
+
+    const orderId = `DEBUG_${job.id}_${Date.now()}`;
+    const paymentDetails = {
+      orderId,
+      paymentMethod: 'upi',
+      totalAmount,
+      commission,
+      freelancerAmount,
+      paymentUrl: `debug://upi/${orderId}`,
+      status: 'pending',
+      createdAt: new Date()
+    };
+
+    try { await databaseService.updateJob(jobId, { paymentDetails }); } catch (_) {}
+
+    return res.json({
+      success: true,
+      message: 'Debug payment created',
+      orderId,
+      paymentUrl: paymentDetails.paymentUrl,
+      data: { orderId, totalAmount, commission, freelancerAmount }
+    });
+  } catch (error) {
+    console.error('❌ createDebugUPIPayment error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to create debug payment' });
+  }
+};
+
 // Create UPI payment request
 const createUPIPayment = async (req, res) => {
   try {
@@ -469,29 +527,15 @@ const testPaymentService = async (req, res) => {
   }
 };
 
-// Simulate successful payment for testing
+// Simulate successful payment for testing (supports MongoDB and legacy file)
 const simulateSuccessfulPayment = async (req, res) => {
   try {
     const { orderId } = req.params;
     
     console.log('🧪 simulateSuccessfulPayment - orderId:', orderId);
 
-    // Load jobs from file system
-    const fs = require('fs');
-    const path = require('path');
-    const jobsFile = path.join(__dirname, '../../data/jobs.json');
-    
-    if (!fs.existsSync(jobsFile)) {
-      console.error('❌ Jobs file not found');
-      return res.status(404).json({ success: false, message: 'Jobs data not found' });
-    }
-    
-    const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
-    // Handle both formats: direct array or wrapped in jobs property
-    const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
-    
-    // Extract job ID from order ID (format: ORDER_jobId_timestamp)
-    const jobIdMatch = orderId.match(/ORDER_(.+)_\d+/);
+    // Extract job ID from order ID (supports DEBUG_ or ORDER_ prefixes)
+    const jobIdMatch = orderId.match(/(?:DEBUG_|ORDER_)(.+)_\d+/);
     if (!jobIdMatch) {
       console.error('❌ Could not extract job ID from order ID:', orderId);
       return res.status(400).json({ 
@@ -502,18 +546,29 @@ const simulateSuccessfulPayment = async (req, res) => {
     
     const jobId = jobIdMatch[1];
     console.log('📋 Extracted job ID:', jobId);
-    
-    // Find the job
-    const jobIndex = jobs.findIndex(job => job.id === jobId);
-    if (jobIndex === -1) {
-      console.error('❌ Job not found:', jobId);
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Job not found' 
-      });
+
+    // Try MongoDB first
+    let job = await databaseService.getJobById(jobId);
+    let persistenceMode = 'mongo';
+    if (!job) {
+      // Fallback to file
+      const fs = require('fs');
+      const path = require('path');
+      const jobsFile = path.join(__dirname, '../../data/jobs.json');
+      if (!fs.existsSync(jobsFile)) {
+        console.error('❌ Jobs file not found');
+        return res.status(404).json({ success: false, message: 'Jobs data not found' });
+      }
+      const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+      const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
+      const jobIndex = jobs.findIndex(j => j.id === jobId);
+      if (jobIndex === -1) {
+        console.error('❌ Job not found:', jobId);
+        return res.status(404).json({ success: false, message: 'Job not found' });
+      }
+      job = jobs[jobIndex];
+      persistenceMode = 'file';
     }
-    
-    const job = jobs[jobIndex];
     
     // Update job status to completed
     job.status = 'completed';
@@ -576,9 +631,28 @@ const simulateSuccessfulPayment = async (req, res) => {
       }
     }
     
-    // Save updated jobs data
-    fs.writeFileSync(jobsFile, JSON.stringify(jobsData, null, 2));
-    console.log('💾 Jobs data saved');
+    if (persistenceMode === 'mongo') {
+      await databaseService.updateJob(jobId, {
+        status: job.status,
+        paymentMethod: job.paymentMethod,
+        paidAt: job.paidAt,
+        paymentOrderId: job.paymentOrderId
+      });
+      console.log('💾 Job updated in MongoDB');
+    } else {
+      // Save updated jobs data for file mode
+      const fs = require('fs');
+      const path = require('path');
+      const jobsFile = path.join(__dirname, '../../data/jobs.json');
+      const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+      const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
+      const jobIndex = jobs.findIndex(j => j.id === jobId);
+      if (jobIndex !== -1) {
+        jobs[jobIndex] = job;
+        fs.writeFileSync(jobsFile, JSON.stringify(jobsData, null, 2));
+        console.log('💾 Jobs data saved (file mode)');
+      }
+    }
 
     res.json({
       success: true,

@@ -38,6 +38,7 @@ if (realController) {
   paymentController.getPaymentStatus = realController.getPaymentStatus;
   paymentController.testPaymentService = realController.testPaymentService;
   paymentController.simulateSuccessfulPayment = realController.simulateSuccessfulPayment;
+  paymentController.createDebugUPIPayment = realController.createDebugUPIPayment || realController.createUPIPayment;
 }
 
 // Payment routes
@@ -47,7 +48,7 @@ router.post('/verify', authMiddleware.verifyToken, paymentController.verifyUPIPa
 router.get('/status/:jobId', authMiddleware.verifyToken, paymentController.getPaymentStatus);
 
 // Debug payment routes (no auth required for testing)
-router.post('/debug/upi/:jobId', paymentController.createUPIPayment);
+router.post('/debug/upi/:jobId', paymentController.createDebugUPIPayment);
 router.post('/debug/verify', paymentController.verifyUPIPayment);
 router.get('/debug/status/:jobId', paymentController.getPaymentStatus);
 router.post('/debug/simulate-success/:orderId', paymentController.simulateSuccessfulPayment);
