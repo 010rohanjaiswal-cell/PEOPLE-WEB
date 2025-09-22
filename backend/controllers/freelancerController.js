@@ -419,9 +419,8 @@ const makeOffer = async (req, res) => {
     console.log('👤 Freelancer ID:', user._id);
     console.log('💵 Offer amount:', amount);
 
-    // Save to in-memory job store so client can view offers
-    const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
-    const job = Array.isArray(inMemoryJobs) ? inMemoryJobs.find(j => (j.id || (j._id && String(j._id))) === jobId) : null;
+    // Find the job in MongoDB
+    const job = await databaseService.getJobById(jobId);
     if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
@@ -468,8 +467,11 @@ const makeOffer = async (req, res) => {
     // Store cooldown timestamp
     job.cooldowns[freelancerId] = now;
     
-    // Save to file for persistence
-    saveJobsToFile();
+    // Save to MongoDB
+    await databaseService.updateJob(jobId, { 
+      offers: job.offers,
+      cooldowns: job.cooldowns 
+    });
 
     res.json({
       success: true,
@@ -493,8 +495,7 @@ const checkCooldownStatus = async (req, res) => {
     const user = req.user;
     const freelancerId = String(user._id);
 
-    const { inMemoryJobs } = require('./sharedJobsStore');
-    const job = Array.isArray(inMemoryJobs) ? inMemoryJobs.find(j => (j.id || (j._id && String(j._id))) === jobId) : null;
+    const job = await databaseService.getJobById(jobId);
     
     if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });

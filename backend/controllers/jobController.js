@@ -1,14 +1,12 @@
-// const Job = require('../models/Job'); // Using mock data for now
-const { inMemoryJobs } = require('./sharedJobsStore') || {};
+const databaseService = require('../services/databaseService');
 
 // Get available jobs for freelancers
 const getAvailableJobs = async (req, res) => {
   try {
     console.log('🔍 Fetching available jobs (real, no mock fallback)');
 
-    const jobs = Array.isArray(inMemoryJobs)
-      ? inMemoryJobs.filter(job => job.status === 'open')
-      : [];
+    const allJobs = await databaseService.getAllJobs();
+    const jobs = allJobs.filter(job => job.status === 'open');
 
     return res.json({ success: true, jobs, total: jobs.length });
   } catch (error) {
@@ -26,9 +24,7 @@ const getJobById = async (req, res) => {
     const { jobId } = req.params;
     console.log('🔍 Fetching job by ID:', jobId);
 
-    const job = Array.isArray(inMemoryJobs)
-      ? inMemoryJobs.find(j => (j.id || (j._id && String(j._id))) === jobId)
-      : null;
+    const job = await databaseService.getJobById(jobId);
 
     if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
