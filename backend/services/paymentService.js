@@ -233,7 +233,7 @@ class PaymentService {
           const response = await axios.post(apiUrl, {
             request: Buffer.from(JSON.stringify({
               merchantId: this.merchantId,
-              merchantOrderId: orderId,
+              merchantTransactionId: orderId,
               merchantUserId: userId,
               amount: amount * 100,
               redirectUrl: `${this.frontendUrl}/payment/success`,
