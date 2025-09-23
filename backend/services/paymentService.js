@@ -255,6 +255,11 @@ class PaymentService {
       console.error('  Message:', error.message);
       console.error('  URL:', error.config?.url);
       console.error('  Method:', error.config?.method);
+      const traceId = error.response?.headers?.['x-b3-traceid'] || error.response?.headers?.['cf-ray'];
+      const apiException = error.response?.headers?.['x-api-exception-code'];
+      if (traceId || apiException) {
+        console.error('  Trace:', { traceId, apiException });
+      }
       // If 401, try refreshing token once (only standard flow)
       if (error.response?.status === 401 && this.flowMode !== 'hermes') {
         try {
@@ -303,7 +308,9 @@ class PaymentService {
         success: false,
         error: error.response?.data || error.message,
         status: error.response?.status,
-        statusText: error.response?.statusText
+        statusText: error.response?.statusText,
+        traceId,
+        apiException
       };
     }
   }
