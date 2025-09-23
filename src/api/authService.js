@@ -162,6 +162,11 @@ export const authService = {
   // Switch user role
   switchRole: async (newRole) => {
     try {
+      console.log('🔄 Frontend role switch request:', {
+        newRole: newRole,
+        timestamp: new Date().toISOString()
+      });
+      
       const response = await api.post('/auth/switch-role', {
         newRole: newRole
       });

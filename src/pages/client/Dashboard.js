@@ -440,6 +440,13 @@ const ClientDashboard = () => {
   };
 
   const handleRoleSwitch = async () => {
+    console.log('🔄 Client role switch attempt:', {
+      currentUser: user,
+      currentRole: user?.role,
+      canSwitchRole: canSwitchRole,
+      timestamp: new Date().toISOString()
+    });
+    
     if (!canSwitchRole) {
       setError('You still have an active job. Complete it before switching role.');
       return;
