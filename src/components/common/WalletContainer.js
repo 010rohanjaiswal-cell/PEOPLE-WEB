@@ -10,7 +10,7 @@ const WalletContainer = ({ user, onRefresh, balance, transactions }) => {
     loading: false
   });
 
-  const [showTransactions, setShowTransactions] = useState(false);
+  const [showTransactions, setShowTransactions] = useState(true);
 
   // Mock wallet data for testing
   useEffect(() => {
@@ -169,13 +169,15 @@ const WalletContainer = ({ user, onRefresh, balance, transactions }) => {
                         </div>
                         <div className="flex-1">
                           <div className="font-medium text-gray-900">
-                            {transaction.jobTitle}
+                            {transaction.description || 'Payment received'}
                           </div>
-                          <div className="text-sm text-gray-600">
-                            From: {transaction.clientName}
-                          </div>
+                          {transaction.clientName && (
+                            <div className="text-sm text-gray-600">
+                              From: {transaction.clientName}
+                            </div>
+                          )}
                           <div className="text-xs text-gray-500 mt-1">
-                            {formatDate(transaction.timestamp)}
+                            {formatDate(transaction.createdAt || transaction.timestamp)}
                           </div>
                         </div>
                       </div>
@@ -185,14 +187,19 @@ const WalletContainer = ({ user, onRefresh, balance, transactions }) => {
                           {transaction.type === 'credit' ? '+' : '-'}{formatAmount(transaction.amount)}
                         </div>
                         <div className="text-xs text-gray-500 capitalize">
-                          {transaction.status}
+                          {transaction.status || 'completed'}
                         </div>
                       </div>
                     </div>
                     
-                    {transaction.description && (
+                    {transaction.jobId && (
                       <div className="mt-2 text-sm text-gray-600">
-                        {transaction.description}
+                        Job ID: {transaction.jobId}
+                      </div>
+                    )}
+                    {transaction.totalAmount && transaction.commission && (
+                      <div className="mt-1 text-xs text-gray-500">
+                        Total: ₹{transaction.totalAmount} | Commission: ₹{transaction.commission}
                       </div>
                     )}
                   </div>
