@@ -167,20 +167,8 @@ class PaymentService {
         merchantUserId: merchantUserId,
         amount: amount * 100, // Amount in paise
         redirectUrl: `${this.frontendUrl}/payment/success`, // Frontend success page
-        // Standard Checkout (web) expects paymentFlow + deviceContext
-        paymentFlow: 'REDIRECT',
-        deviceContext: 'WEB',
         callbackUrl: this.redirectUrl, // Backend callback for webhook
-        mobileNumber: '',
-        // Optional metadata echoed in webhook/status
-        metaInfo: {
-          jobId,
-          jobTitle,
-          merchantTransactionId: orderId,
-          merchantUserId
-        },
-        // Optional expiry in seconds
-        expireAfter: 900
+        mobileNumber: ''
         // For Standard Checkout with OAuth, omit paymentInstrument; PhonePe derives the pay page
       };
 
@@ -194,14 +182,12 @@ class PaymentService {
         merchantUserId: payload.merchantUserId,
         amount: payload.amount,
         redirectUrl: payload.redirectUrl,
-        paymentFlow: payload.paymentFlow,
-        deviceContext: payload.deviceContext,
         callbackUrl: payload.callbackUrl,
         mobileNumber: payload.mobileNumber
       };
 
       console.log('🔍 PhonePe V2 API Request Details:');
-      console.log('  URL:', `${this.baseUrl}/checkout/v2/pay`);
+      console.log('  URL:', `${this.baseUrl}/checkout/v2/create`);
       console.log('  Merchant ID:', this.merchantId);
       console.log('  Order ID:', orderId);
       console.log('  Amount:', amount, '(₹' + (amount/100) + ')');
@@ -209,7 +195,7 @@ class PaymentService {
       console.log('  Payload:', JSON.stringify(payload, null, 2));
       console.log('  Request Data (raw JSON):', JSON.stringify(requestData, null, 2));
 
-      const apiUrl = `${this.baseUrl}/checkout/v2/pay`;
+      const apiUrl = `${this.baseUrl}/checkout/v2/create`;
       console.log('🔍 Making request to PhonePe V2 API:', apiUrl);
       
       // Build headers, optionally include X-VERIFY if salt provided (required by PG even on V2)
