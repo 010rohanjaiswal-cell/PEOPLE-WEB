@@ -337,12 +337,37 @@ const processSuccessfulPayment = async (orderId, req, res) => {
     const freelancerId = job.assignedFreelancer?.id;
     const jobAmount = job.budget;
     
+    console.log('💰 Processing wallet credit for freelancer:', freelancerId, 'job amount:', jobAmount);
+    
     if (freelancerId) {
       try {
-        const freelancer = await User.findById(freelancerId);
+        // Try to find freelancer by ID (could be ObjectId or string)
+        let freelancer = await User.findById(freelancerId);
+        
+        // If not found by ObjectId, try to find by string ID
+        if (!freelancer) {
+          freelancer = await User.findOne({ _id: freelancerId });
+        }
+        
+        // If still not found, try to find by freelancerId field
+        if (!freelancer) {
+          freelancer = await User.findOne({ freelancerId: freelancerId });
+        }
+        
+        console.log('💰 Freelancer lookup result:', { 
+          found: !!freelancer, 
+          freelancerId: freelancer?._id,
+          currentBalance: freelancer?.wallet?.balance || 0
+        });
+        
         if (freelancer) {
           // Calculate freelancer's portion (90% of job amount)
           const freelancerAmount = Math.round(jobAmount * 0.9 * 100) / 100;
+          
+          // Initialize wallet if it doesn't exist
+          if (!freelancer.wallet) {
+            freelancer.wallet = { balance: 0, totalEarnings: 0, transactions: [] };
+          }
           
           // Update wallet balance
           freelancer.wallet.balance = (freelancer.wallet.balance || 0) + freelancerAmount;
@@ -353,7 +378,7 @@ const processSuccessfulPayment = async (orderId, req, res) => {
             freelancer.wallet.transactions = [];
           }
           
-          freelancer.wallet.transactions.unshift({
+          const newTransaction = {
             id: 'txn-' + Date.now(),
             type: 'credit',
             amount: freelancerAmount,
@@ -364,22 +389,28 @@ const processSuccessfulPayment = async (orderId, req, res) => {
             commission: Math.round(jobAmount * 0.1 * 100) / 100,
             paymentOrderId: orderId,
             createdAt: new Date().toISOString()
-          });
+          };
+          
+          freelancer.wallet.transactions.unshift(newTransaction);
           
           await freelancer.save();
-          console.log('💰 Freelancer wallet credited:', { 
-            freelancerId, 
+          console.log('💰 Freelancer wallet credited successfully:', { 
+            freelancerId: freelancer._id, 
             jobAmount, 
             freelancerAmount, 
-            commission: Math.round(jobAmount * 0.1 * 100) / 100 
+            newBalance: freelancer.wallet.balance,
+            commission: Math.round(jobAmount * 0.1 * 100) / 100,
+            transactionId: newTransaction.id
           });
         } else {
-          console.log('⚠️ Freelancer not found:', freelancerId);
+          console.log('⚠️ Freelancer not found with ID:', freelancerId);
         }
       } catch (walletError) {
         console.error('❌ Wallet credit error:', walletError);
         // Don't fail the payment if wallet update fails
       }
+    } else {
+      console.log('⚠️ No freelancer ID found in job:', job.assignedFreelancer);
     }
     
     // Persist updates
