@@ -167,10 +167,19 @@ class PaymentService {
         amount: amount * 100, // Amount in paise
         redirectUrl: `${this.frontendUrl}/payment/success`, // Frontend success page
         // Standard Checkout (web) expects paymentFlow + deviceContext
-        paymentFlow: 'IFRAME',
+        paymentFlow: 'REDIRECT',
         deviceContext: 'WEB',
         callbackUrl: this.redirectUrl, // Backend callback for webhook
         mobileNumber: '',
+        // Optional metadata echoed in webhook/status
+        metaInfo: {
+          jobId,
+          jobTitle,
+          merchantTransactionId: orderId,
+          merchantUserId
+        },
+        // Optional expiry in seconds
+        expireAfter: 900
         // For Standard Checkout with OAuth, omit paymentInstrument; PhonePe derives the pay page
       };
 
