@@ -166,12 +166,11 @@ class PaymentService {
         merchantUserId: merchantUserId,
         amount: amount * 100, // Amount in paise
         redirectUrl: `${this.frontendUrl}/payment/success`, // Frontend success page
-        redirectMode: 'POST',
+        // Standard Checkout (web) expects iframe/redirection flow
+        redirectMode: 'IFRAME',
         callbackUrl: this.redirectUrl, // Backend callback for webhook
         mobileNumber: '',
-        paymentInstrument: {
-          type: 'UPI_INTENT'
-        }
+        // For Standard Checkout with OAuth, omit paymentInstrument; PhonePe derives the pay page
       };
 
       // PhonePe V2 (OAuth) production often expects RAW JSON payload, not base64 envelope
