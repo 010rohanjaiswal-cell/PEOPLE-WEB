@@ -310,6 +310,57 @@ const markWorkDone = async (req, res) => {
   }
 };
 
+// Debug freelancer wallet
+const debugFreelancerWallet = async (req, res) => {
+  try {
+    const { freelancerId } = req.params;
+    const User = require('../models/User');
+    
+    console.log('🔍 Debug freelancer wallet for ID:', freelancerId);
+    
+    // Try to find freelancer by different methods
+    let freelancer = await User.findById(freelancerId);
+    if (!freelancer) {
+      freelancer = await User.findOne({ _id: freelancerId });
+    }
+    if (!freelancer) {
+      freelancer = await User.findOne({ freelancerId: freelancerId });
+    }
+    
+    if (!freelancer) {
+      return res.json({
+        success: false,
+        message: 'Freelancer not found',
+        freelancerId: freelancerId
+      });
+    }
+    
+    const walletData = {
+      freelancerId: freelancer._id,
+      phone: freelancer.phone,
+      fullName: freelancer.fullName,
+      wallet: freelancer.wallet || { balance: 0, totalEarnings: 0, transactions: [] },
+      transactionCount: freelancer.wallet?.transactions?.length || 0
+    };
+    
+    console.log('💰 Freelancer wallet data:', walletData);
+    
+    res.json({
+      success: true,
+      message: 'Freelancer wallet data retrieved',
+      data: walletData
+    });
+    
+  } catch (error) {
+    console.error('❌ Debug freelancer wallet error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to debug freelancer wallet',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   debugJobs,
   clearJobs,
@@ -318,5 +369,6 @@ module.exports = {
   updateJobStatus,
   createTestFreelancer,
   assignJobToFreelancer,
-  markWorkDone
+  markWorkDone,
+  debugFreelancerWallet
 };

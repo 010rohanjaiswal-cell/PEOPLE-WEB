@@ -22,4 +22,7 @@ router.get('/payment', debugController.debugPayment);
 // Update job status for testing
 router.post('/update-job-status/:jobId', debugController.updateJobStatus);
 
+// Debug freelancer wallet
+router.get('/freelancer-wallet/:freelancerId', debugController.debugFreelancerWallet);
+
 module.exports = router;
