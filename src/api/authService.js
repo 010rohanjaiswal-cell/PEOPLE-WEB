@@ -163,7 +163,7 @@ export const authService = {
   switchRole: async (newRole) => {
     try {
       const response = await api.post('/auth/switch-role', {
-        role: newRole
+        newRole: newRole
       });
       
       if (response.data.success) {
