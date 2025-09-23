@@ -168,7 +168,8 @@ class PaymentService {
         amount: amount * 100, // Amount in paise
         redirectUrl: `${this.frontendUrl}/payment/success`, // Frontend success page
         callbackUrl: this.redirectUrl, // Backend callback for webhook
-        mobileNumber: ''
+        mobileNumber: '',
+        paymentInstrument: { type: 'PAY_PAGE' }
         // For Standard Checkout with OAuth, omit paymentInstrument; PhonePe derives the pay page
       };
 
@@ -183,7 +184,8 @@ class PaymentService {
         amount: payload.amount,
         redirectUrl: payload.redirectUrl,
         callbackUrl: payload.callbackUrl,
-        mobileNumber: payload.mobileNumber
+        mobileNumber: payload.mobileNumber,
+        paymentInstrument: payload.paymentInstrument
       };
 
       console.log('🔍 PhonePe V2 API Request Details:');
