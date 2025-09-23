@@ -62,7 +62,25 @@ const userSchema = new mongoose.Schema({
     totalEarnings: {
       type: Number,
       default: 0
-    }
+    },
+    transactions: [{
+      id: String,
+      type: {
+        type: String,
+        enum: ['credit', 'debit']
+      },
+      amount: Number,
+      description: String,
+      clientName: String,
+      jobId: String,
+      totalAmount: Number,
+      commission: Number,
+      paymentOrderId: String,
+      createdAt: {
+        type: Date,
+        default: Date.now
+      }
+    }]
   },
   isActive: {
     type: Boolean,
