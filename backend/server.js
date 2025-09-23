@@ -319,8 +319,8 @@ const processSuccessfulPayment = async (orderId, req, res) => {
       });
     }
     
-    // Update job status to completed
-    job.status = 'completed';
+    // Update job status to completed → and immediately fully_completed for auto-flow
+    job.status = 'fully_completed';
     job.paymentMethod = 'upi';
     job.paidAt = new Date().toISOString();
     job.paymentOrderId = orderId;
@@ -382,7 +382,8 @@ const processSuccessfulPayment = async (orderId, req, res) => {
         status: job.status,
         paymentMethod: job.paymentMethod,
         paidAt: job.paidAt,
-        paymentOrderId: job.paymentOrderId
+        paymentOrderId: job.paymentOrderId,
+        fullyCompletedAt: new Date()
       });
       console.log('💾 Job updated in MongoDB');
     } else {

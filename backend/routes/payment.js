@@ -44,7 +44,8 @@ if (realController) {
 // Payment routes
 router.get('/test', paymentController.testPaymentService);
 router.post('/upi/:jobId', authMiddleware.verifyToken, paymentController.createUPIPayment);
-router.post('/verify', authMiddleware.verifyToken, paymentController.verifyUPIPayment);
+// Allow verification without auth to support webhook-driven flows
+router.post('/verify', paymentController.verifyUPIPayment);
 router.get('/status/:jobId', authMiddleware.verifyToken, paymentController.getPaymentStatus);
 
 // Debug payment routes (no auth required for testing)

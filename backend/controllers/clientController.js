@@ -63,7 +63,7 @@ const getMyJobs = async (req, res) => {
     console.log('🔍 getMyJobs - all jobs:', allJobs.map(j => ({ id: j.id, clientId: j.clientId, status: j.status })));
     
     // Show jobs that are active (open, assigned, in-progress, work_done, completed) but not fully_completed or cancelled
-    const activeStatuses = ['open', 'assigned', 'in-progress', 'work_done', 'completed'];
+    const activeStatuses = ['open', 'assigned', 'in-progress', 'work_done'];
     const jobs = allJobs.filter(j => 
       String(j.clientId) === String(clientId) && 
       activeStatuses.includes(j.status)
@@ -89,7 +89,7 @@ const getJobHistory = async (req, res) => {
   try {
     const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
     const allJobs = await databaseService.getAllJobs();
-    const jobs = allJobs.filter(j => String(j.clientId) === String(clientId) && j.status === 'fully_completed');
+    const jobs = allJobs.filter(j => String(j.clientId) === String(clientId) && (j.status === 'completed' || j.status === 'fully_completed'));
     res.json({ success: true, jobs });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch job history' });
