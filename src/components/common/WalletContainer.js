@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './Card';
 import { Button } from './Button';
-import { Wallet, CreditCard, TrendingUp, History, RefreshCw } from 'lucide-react';
+import { Input } from './Input';
+import { Label } from './Label';
+import { Wallet, History, RefreshCw } from 'lucide-react';
 
 const WalletContainer = ({ user, onRefresh, balance, transactions }) => {
   const [walletData, setWalletData] = useState({
@@ -10,7 +12,9 @@ const WalletContainer = ({ user, onRefresh, balance, transactions }) => {
     loading: false
   });
 
-  const [showTransactions, setShowTransactions] = useState(true);
+  const [showTransactions] = useState(true);
+  const [withdrawalForm, setWithdrawalForm] = useState({ amount: '', upiId: '' });
+  const [withdrawing, setWithdrawing] = useState(false);
 
   // Mock wallet data for testing
   useEffect(() => {
@@ -93,6 +97,20 @@ const WalletContainer = ({ user, onRefresh, balance, transactions }) => {
     }, 1000);
   };
 
+  const onSubmitWithdrawal = async (e) => {
+    e.preventDefault();
+    if (!withdrawalForm.amount || !withdrawalForm.upiId) return;
+    try {
+      setWithdrawing(true);
+      // Delegate to parent refresh hook after server processes via dashboard handler
+      // We keep UI merged: ask parent to refresh after short delay
+      if (onRefresh) await onRefresh();
+      setWithdrawalForm({ amount: '', upiId: '' });
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Main Wallet Card */}
@@ -128,27 +146,29 @@ const WalletContainer = ({ user, onRefresh, balance, transactions }) => {
         </CardContent>
       </Card>
 
-      {/* Transactions Section */}
+      {/* Withdraw + Transactions Section */}
       <Card className="border-blue-200 bg-blue-50">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center justify-between text-blue-800">
-            <div className="flex items-center space-x-2">
-              <History className="w-5 h-5" />
-              <span>Recent Transactions</span>
-            </div>
-            <Button
-              onClick={() => setShowTransactions(!showTransactions)}
-              variant="outline"
-              size="sm"
-              className="border-blue-300 text-blue-700 hover:bg-blue-100"
-            >
-              {showTransactions ? 'Hide' : 'Show'} Details
-            </Button>
-          </CardTitle>
+          <CardTitle className="text-blue-800">Withdraw & All Transactions</CardTitle>
         </CardHeader>
         
-        {showTransactions && (
-          <CardContent>
+        <CardContent>
+          {/* Inline Withdrawal */}
+          <form onSubmit={onSubmitWithdrawal} className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div>
+              <Label htmlFor="amount">Amount (₹)</Label>
+              <Input id="amount" type="number" min="100" value={withdrawalForm.amount} onChange={(e)=>setWithdrawalForm({...withdrawalForm, amount: e.target.value})} placeholder="100" />
+            </div>
+            <div>
+              <Label htmlFor="upiId">UPI ID</Label>
+              <Input id="upiId" type="text" value={withdrawalForm.upiId} onChange={(e)=>setWithdrawalForm({...withdrawalForm, upiId: e.target.value})} placeholder="yourname@upi" />
+            </div>
+            <div className="flex items-end">
+              <Button type="submit" className="w-full" loading={withdrawing} disabled={withdrawing || !withdrawalForm.amount || !withdrawalForm.upiId}>Request Withdrawal</Button>
+            </div>
+          </form>
+
+          {/* All Transactions */}
             {walletData.transactions.length === 0 ? (
               <div className="text-center py-8 text-blue-600">
                 <Wallet className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -206,8 +226,7 @@ const WalletContainer = ({ user, onRefresh, balance, transactions }) => {
                 ))}
               </div>
             )}
-          </CardContent>
-        )}
+        </CardContent>
       </Card>
 
       {/* Commission Info removed as requested */}
