@@ -86,18 +86,21 @@ const getVerificationStatus = async (req, res) => {
   }
 };
 
-// Get wallet information
+  // Get wallet information
 const getWallet = async (req, res) => {
   try {
-    const user = req.user;
+    const userId = req.user?._id || req.user?.id;
+    // Fetch fresh user from DB to avoid stale wallet values
+    const fresh = await User.findById(userId);
+    const wallet = fresh?.wallet || req.user.wallet || { balance: 0, totalEarnings: 0 };
 
     res.json({
       success: true,
       data: {
-        balance: user.wallet.balance,
-        totalEarnings: user.wallet.totalEarnings,
-      currency: 'INR',
-      freelancerId: user.freelancerId || null
+        balance: wallet.balance || 0,
+        totalEarnings: wallet.totalEarnings || 0,
+        currency: 'INR',
+        freelancerId: fresh?.freelancerId || req.user.freelancerId || null
       }
     });
 
@@ -161,7 +164,7 @@ const getWithdrawalHistory = async (req, res) => {
   }
 };
 
-// Get assigned jobs
+  // Get assigned jobs
 const getAssignedJobs = async (req, res) => {
   try {
     const user = req.user;
@@ -172,7 +175,7 @@ const getAssignedJobs = async (req, res) => {
     // Get jobs from MongoDB where this freelancer is assigned
     const allJobs = await databaseService.getAllJobs();
     const assignedJobs = allJobs.filter(job => 
-      (job.status === 'assigned' || job.status === 'work_done' || job.status === 'completed') && 
+      (job.status === 'assigned' || job.status === 'work_done') && 
       job.assignedFreelancer && 
       String(job.assignedFreelancer.id) === freelancerId
     );
