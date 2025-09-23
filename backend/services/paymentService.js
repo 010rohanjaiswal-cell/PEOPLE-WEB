@@ -166,8 +166,9 @@ class PaymentService {
         merchantUserId: merchantUserId,
         amount: amount * 100, // Amount in paise
         redirectUrl: `${this.frontendUrl}/payment/success`, // Frontend success page
-        // Standard Checkout (web) expects iframe/redirection flow
-        redirectMode: 'IFRAME',
+        // Standard Checkout (web) expects paymentFlow + deviceContext
+        paymentFlow: 'IFRAME',
+        deviceContext: 'WEB',
         callbackUrl: this.redirectUrl, // Backend callback for webhook
         mobileNumber: '',
         // For Standard Checkout with OAuth, omit paymentInstrument; PhonePe derives the pay page
