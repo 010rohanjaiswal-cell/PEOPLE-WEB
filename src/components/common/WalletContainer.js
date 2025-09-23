@@ -227,29 +227,7 @@ const WalletContainer = ({ user, onRefresh, balance, transactions }) => {
         )}
       </Card>
 
-      {/* Commission Info */}
-      <Card className="border-orange-200 bg-orange-50">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-orange-800 text-sm">
-            💡 Commission Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-orange-700 space-y-2">
-            <div className="flex justify-between">
-              <span>Platform Commission:</span>
-              <span className="font-medium">10%</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Freelancer Receives:</span>
-              <span className="font-medium">90%</span>
-            </div>
-            <div className="text-xs text-orange-600 mt-2 p-2 bg-orange-100 rounded">
-              Example: ₹100 job → You receive ₹90, Platform gets ₹10
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Commission Info removed as requested */}
     </div>
   );
 };
