@@ -170,7 +170,7 @@ class PaymentService {
         callbackUrl: this.redirectUrl, // Backend callback for webhook
         mobileNumber: '',
         paymentInstrument: {
-          type: 'PAY_PAGE'
+          type: 'UPI_INTENT'
         }
       };
 
