@@ -284,35 +284,30 @@ const processSuccessfulPayment = async (orderId, req, res) => {
     const jobId = jobIdMatch[1];
     console.log('📋 Extracted job ID:', jobId);
     
-    // Load jobs data
-    const fs = require('fs');
-    const path = require('path');
-    const jobsFile = path.join(__dirname, 'data/jobs.json');
+    // Try MongoDB first
+    const dbService = require('./services/databaseService');
+    let job = await dbService.getJobById(jobId);
+    let persistenceMode = 'mongo';
     
-    if (!fs.existsSync(jobsFile)) {
-      console.error('❌ Jobs file not found');
-      return res.json({ 
-        success: false, 
-        message: 'Jobs data not found',
-        orderId: orderId 
-      });
+    // Fallback to legacy file store if not found in DB
+    if (!job) {
+      const fs = require('fs');
+      const path = require('path');
+      const jobsFile = path.join(__dirname, 'data/jobs.json');
+      if (!fs.existsSync(jobsFile)) {
+        console.error('❌ Jobs file not found');
+        return res.json({ success: false, message: 'Jobs data not found', orderId });
+      }
+      const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+      const jobs = jobsData.jobs || [];
+      const jobIndex = jobs.findIndex(j => j.id === jobId);
+      if (jobIndex === -1) {
+        console.error('❌ Job not found:', jobId);
+        return res.json({ success: false, message: 'Job not found', orderId });
+      }
+      job = jobs[jobIndex];
+      persistenceMode = 'file';
     }
-    
-    const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
-    const jobs = jobsData.jobs || [];
-    
-    // Find the job
-    const jobIndex = jobs.findIndex(job => job.id === jobId);
-    if (jobIndex === -1) {
-      console.error('❌ Job not found:', jobId);
-      return res.json({ 
-        success: false, 
-        message: 'Job not found',
-        orderId: orderId 
-      });
-    }
-    
-    const job = jobs[jobIndex];
     
     // Check if job is in work_done status
     if (job.status !== 'work_done') {
@@ -329,7 +324,6 @@ const processSuccessfulPayment = async (orderId, req, res) => {
     job.paymentMethod = 'upi';
     job.paidAt = new Date().toISOString();
     job.paymentOrderId = orderId;
-    
     console.log('✅ Job status updated to completed');
     
     // Credit freelancer's wallet
@@ -382,9 +376,28 @@ const processSuccessfulPayment = async (orderId, req, res) => {
       }
     }
     
-    // Save updated jobs data
-    fs.writeFileSync(jobsFile, JSON.stringify(jobsData, null, 2));
-    console.log('💾 Jobs data saved');
+    // Persist updates
+    if (persistenceMode === 'mongo') {
+      await dbService.updateJob(jobId, {
+        status: job.status,
+        paymentMethod: job.paymentMethod,
+        paidAt: job.paidAt,
+        paymentOrderId: job.paymentOrderId
+      });
+      console.log('💾 Job updated in MongoDB');
+    } else {
+      const fs = require('fs');
+      const path = require('path');
+      const jobsFile = path.join(__dirname, 'data/jobs.json');
+      const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+      const jobs = jobsData.jobs || [];
+      const idx = jobs.findIndex(j => j.id === jobId);
+      if (idx !== -1) {
+        jobs[idx] = job;
+        fs.writeFileSync(jobsFile, JSON.stringify(jobsData, null, 2));
+        console.log('💾 Jobs data saved (file)');
+      }
+    }
     
     res.json({ 
       success: true, 

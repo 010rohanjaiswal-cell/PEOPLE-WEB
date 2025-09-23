@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
@@ -6,6 +6,13 @@ import { Button } from '../components/common/Button';
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('orderId');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.location.href = '/client/dashboard';
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -25,12 +32,7 @@ const PaymentSuccess = () => {
               Order ID: {orderId}
             </p>
           )}
-          <Button 
-            onClick={() => window.location.href = '/client/dashboard'}
-            className="w-full"
-          >
-            Back to Dashboard
-          </Button>
+          <p className="text-xs text-gray-400 mt-2">Redirecting to dashboard…</p>
         </div>
       </Card>
     </div>
