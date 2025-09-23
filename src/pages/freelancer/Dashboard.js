@@ -119,6 +119,12 @@ const FreelancerDashboard = () => {
       setWalletTransactions(walletRes.data?.transactions || []);
       setOrders(ordersRes.data || []);
       
+      console.log('💰 Dashboard - wallet data:', {
+        balance: walletRes.data?.balance,
+        transactions: walletRes.data?.transactions,
+        transactionCount: walletRes.data?.transactions?.length || 0
+      });
+      
       // Check commission status for completed jobs and work status
       setTimeout(() => {
         checkCommissionStatusForJobs();
@@ -680,99 +686,12 @@ const FreelancerDashboard = () => {
 
   const renderWallet = () => (
     <div className="space-y-6">
-      {/* Wallet Container */}
-      <WalletContainer user={user} onRefresh={loadFreelancerData} balance={walletBalance} transactions={walletTransactions} />
-
-      {/* Withdrawal Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Request Withdrawal</CardTitle>
-          <CardDescription>
-            Withdraw your earnings to your UPI account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleWithdrawal} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount (₹)</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  value={withdrawalForm.amount}
-                  onChange={(e) => setWithdrawalForm({...withdrawalForm, amount: e.target.value})}
-                  placeholder="100"
-                  min="100"
-                  max={walletBalance}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="upiId">UPI ID</Label>
-                <Input
-                  id="upiId"
-                  type="text"
-                  value={withdrawalForm.upiId}
-                  onChange={(e) => setWithdrawalForm({...withdrawalForm, upiId: e.target.value})}
-                  placeholder="yourname@paytm"
-                  required
-                />
-              </div>
-            </div>
-            <Button 
-              type="submit" 
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg" 
-              loading={loading}
-              disabled={!withdrawalForm.amount || !withdrawalForm.upiId || loading}
-            >
-              Request Withdrawal
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Recent Transactions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Transactions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {walletTransactions.length === 0 ? (
-            <p className="text-center text-muted-foreground py-4">
-              No transactions yet
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {walletTransactions.slice(0, 5).map(transaction => (
-                <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                  <div>
-                    <p className="font-medium">{transaction.description}</p>
-                    {transaction.clientName && (
-                      <p className="text-sm text-blue-600">From: {transaction.clientName}</p>
-                    )}
-                    {transaction.jobId && (
-                      <p className="text-xs text-gray-500">Job ID: {transaction.jobId}</p>
-                    )}
-                    {transaction.commission && transaction.totalAmount && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        <p>Total: ₹{transaction.totalAmount} | Commission: ₹{transaction.commission}</p>
-                      </div>
-                    )}
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(transaction.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className={`font-semibold ${
-                    transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {transaction.type === 'credit' ? '+' : '-'}₹{transaction.amount}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <WalletContainer 
+        user={user} 
+        onRefresh={loadFreelancerData} 
+        balance={walletBalance} 
+        transactions={walletTransactions} 
+      />
     </div>
   );
 
@@ -826,8 +745,16 @@ const FreelancerDashboard = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center">
-              <User className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center overflow-hidden">
+              {user?.profilePhoto ? (
+                <img 
+                  src={user.profilePhoto} 
+                  alt={user.fullName} 
+                  className="w-full h-full object-cover" 
+                />
+              ) : (
+                <User className="w-8 h-8 text-white" />
+              )}
             </div>
             <div>
               <h3 className="font-semibold">{user?.fullName}</h3>
@@ -896,8 +823,16 @@ const FreelancerDashboard = () => {
               <span className="text-sm text-gray-600">
                 Welcome, {user?.fullName}
               </span>
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
-                <User className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center overflow-hidden">
+                {user?.profilePhoto ? (
+                  <img 
+                    src={user.profilePhoto} 
+                    alt={user.fullName} 
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  <User className="w-4 h-4 text-white" />
+                )}
               </div>
             </div>
           </div>

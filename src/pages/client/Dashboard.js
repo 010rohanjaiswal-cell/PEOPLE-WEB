@@ -871,8 +871,16 @@ const ClientDashboard = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center">
-              <User className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center overflow-hidden">
+              {user?.profilePhoto ? (
+                <img 
+                  src={user.profilePhoto} 
+                  alt={user.fullName} 
+                  className="w-full h-full object-cover" 
+                />
+              ) : (
+                <User className="w-8 h-8 text-white" />
+              )}
             </div>
             <div>
               <h3 className="font-semibold">{user?.fullName}</h3>
@@ -932,8 +940,16 @@ const ClientDashboard = () => {
               <span className="text-sm text-gray-600">
                 Welcome, {user?.fullName}
               </span>
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
-                <User className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center overflow-hidden">
+                {user?.profilePhoto ? (
+                  <img 
+                    src={user.profilePhoto} 
+                    alt={user.fullName} 
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  <User className="w-4 h-4 text-white" />
+                )}
               </div>
             </div>
           </div>

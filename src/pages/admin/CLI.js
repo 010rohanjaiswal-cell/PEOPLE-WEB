@@ -707,8 +707,16 @@ const AdminDashboard = () => {
               <span className="text-sm text-gray-600">
                 Welcome, {user?.fullName}
               </span>
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
-                <Shield className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center overflow-hidden">
+                {user?.profilePhoto ? (
+                  <img 
+                    src={user.profilePhoto} 
+                    alt={user.fullName} 
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  <Shield className="w-4 h-4 text-white" />
+                )}
               </div>
               <Button 
                 variant="destructive"
