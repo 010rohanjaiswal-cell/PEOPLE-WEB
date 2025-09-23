@@ -133,8 +133,8 @@ class PaymentService {
       }
       this._authToken = token;
       this._authTokenExpiryMs = now + (expiresInSec * 1000);
-      // Force standard Bearer token type for PG OAuth
-      this._tokenType = 'Bearer';
+      // PhonePe PG expects 'O-Bearer' token type in Authorization header
+      this._tokenType = 'O-Bearer';
       return token;
     } catch (e) {
       console.error('❌ PhonePe OAuth Error:', e.response?.data || e.message);
@@ -215,10 +215,9 @@ class PaymentService {
       // Build headers, optionally include X-VERIFY if salt provided (required by PG even on V2)
       const headers = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${bearer}`,
+        'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}`,
         'X-CLIENT-ID': this.clientId,
         'X-CLIENT-VERSION': this.clientVersion,
-        'X-MERCHANT-ID': this.merchantId,
         'accept': 'application/json'
       };
       // For OAuth JSON flow, X-VERIFY is not required. If provided, API can misinterpret body.
