@@ -208,7 +208,15 @@ const switchRole = async (req, res) => {
     const { newRole } = req.body;
     const user = req.user;
 
+    console.log('🔄 Role switch request:', {
+      requestedRole: newRole,
+      currentRole: user.role,
+      userId: user._id,
+      userPhone: user.phoneNumber
+    });
+
     if (!newRole || !['client', 'freelancer'].includes(newRole)) {
+      console.log('❌ Invalid role provided:', newRole);
       return res.status(400).json({
         success: false,
         message: 'Invalid role. Must be client or freelancer'
@@ -216,6 +224,11 @@ const switchRole = async (req, res) => {
     }
 
     if (newRole === user.role) {
+      console.log('❌ User already in this role:', {
+        requestedRole: newRole,
+        currentRole: user.role,
+        userId: user._id
+      });
       return res.status(400).json({
         success: false,
         message: 'You are already in this role'
