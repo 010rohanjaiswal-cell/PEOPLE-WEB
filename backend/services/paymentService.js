@@ -161,32 +161,38 @@ class PaymentService {
       const merchantUserId = typeof userId === 'object' ? userId.toString() : userId;
       
       const payload = {
+        // Keep core identifiers
         merchantId: this.merchantId,
         merchantTransactionId: orderId,
-        merchantOrderId: orderId, // PhonePe requires both fields
+        merchantOrderId: orderId,
         merchantUserId: merchantUserId,
         amount: amount * 100, // Amount in paise
-        redirectUrl: `${this.frontendUrl}/payment/success`, // Frontend success page
-        callbackUrl: this.redirectUrl, // Backend callback for webhook
-        mobileNumber: '',
-        paymentInstrument: { type: 'PAY_PAGE' }
-        // For Standard Checkout with OAuth, omit paymentInstrument; PhonePe derives the pay page
+        // As per PhonePe support, use paymentFlow (PG_CHECKOUT) instead of paymentInstrument
+        paymentFlow: {
+          type: 'PG_CHECKOUT',
+          message: 'Payment for job',
+          merchantUrls: {
+            redirectUrl: `${this.frontendUrl}/payment/success`
+          }
+        },
+        // Optional but recommended
+        expireAfter: 1200,
+        metaInfo: {
+          udf1: String(jobId || ''),
+          udf2: String(jobTitle || ''),
+          udf3: String(merchantUserId || ''),
+          udf4: String(orderId || ''),
+          udf5: 'web'
+        },
+        // Backend webhook
+        callbackUrl: this.redirectUrl,
+        mobileNumber: ''
       };
 
       // PhonePe V2 (OAuth) production often expects RAW JSON payload, not base64 envelope
       // Switch to raw JSON body to avoid decode errors like 'amount must not be null'
       // Minimal payload to avoid server-side 500s due to optional fields
-      const requestData = {
-        merchantId: payload.merchantId,
-        merchantTransactionId: payload.merchantTransactionId,
-        merchantOrderId: payload.merchantOrderId,
-        merchantUserId: payload.merchantUserId,
-        amount: payload.amount,
-        redirectUrl: payload.redirectUrl,
-        callbackUrl: payload.callbackUrl,
-        mobileNumber: payload.mobileNumber,
-        paymentInstrument: payload.paymentInstrument
-      };
+      const requestData = payload;
 
       console.log('🔍 PhonePe V2 API Request Details:');
       console.log('  URL:', `${this.baseUrl}/checkout/v2/pay`);
