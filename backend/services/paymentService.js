@@ -187,7 +187,7 @@ class PaymentService {
       };
 
       console.log('🔍 PhonePe V2 API Request Details:');
-      console.log('  URL:', `${this.baseUrl}/checkout/v2/create`);
+      console.log('  URL:', `${this.baseUrl}/checkout/v2/pay`);
       console.log('  Merchant ID:', this.merchantId);
       console.log('  Order ID:', orderId);
       console.log('  Amount:', amount, '(₹' + (amount/100) + ')');
@@ -195,7 +195,7 @@ class PaymentService {
       console.log('  Payload:', JSON.stringify(payload, null, 2));
       console.log('  Request Data (raw JSON):', JSON.stringify(requestData, null, 2));
 
-      const apiUrl = `${this.baseUrl}/checkout/v2/create`;
+      const apiUrl = `${this.baseUrl}/checkout/v2/pay`;
       console.log('🔍 Making request to PhonePe V2 API:', apiUrl);
       
       // Build headers, optionally include X-VERIFY if salt provided (required by PG even on V2)
