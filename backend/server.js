@@ -18,6 +18,9 @@ const databaseService = require('./services/databaseService');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy for accurate IPs behind Render/Proxies (fixes rate-limit X-Forwarded-For warning)
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 
@@ -29,9 +32,6 @@ const limiter = rateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
-// Apply general rate limiting
-app.use(limiter);
-
 // More restrictive rate limiting for authentication endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -40,9 +40,6 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-
-// Apply auth rate limiting to authentication routes
-app.use('/api/auth', authLimiter);
 
 // CORS configuration - allow configured origins and any localhost port
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
@@ -83,7 +80,16 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-debug-mode']
 };
 
+// Enable CORS early (before any rate limiters or routes)
 app.use(cors(corsOptions));
+// Ensure preflight requests are handled for all routes
+app.options('*', cors(corsOptions));
+
+// Apply general rate limiting (after CORS so preflight isn't blocked)
+app.use(limiter);
+
+// Apply auth rate limiting to authentication routes
+app.use('/api/auth', authLimiter);
 
 // CORS test endpoint
 app.get('/api/cors-test', (req, res) => {
