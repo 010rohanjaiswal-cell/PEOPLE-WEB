@@ -99,6 +99,7 @@ const getWallet = async (req, res) => {
       data: {
         balance: wallet.balance || 0,
         totalEarnings: wallet.totalEarnings || 0,
+        transactions: Array.isArray(wallet.transactions) ? wallet.transactions : [],
         currency: 'INR',
         freelancerId: fresh?.freelancerId || req.user.freelancerId || null
       }

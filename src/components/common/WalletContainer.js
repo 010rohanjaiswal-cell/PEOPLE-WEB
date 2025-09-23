@@ -123,31 +123,7 @@ const WalletContainer = ({ user, onRefresh, balance, transactions }) => {
               Available Balance
             </div>
             
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div className="bg-white/50 rounded-lg p-3">
-                <div className="flex items-center justify-center space-x-1 text-green-600">
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="text-sm font-medium">This Month</span>
-                </div>
-                <div className="text-lg font-semibold text-green-700 mt-1">
-                  {formatAmount(walletData.transactions
-                    .filter(t => t.type === 'credit')
-                    .reduce((sum, t) => sum + t.amount, 0)
-                  )}
-                </div>
-              </div>
-              
-              <div className="bg-white/50 rounded-lg p-3">
-                <div className="flex items-center justify-center space-x-1 text-green-600">
-                  <CreditCard className="w-4 h-4" />
-                  <span className="text-sm font-medium">Total Jobs</span>
-                </div>
-                <div className="text-lg font-semibold text-green-700 mt-1">
-                  {walletData.transactions.length}
-                </div>
-              </div>
-            </div>
+            {/* Quick Stats removed as requested */}
           </div>
         </CardContent>
       </Card>
