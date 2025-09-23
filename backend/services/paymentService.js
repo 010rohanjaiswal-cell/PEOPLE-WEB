@@ -106,7 +106,7 @@ class PaymentService {
 
       let data = resp.data || {};
       let token = data.accessToken || data.access_token || data.token || data.data?.accessToken || data.data?.access_token || data.data?.token;
-      let tokenType = data.token_type || data.data?.token_type || 'O-Bearer';
+      let tokenType = data.token_type || data.data?.token_type || 'Bearer';
       let expiresInSec = data.expires_in || data.expiresIn || data.data?.expires_in || data.data?.expiresIn || 3300; // default ~55min
 
       // Fallback to JSON body if token not found
@@ -133,7 +133,8 @@ class PaymentService {
       }
       this._authToken = token;
       this._authTokenExpiryMs = now + (expiresInSec * 1000);
-      this._tokenType = tokenType;
+      // Force standard Bearer token type for PG OAuth
+      this._tokenType = 'Bearer';
       return token;
     } catch (e) {
       console.error('❌ PhonePe OAuth Error:', e.response?.data || e.message);
@@ -185,7 +186,19 @@ class PaymentService {
 
       // PhonePe V2 (OAuth) production often expects RAW JSON payload, not base64 envelope
       // Switch to raw JSON body to avoid decode errors like 'amount must not be null'
-      const requestData = payload;
+      // Minimal payload to avoid server-side 500s due to optional fields
+      const requestData = {
+        merchantId: payload.merchantId,
+        merchantTransactionId: payload.merchantTransactionId,
+        merchantOrderId: payload.merchantOrderId,
+        merchantUserId: payload.merchantUserId,
+        amount: payload.amount,
+        redirectUrl: payload.redirectUrl,
+        paymentFlow: payload.paymentFlow,
+        deviceContext: payload.deviceContext,
+        callbackUrl: payload.callbackUrl,
+        mobileNumber: payload.mobileNumber
+      };
 
       console.log('🔍 PhonePe V2 API Request Details:');
       console.log('  URL:', `${this.baseUrl}/checkout/v2/pay`);
@@ -202,9 +215,10 @@ class PaymentService {
       // Build headers, optionally include X-VERIFY if salt provided (required by PG even on V2)
       const headers = {
         'Content-Type': 'application/json',
-        'Authorization': `${this._tokenType || 'O-Bearer'} ${bearer}`,
+        'Authorization': `Bearer ${bearer}`,
         'X-CLIENT-ID': this.clientId,
         'X-CLIENT-VERSION': this.clientVersion,
+        'X-MERCHANT-ID': this.merchantId,
         'accept': 'application/json'
       };
       // For OAuth JSON flow, X-VERIFY is not required. If provided, API can misinterpret body.
