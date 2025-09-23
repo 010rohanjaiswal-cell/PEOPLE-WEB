@@ -175,7 +175,7 @@ const getAssignedJobs = async (req, res) => {
     // Get jobs from MongoDB where this freelancer is assigned
     const allJobs = await databaseService.getAllJobs();
     const assignedJobs = allJobs.filter(job => 
-      (job.status === 'assigned' || job.status === 'work_done') && 
+      (job.status === 'assigned' || job.status === 'work_done' || job.status === 'completed') && 
       job.assignedFreelancer && 
       String(job.assignedFreelancer.id) === freelancerId
     );
@@ -194,6 +194,22 @@ const getAssignedJobs = async (req, res) => {
       success: false,
       message: 'Failed to fetch assigned jobs'
     });
+  }
+};
+
+// Get freelancer order history (completed/fully_completed)
+const getOrderHistory = async (req, res) => {
+  try {
+    const freelancerId = String(req.user._id);
+    const allJobs = await databaseService.getAllJobs();
+    const orders = allJobs.filter(job => 
+      (job.status === 'completed' || job.status === 'fully_completed') &&
+      job.assignedFreelancer && String(job.assignedFreelancer.id) === freelancerId
+    );
+    res.json({ success: true, data: orders });
+  } catch (error) {
+    console.error('Order history error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch order history' });
   }
 };
 

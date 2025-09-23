@@ -10,6 +10,7 @@ router.get('/wallet', authMiddleware.verifyToken, freelancerController.getWallet
 router.post('/request-withdrawal', authMiddleware.verifyToken, freelancerController.requestWithdrawal);
 router.get('/withdrawal-history', authMiddleware.verifyToken, freelancerController.getWithdrawalHistory);
 router.get('/assigned-jobs', authMiddleware.verifyToken, freelancerController.getAssignedJobs);
+router.get('/orders', authMiddleware.verifyToken, freelancerController.getOrderHistory);
 router.post('/pickup-job/:jobId', authMiddleware.verifyToken, freelancerController.pickupJob);
 router.post('/make-offer/:jobId', authMiddleware.verifyToken, freelancerController.makeOffer);
 router.get('/cooldown-status/:jobId', authMiddleware.verifyToken, freelancerController.checkCooldownStatus);
