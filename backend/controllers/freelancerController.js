@@ -274,21 +274,21 @@ const markJobFullyComplete = async (req, res) => {
       });
     }
 
-    // Update job status to fully completed
-    job.status = 'fully_completed';
-    job.fullyCompletedAt = new Date().toISOString();
-    job.fullyCompletedBy = freelancerId;
+    // Update job status to fully completed in MongoDB
+    const updateData = {
+      status: 'fully_completed',
+      fullyCompletedAt: new Date(),
+      fullyCompletedBy: freelancerId
+    };
+    const updatedJob = await databaseService.updateJob(jobId, updateData);
 
     console.log('✅ markJobFullyComplete - job marked as fully completed');
-    console.log('✅ markJobFullyComplete - fully completed at:', job.fullyCompletedAt);
-    
-    // Save to file for persistence
-    saveJobsToFile();
+    console.log('✅ markJobFullyComplete - fully completed at:', updatedJob.fullyCompletedAt);
 
     res.json({
       success: true,
       message: 'Job marked as fully completed successfully',
-      job: job
+      job: updatedJob
     });
 
   } catch (error) {

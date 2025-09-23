@@ -39,7 +39,7 @@ const jobSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'assigned', 'in-progress', 'work_done', 'completed', 'cancelled'],
+    enum: ['open', 'assigned', 'in-progress', 'work_done', 'completed', 'fully_completed', 'cancelled'],
     default: 'open',
     index: true
   },
@@ -75,6 +75,13 @@ const jobSchema = new mongoose.Schema({
   },
   completedAt: {
     type: Date
+  },
+  fullyCompletedAt: {
+    type: Date
+  },
+  fullyCompletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   offers: [{
     freelancerId: {
