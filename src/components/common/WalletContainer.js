@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './Card';
 import { Button } from './Button';
 import { Wallet, CreditCard, TrendingUp, History, RefreshCw } from 'lucide-react';
 
-const WalletContainer = ({ user, onRefresh }) => {
+const WalletContainer = ({ user, onRefresh, balance, transactions }) => {
   const [walletData, setWalletData] = useState({
     balance: 0,
     transactions: [],
@@ -15,14 +15,14 @@ const WalletContainer = ({ user, onRefresh }) => {
   // Mock wallet data for testing
   useEffect(() => {
     if (user) {
-      // Simulate wallet data
-      setWalletData({
-        balance: 0, // Will be updated when payments are made
-        transactions: [],
+      setWalletData(prev => ({
+        ...prev,
+        balance: typeof balance === 'number' ? balance : prev.balance,
+        transactions: Array.isArray(transactions) ? transactions : prev.transactions,
         loading: false
-      });
+      }));
     }
-  }, [user]);
+  }, [user, balance, transactions]);
 
   // Listen for wallet update events
   useEffect(() => {

@@ -36,6 +36,7 @@ const FreelancerDashboard = () => {
   const [assignedJobs, setAssignedJobs] = useState([]);
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletTransactions, setWalletTransactions] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [freelancerId, setFreelancerId] = useState(null);
   const [showCommissionLedger, setShowCommissionLedger] = useState(false);
   const [commissionStatus, setCommissionStatus] = useState({});
@@ -101,10 +102,11 @@ const FreelancerDashboard = () => {
   const loadFreelancerData = async () => {
     try {
       setLoading(true);
-      const [jobsRes, assignedRes, walletRes] = await Promise.all([
+      const [jobsRes, assignedRes, walletRes, ordersRes] = await Promise.all([
         freelancerService.getAvailableJobs(),
         freelancerService.getAssignedJobs(),
-        freelancerService.getWallet()
+        freelancerService.getWallet(),
+        freelancerService.getOrders()
       ]);
       
       console.log('📋 loadFreelancerData - assignedRes:', assignedRes);
@@ -115,6 +117,7 @@ const FreelancerDashboard = () => {
       setWalletBalance(walletRes.data?.balance || 0);
       setFreelancerId(walletRes.data?.freelancerId || null);
       setWalletTransactions(walletRes.data?.transactions || []);
+      setOrders(ordersRes.data || []);
       
       // Check commission status for completed jobs and work status
       setTimeout(() => {
@@ -394,6 +397,7 @@ const FreelancerDashboard = () => {
     { id: 'available-jobs', label: 'Available Jobs', icon: Briefcase },
     { id: 'assigned-jobs', label: 'My Jobs', icon: CheckCircle },
     { id: 'wallet', label: 'Wallet', icon: Wallet },
+    { id: 'orders', label: 'Orders', icon: CheckCircle },
     { id: 'profile', label: 'Profile', icon: User }
   ];
 
@@ -677,7 +681,7 @@ const FreelancerDashboard = () => {
   const renderWallet = () => (
     <div className="space-y-6">
       {/* Wallet Container */}
-      <WalletContainer user={user} onRefresh={loadFreelancerData} />
+      <WalletContainer user={user} onRefresh={loadFreelancerData} balance={walletBalance} transactions={walletTransactions} />
 
       {/* Withdrawal Form */}
       <Card>
@@ -769,6 +773,45 @@ const FreelancerDashboard = () => {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+
+  const renderOrders = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Orders</h2>
+        <Button onClick={loadFreelancerData} variant="outline">Refresh</Button>
+      </div>
+      {orders.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-8">
+            <CheckCircle className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-500">No orders yet</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {orders.map(job => (
+            <Card key={job.id}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">{job.title}</CardTitle>
+                  <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">{job.status}</span>
+                </div>
+                <CardDescription>{job.description || 'No description provided'}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center space-x-4">
+                    <span>₹{job.budget}</span>
+                    {job.paidAt && <span>Paid: {new Date(job.paidAt).toLocaleDateString()}</span>}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -932,6 +975,7 @@ const FreelancerDashboard = () => {
         {activeTab === 'assigned-jobs' && renderAssignedJobs()}
         {activeTab === 'wallet' && renderWallet()}
         {activeTab === 'profile' && renderProfile()}
+        {activeTab === 'orders' && renderOrders()}
       </div>
 
       {/* Make Offer Modal */}

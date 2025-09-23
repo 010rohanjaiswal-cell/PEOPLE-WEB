@@ -239,6 +239,16 @@ export const freelancerService = {
     }
   },
 
+  // Get completed/fully completed orders
+  getOrders: async () => {
+    try {
+      const response = await api.get('/freelancer/orders');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
   // Pick up a job (direct assignment)
   pickupJob: async (jobId) => {
     try {
