@@ -361,6 +361,107 @@ const debugFreelancerWallet = async (req, res) => {
   }
 };
 
+// Fix missing wallet transactions
+const fixWalletTransactions = async (req, res) => {
+  try {
+    const { freelancerId } = req.params;
+    const User = require('../models/User');
+    const databaseService = require('../services/databaseService');
+    
+    console.log('🔧 Fixing wallet transactions for freelancer:', freelancerId);
+    
+    // Find freelancer
+    let freelancer = await User.findById(freelancerId);
+    if (!freelancer) {
+      freelancer = await User.findOne({ _id: freelancerId });
+    }
+    if (!freelancer) {
+      freelancer = await User.findOne({ freelancerId: freelancerId });
+    }
+    
+    if (!freelancer) {
+      return res.json({
+        success: false,
+        message: 'Freelancer not found',
+        freelancerId: freelancerId
+      });
+    }
+    
+    // Get all completed jobs for this freelancer
+    const allJobs = await databaseService.getAllJobs();
+    const completedJobs = allJobs.filter(job => 
+      (job.status === 'completed' || job.status === 'fully_completed') &&
+      job.assignedFreelancer && 
+      String(job.assignedFreelancer.id) === String(freelancerId)
+    );
+    
+    console.log('📋 Found completed jobs:', completedJobs.length);
+    
+    // Initialize wallet if it doesn't exist
+    if (!freelancer.wallet) {
+      freelancer.wallet = { balance: 0, totalEarnings: 0, transactions: [] };
+    }
+    
+    // Clear existing transactions and rebuild
+    freelancer.wallet.transactions = [];
+    let totalCredited = 0;
+    
+    // Add transactions for each completed job
+    for (const job of completedJobs) {
+      const jobAmount = job.budget || 0;
+      const freelancerAmount = Math.round(jobAmount * 0.9 * 100) / 100;
+      const commission = Math.round(jobAmount * 0.1 * 100) / 100;
+      
+      const transaction = {
+        id: 'txn-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+        type: 'credit',
+        amount: freelancerAmount,
+        description: `Payment for job: ${job.title}`,
+        clientName: job.clientName || 'Unknown Client',
+        jobId: job.id,
+        totalAmount: jobAmount,
+        commission: commission,
+        paymentOrderId: job.paymentOrderId || `ORDER_${job.id}_${Date.now()}`,
+        createdAt: job.paidAt || job.fullyCompletedAt || job.updatedAt || new Date().toISOString()
+      };
+      
+      freelancer.wallet.transactions.unshift(transaction);
+      totalCredited += freelancerAmount;
+    }
+    
+    // Update wallet totals
+    freelancer.wallet.balance = totalCredited;
+    freelancer.wallet.totalEarnings = totalCredited;
+    
+    await freelancer.save();
+    
+    console.log('✅ Fixed wallet transactions:', {
+      freelancerId: freelancer._id,
+      transactionCount: freelancer.wallet.transactions.length,
+      totalCredited: totalCredited
+    });
+    
+    res.json({
+      success: true,
+      message: 'Wallet transactions fixed successfully',
+      data: {
+        freelancerId: freelancer._id,
+        transactionCount: freelancer.wallet.transactions.length,
+        totalCredited: totalCredited,
+        balance: freelancer.wallet.balance
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Fix wallet transactions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fix wallet transactions',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   debugJobs,
   clearJobs,
@@ -370,5 +471,6 @@ module.exports = {
   createTestFreelancer,
   assignJobToFreelancer,
   markWorkDone,
-  debugFreelancerWallet
+  debugFreelancerWallet,
+  fixWalletTransactions
 };

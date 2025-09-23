@@ -25,4 +25,7 @@ router.post('/update-job-status/:jobId', debugController.updateJobStatus);
 // Debug freelancer wallet
 router.get('/freelancer-wallet/:freelancerId', debugController.debugFreelancerWallet);
 
+// Fix missing wallet transactions
+router.post('/fix-wallet-transactions/:freelancerId', debugController.fixWalletTransactions);
+
 module.exports = router;
