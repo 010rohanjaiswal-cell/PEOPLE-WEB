@@ -544,5 +544,6 @@ module.exports = {
   makeOffer,
   checkCooldownStatus,
   markJobComplete,
-  markJobFullyComplete
+  markJobFullyComplete,
+  getOrderHistory
 };
