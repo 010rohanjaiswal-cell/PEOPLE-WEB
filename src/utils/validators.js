@@ -108,7 +108,7 @@ export const jobPostingSchema = yup.object({
   budget: yup
     .number()
     .required('Budget is required')
-    .min(100, 'Minimum budget is ₹100')
+    .min(5, 'Minimum budget is ₹5')
     .max(1000000, 'Maximum budget is ₹10,00,000'),
   category: yup
     .string()

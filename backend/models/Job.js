@@ -26,7 +26,7 @@ const jobSchema = new mongoose.Schema({
   budget: {
     type: Number,
     required: true,
-    min: 0
+    min: 5
   },
   category: {
     type: String,
