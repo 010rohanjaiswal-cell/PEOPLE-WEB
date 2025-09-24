@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useRole } from '../../context/RoleContext';
 import { authService } from '../../api/authService';
 import { clientService } from '../../api/clientService';
 import { userService } from '../../api/userService';
@@ -27,7 +26,6 @@ import {
 
 const ClientDashboard = () => {
   const { user, logout } = useAuth();
-  const { switchRole, canSwitchRole, switchError } = useRole();
   const [activeTab, setActiveTab] = useState('post-job');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -439,24 +437,23 @@ const ClientDashboard = () => {
     }
   };
 
-  const handleRoleSwitch = async () => {
-    console.log('🔄 Client role switch attempt:', {
-      currentUser: user,
-      currentRole: user?.role,
-      canSwitchRole: canSwitchRole,
-      timestamp: new Date().toISOString()
-    });
+  const handleLogout = async () => {
+    // Check if client has any active jobs
+    const hasActiveJobs = activeJobs.some(job => 
+      job.status === 'open' || job.status === 'assigned' || job.status === 'in_progress'
+    );
     
-    if (!canSwitchRole) {
-      setError('You still have an active job. Complete it before switching role.');
+    if (hasActiveJobs) {
+      setError('You cannot logout while you have active jobs. Please complete or cancel your jobs first.');
       return;
     }
-
-    const targetRole = user?.role === 'client' ? 'freelancer' : 'client';
-    console.log('🎯 Computed target role (client UI):', { targetRole });
-    const result = await switchRole(targetRole, authService);
-    if (!result.success) {
-      setError(result.error);
+    
+    try {
+      await authService.logout();
+      logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+      logout(); // Force logout even if API fails
     }
   };
 
@@ -901,27 +898,6 @@ const ClientDashboard = () => {
             <div>
               <Label>Current Role</Label>
               <p className="text-sm text-muted-foreground">Client</p>
-            </div>
-
-            <div>
-              <Label>Switch Role</Label>
-              <div className="flex items-center space-x-2 mt-2">
-                <Button 
-                  variant="outline" 
-                  onClick={handleRoleSwitch}
-                  disabled={!canSwitchRole}
-                >
-                  Switch to Freelancer
-                </Button>
-                {!canSwitchRole && (
-                  <AlertCircle className="w-4 h-4 text-yellow-500" />
-                )}
-              </div>
-              {!canSwitchRole && (
-                <p className="text-sm text-yellow-600 mt-1">
-                  Complete your active jobs before switching roles
-                </p>
-              )}
             </div>
 
             <div>
