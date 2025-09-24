@@ -452,7 +452,9 @@ const ClientDashboard = () => {
       return;
     }
 
-    const result = await switchRole('freelancer', authService);
+    const targetRole = user?.role === 'client' ? 'freelancer' : 'client';
+    console.log('🎯 Computed target role (client UI):', { targetRole });
+    const result = await switchRole(targetRole, authService);
     if (!result.success) {
       setError(result.error);
     }

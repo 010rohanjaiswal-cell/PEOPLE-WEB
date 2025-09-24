@@ -393,7 +393,9 @@ const FreelancerDashboard = () => {
       return;
     }
 
-    const result = await switchRole('client', authService);
+    const targetRole = user?.role === 'freelancer' ? 'client' : 'freelancer';
+    console.log('🎯 Computed target role (freelancer UI):', { targetRole });
+    const result = await switchRole(targetRole, authService);
     if (!result.success) {
       setError(result.error);
     }
