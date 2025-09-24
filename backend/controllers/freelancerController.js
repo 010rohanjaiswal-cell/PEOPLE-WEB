@@ -114,34 +114,38 @@ const getWallet = async (req, res) => {
   }
 };
 
-// Request withdrawal
+// Request withdrawal (persist)
+const Withdrawal = require('../models/Withdrawal');
 const requestWithdrawal = async (req, res) => {
   try {
     const user = req.user;
     const { amount, upiId } = req.body;
 
-    if (user.wallet.balance < amount) {
-      return res.status(400).json({
-        success: false,
-        message: 'Insufficient balance'
-      });
+    const numericAmount = Number(amount);
+    if (!numericAmount || numericAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid amount' });
+    }
+    if (!upiId || typeof upiId !== 'string') {
+      return res.status(400).json({ success: false, message: 'UPI ID is required' });
     }
 
-    // In a real implementation, you'd create a withdrawal request record
-    console.log('💰 Withdrawal request:', { userId: user._id, amount, upiId });
+    if ((user.wallet?.balance || 0) < numericAmount) {
+      return res.status(400).json({ success: false, message: 'Insufficient balance' });
+    }
 
-    res.json({
-      success: true,
-      message: 'Withdrawal request submitted successfully',
-      requestId: 'req_' + Date.now()
+    const wr = await Withdrawal.create({
+      userId: user._id,
+      role: user.role,
+      amount: numericAmount,
+      upiId,
+      status: 'pending'
     });
+
+    return res.json({ success: true, message: 'Withdrawal request submitted successfully', request: wr });
 
   } catch (error) {
     console.error('Withdrawal request error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to submit withdrawal request'
-    });
+    return res.status(500).json({ success: false, message: 'Failed to submit withdrawal request', error: error.message });
   }
 };
 
@@ -149,19 +153,14 @@ const requestWithdrawal = async (req, res) => {
 const getWithdrawalHistory = async (req, res) => {
   try {
     const user = req.user;
-
-    // In a real implementation, you'd fetch from a withdrawals collection
-    res.json({
-      success: true,
-      data: []
-    });
-
+    const items = await Withdrawal.find({ userId: user._id })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+    return res.json({ success: true, data: items });
   } catch (error) {
     console.error('Withdrawal history error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch withdrawal history'
-    });
+    return res.status(500).json({ success: false, message: 'Failed to fetch withdrawal history' });
   }
 };
 

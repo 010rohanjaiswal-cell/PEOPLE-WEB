@@ -114,21 +114,18 @@ const rejectFreelancer = async (req, res) => {
   }
 };
 
-// Get withdrawal requests
+// Get withdrawal requests (pending)
+const Withdrawal = require('../models/Withdrawal');
 const getWithdrawalRequests = async (req, res) => {
   try {
-    // In a real implementation, you'd fetch from a withdrawals collection
-    res.json({
-      success: true,
-      data: []
-    });
-
+    const items = await Withdrawal.find({ status: 'pending' })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+    res.json({ success: true, data: items });
   } catch (error) {
     console.error('Get withdrawal requests error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch withdrawal requests'
-    });
+    res.status(500).json({ success: false, message: 'Failed to fetch withdrawal requests' });
   }
 };
 
