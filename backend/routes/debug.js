@@ -28,4 +28,7 @@ router.get('/freelancer-wallet/:freelancerId', debugController.debugFreelancerWa
 // Fix missing wallet transactions
 router.post('/fix-wallet-transactions/:freelancerId', debugController.fixWalletTransactions);
 
+// Debug user role
+router.get('/user-role/:userId', debugController.debugUserRole);
+
 module.exports = router;

@@ -462,6 +462,59 @@ const fixWalletTransactions = async (req, res) => {
   }
 };
 
+// Debug user role
+const debugUserRole = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const User = require('../models/User');
+    
+    console.log('🔍 Debug user role for ID:', userId);
+    
+    // Try to find user by different methods
+    let user = await User.findById(userId);
+    if (!user) {
+      user = await User.findOne({ _id: userId });
+    }
+    if (!user) {
+      user = await User.findOne({ firebaseUid: userId });
+    }
+    
+    if (!user) {
+      return res.json({
+        success: false,
+        message: 'User not found',
+        userId: userId
+      });
+    }
+    
+    const userData = {
+      userId: user._id,
+      firebaseUid: user.firebaseUid,
+      phone: user.phoneNumber,
+      fullName: user.fullName,
+      role: user.role,
+      profileSetupCompleted: user.profileSetupCompleted,
+      verificationStatus: user.verificationStatus
+    };
+    
+    console.log('👤 User role data:', userData);
+    
+    res.json({
+      success: true,
+      message: 'User role data retrieved',
+      data: userData
+    });
+    
+  } catch (error) {
+    console.error('❌ Debug user role error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to debug user role',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   debugJobs,
   clearJobs,
@@ -472,5 +525,6 @@ module.exports = {
   assignJobToFreelancer,
   markWorkDone,
   debugFreelancerWallet,
-  fixWalletTransactions
+  fixWalletTransactions,
+  debugUserRole
 };
