@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { freelancerService } from '../../api/freelancerService';
 import { Card, CardContent, CardHeader, CardTitle } from './Card';
 import { Button } from './Button';
 import { Input } from './Input';
@@ -145,8 +146,9 @@ const WalletContainer = ({ user, onRefresh, balance, transactions, withdrawals =
     if (!withdrawalForm.amount || !withdrawalForm.upiId) return;
     try {
       setWithdrawing(true);
-      // Delegate to parent refresh hook after server processes via dashboard handler
-      // We keep UI merged: ask parent to refresh after short delay
+      const res = await freelancerService.requestWithdrawal({ amount: withdrawalForm.amount, upiId: withdrawalForm.upiId });
+      console.log('💸 WalletContainer - withdrawal submit result:', res);
+      // Ask parent to refresh to pull latest history
       if (onRefresh) await onRefresh();
       setWithdrawalForm({ amount: '', upiId: '' });
     } finally {
