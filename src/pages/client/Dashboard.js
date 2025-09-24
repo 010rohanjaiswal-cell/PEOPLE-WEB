@@ -8,7 +8,7 @@ import { Button } from '../../components/common/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Label } from '../../components/common/Label';
-import DebugPanel from '../../components/debug/DebugPanel';
+// DebugPanel removed
 import PayCashModal from '../../components/modals/PayCashModal';
 import { 
   Plus, 
@@ -453,8 +453,7 @@ const ClientDashboard = () => {
     { id: 'post-job', label: 'Post Job', icon: Plus },
     { id: 'my-jobs', label: 'My Jobs', icon: Briefcase },
     { id: 'history', label: 'History', icon: History },
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'debug', label: 'Debug', icon: Bug }
+    { id: 'profile', label: 'Profile', icon: User }
   ];
 
   const categories = [
@@ -846,7 +845,12 @@ const ClientDashboard = () => {
                     </span>
                     <span className="flex items-center">
                       <Clock className="w-4 h-4 mr-1" />
-                      Completed on {new Date(job.completedAt).toLocaleDateString()}
+                      {(() => {
+                        const completedDate = job.fullyCompletedAt || job.completedAt || job.paidAt || job.updatedAt || job.createdAt;
+                        const dateObj = completedDate ? new Date(completedDate) : null;
+                        const isValid = dateObj && !isNaN(dateObj.getTime());
+                        return `Completed on ${isValid ? dateObj.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}`;
+                      })()}
                     </span>
                   </div>
                 </div>
@@ -969,7 +973,7 @@ const ClientDashboard = () => {
         {activeTab === 'my-jobs' && renderMyJobs()}
         {activeTab === 'history' && renderHistory()}
         {activeTab === 'profile' && renderProfile()}
-        {activeTab === 'debug' && <DebugPanel />}
+        {/* Debug panel removed */}
 
         {/* Offers Modal */}
         {activeJobOffers && (
