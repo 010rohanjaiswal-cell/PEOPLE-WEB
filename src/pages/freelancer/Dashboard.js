@@ -47,6 +47,9 @@ const FreelancerDashboard = () => {
   // Debug: pickup logs
   const [pickupDebugLogs, setPickupDebugLogs] = useState([]);
   const [showPickupDebug, setShowPickupDebug] = useState(true);
+  // Debug: withdrawals
+  const [showWithdrawalDebug, setShowWithdrawalDebug] = useState(true);
+  const [withdrawalDebug, setWithdrawalDebug] = useState({ lastPost: null, lastHistory: null });
 
   // Check cooldown status for all jobs when component loads
   useEffect(() => {
@@ -119,6 +122,7 @@ const FreelancerDashboard = () => {
       setWalletTransactions(walletRes.data?.transactions || []);
       setOrders(ordersRes.data || []);
       setWithdrawalHistory(wdRes.data || []);
+      setWithdrawalDebug(prev => ({ ...prev, lastHistory: wdRes }));
       
       console.log('💰 Dashboard - wallet data:', {
         balance: walletRes.data?.balance,
@@ -351,6 +355,7 @@ const FreelancerDashboard = () => {
         if (result.request) {
           setWithdrawalHistory(prev => [result.request, ...(prev || [])]);
         }
+        setWithdrawalDebug(prev => ({ ...prev, lastPost: result }));
         loadFreelancerData(); // Refresh data from server
         setError('');
       } else {
@@ -750,6 +755,37 @@ const FreelancerDashboard = () => {
 
   const renderWallet = () => (
     <div className="space-y-6">
+      {/* Withdrawal Debug Panel */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-sm">Withdrawal Debug</CardTitle>
+          <Button size="sm" variant="ghost" onClick={() => setShowWithdrawalDebug(v => !v)}>
+            {showWithdrawalDebug ? 'Hide' : 'Show'}
+          </Button>
+        </CardHeader>
+        {showWithdrawalDebug && (
+          <CardContent>
+            <div className="text-xs space-y-2">
+              <div><span className="font-semibold">Form:</span> {JSON.stringify(withdrawalForm)}</div>
+              <div><span className="font-semibold">Last POST result:</span> {JSON.stringify(withdrawalDebug.lastPost)}</div>
+              <div><span className="font-semibold">Last History payload:</span> {JSON.stringify(withdrawalDebug.lastHistory)}</div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={async () => {
+                  try {
+                    const res = await freelancerService.getWithdrawalHistory();
+                    setWithdrawalHistory(res.data || []);
+                    setWithdrawalDebug(prev => ({ ...prev, lastHistory: res }));
+                  } catch (err) {
+                    console.error('Debug refresh withdrawal history error:', err);
+                  }
+                }}>Refresh History</Button>
+                <Button size="sm" variant="outline" onClick={loadFreelancerData}>Reload All</Button>
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       <WalletContainer 
         user={user} 
         onRefresh={loadFreelancerData} 
