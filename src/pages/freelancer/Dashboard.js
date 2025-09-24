@@ -347,7 +347,11 @@ const FreelancerDashboard = () => {
       const result = await freelancerService.requestWithdrawal(withdrawalForm);
       if (result.success) {
         setWithdrawalForm({ amount: '', upiId: '' });
-        loadFreelancerData(); // Refresh data
+        // Optimistically add to recent withdrawals for instant feedback
+        if (result.request) {
+          setWithdrawalHistory(prev => [result.request, ...(prev || [])]);
+        }
+        loadFreelancerData(); // Refresh data from server
         setError('');
       } else {
         setError(result.message || 'Withdrawal request failed');
