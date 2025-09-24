@@ -122,15 +122,6 @@ const ClientDashboard = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await authService.logout();
-      logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-      logout(); // Force logout even if API fails
-    }
-  };
 
   const handleDeleteJob = async (jobId) => {
     if (!window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
@@ -445,6 +436,7 @@ const ClientDashboard = () => {
     
     if (hasActiveJobs) {
       setError('You cannot logout while you have active jobs. Please complete or cancel your jobs first.');
+      setTimeout(() => setError(''), 5000);
       return;
     }
     
@@ -966,9 +958,9 @@ const ClientDashboard = () => {
         </div>
 
         {/* Error Display */}
-        {(error || switchError) && (
+        {error && (
           <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
-            <p className="text-sm text-destructive">{error || switchError}</p>
+            <p className="text-sm text-destructive">{error}</p>
           </div>
         )}
 

@@ -383,6 +383,7 @@ const FreelancerDashboard = () => {
     
     if (hasActiveJobs) {
       setError('You cannot logout while you have active jobs. Please complete your jobs first.');
+      setTimeout(() => setError(''), 5000);
       return;
     }
     
@@ -874,9 +875,9 @@ const FreelancerDashboard = () => {
         </div>
 
         {/* Error Display */}
-        {(error || switchError) && (
+        {error && (
           <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
-            <p className="text-sm text-destructive">{error || switchError}</p>
+            <p className="text-sm text-destructive">{error}</p>
           </div>
         )}
 
