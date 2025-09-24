@@ -404,6 +404,10 @@ const FreelancerDashboard = () => {
     { id: 'profile', label: 'Profile', icon: User }
   ];
 
+  // Filters state for Available Jobs
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [sortBy, setSortBy] = useState('newest'); // newest | oldest | price_desc | price_asc
+
   const renderAvailableJobs = () => (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -411,6 +415,41 @@ const FreelancerDashboard = () => {
         <Button onClick={loadFreelancerData} variant="outline">
           Refresh
         </Button>
+      </div>
+
+      {/* Filters */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="md:col-span-2 flex items-center gap-3">
+          <label className="text-sm text-gray-600">Category</label>
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          >
+            {/* Build category list: All + known list + dynamic from data */}
+            {(() => {
+              const known = ['All','Delivery','Cooking','Cleaning','Plumbing','Electrical','Mechanic','Driver','Care taker','Tailor','Barber','Laundry','Other'];
+              const dynamic = Array.from(new Set((availableJobs || []).map(j => j.category).filter(Boolean)));
+              const merged = Array.from(new Set([...known, ...dynamic]));
+              return merged.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ));
+            })()}
+          </select>
+        </div>
+        <div className="flex items-center gap-3 justify-start md:justify-end">
+          <label className="text-sm text-gray-600">Sort</label>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          >
+            <option value="price_desc">High price → Low</option>
+            <option value="price_asc">Low price → High</option>
+            <option value="newest">New → Old</option>
+            <option value="oldest">Old → New</option>
+          </select>
+        </div>
       </div>
 
       {/* Debug visibility marker */}
@@ -472,7 +511,27 @@ const FreelancerDashboard = () => {
         </Card>
       ) : (
         <div className="grid gap-4">
-          {availableJobs.map(job => {
+          {(() => {
+            // Apply category filter
+            let list = availableJobs.slice();
+            if (filterCategory && filterCategory !== 'All') {
+              list = list.filter(j => (j.category || '') === filterCategory);
+            }
+
+            // Apply sort
+            list.sort((a, b) => {
+              const aPrice = Number(a.budget) || 0;
+              const bPrice = Number(b.budget) || 0;
+              const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+              const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+              if (sortBy === 'price_desc') return bPrice - aPrice;
+              if (sortBy === 'price_asc') return aPrice - bPrice;
+              if (sortBy === 'oldest') return aTime - bTime;
+              // default newest
+              return bTime - aTime;
+            });
+
+            return list.map(job => {
             console.log('🔍 Job data:', job); // Debug log
             return (
             <Card key={job.id}>
@@ -540,7 +599,8 @@ const FreelancerDashboard = () => {
               </CardContent>
             </Card>
             );
-          })}
+            });
+          })()}
         </div>
       )}
     </div>
