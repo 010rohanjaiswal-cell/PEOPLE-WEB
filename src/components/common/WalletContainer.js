@@ -5,7 +5,7 @@ import { Input } from './Input';
 import { Label } from './Label';
 import { Wallet, RefreshCw } from 'lucide-react';
 
-const WalletContainer = ({ user, onRefresh, balance, transactions }) => {
+const WalletContainer = ({ user, onRefresh, balance, transactions, withdrawals = [] }) => {
   const [walletData, setWalletData] = useState({
     balance: 0,
     transactions: [],
@@ -304,6 +304,43 @@ const WalletContainer = ({ user, onRefresh, balance, transactions }) => {
                       Total: ₹{transaction.totalAmount} | Commission: ₹{transaction.commission}
                     </div>
                   )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Recent Withdrawal Requests */}
+      <Card className="border-gray-200 bg-gray-50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-gray-800">Recent Withdrawal Requests</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(!withdrawals || withdrawals.length === 0) ? (
+            <div className="text-center py-8 text-gray-600">
+              <Wallet className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No withdrawal requests yet</p>
+              <p className="text-sm opacity-75">Submit a request above to see it here</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {withdrawals.map((wr) => (
+                <div key={wr._id || wr.id} className="bg-white rounded-lg p-4 border border-gray-200">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        UPI: {wr.upiId}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {formatDate(wr.createdAt || wr.requestedAt)}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">₹{Math.round((wr.amount || 0))}</div>
+                      <div className="text-xs capitalize text-gray-600">{wr.status || 'pending'}</div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

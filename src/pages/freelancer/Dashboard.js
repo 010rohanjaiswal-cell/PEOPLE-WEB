@@ -35,6 +35,7 @@ const FreelancerDashboard = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [withdrawalHistory, setWithdrawalHistory] = useState([]);
   const [freelancerId, setFreelancerId] = useState(null);
   const [showCommissionLedger, setShowCommissionLedger] = useState(false);
   const [commissionStatus, setCommissionStatus] = useState({});
@@ -100,11 +101,12 @@ const FreelancerDashboard = () => {
   const loadFreelancerData = async () => {
     try {
       setLoading(true);
-      const [jobsRes, assignedRes, walletRes, ordersRes] = await Promise.all([
+      const [jobsRes, assignedRes, walletRes, ordersRes, wdRes] = await Promise.all([
         freelancerService.getAvailableJobs(),
         freelancerService.getAssignedJobs(),
         freelancerService.getWallet(),
-        freelancerService.getOrders()
+        freelancerService.getOrders(),
+        freelancerService.getWithdrawalHistory()
       ]);
       
       console.log('📋 loadFreelancerData - assignedRes:', assignedRes);
@@ -116,6 +118,7 @@ const FreelancerDashboard = () => {
       setFreelancerId(walletRes.data?.freelancerId || null);
       setWalletTransactions(walletRes.data?.transactions || []);
       setOrders(ordersRes.data || []);
+      setWithdrawalHistory(wdRes.data || []);
       
       console.log('💰 Dashboard - wallet data:', {
         balance: walletRes.data?.balance,
@@ -747,7 +750,8 @@ const FreelancerDashboard = () => {
         user={user} 
         onRefresh={loadFreelancerData} 
         balance={walletBalance} 
-        transactions={walletTransactions} 
+        transactions={walletTransactions}
+        withdrawals={withdrawalHistory}
       />
     </div>
   );
