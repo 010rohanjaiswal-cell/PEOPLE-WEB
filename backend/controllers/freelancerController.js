@@ -603,7 +603,8 @@ const payDues = async (req, res) => {
       orderId,
       amount: unpaidCommission,
       status: 'pending',
-      createdAt: new Date()
+      createdAt: new Date(),
+      phonepeOrderId: paymentResult.phonepeOrderId || null
     });
     await fresh.save();
 

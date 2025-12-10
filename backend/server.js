@@ -543,6 +543,122 @@ app.post('/payment/process/:orderId', async (req, res) => {
   }
 });
 
+// Process dues payment by PhonePe transaction ID
+app.post('/payment/process-dues/:phonepeTransactionId', async (req, res) => {
+  try {
+    const { phonepeTransactionId } = req.params;
+    console.log('🔄 Processing dues payment for PhonePe transaction:', phonepeTransactionId);
+    
+    const User = require('./models/User');
+    const paymentService = require('./services/paymentService');
+    
+    // Verify payment with PhonePe
+    const verificationResult = await paymentService.verifyPayment(phonepeTransactionId);
+    
+    if (!verificationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment verification failed',
+        error: verificationResult.error
+      });
+    }
+    
+    const paymentData = verificationResult.data?.data || verificationResult.data;
+    const paymentStatus = paymentData?.state || paymentData?.status;
+    
+    if (paymentStatus !== 'SUCCESS' && paymentStatus !== 'success') {
+      return res.status(400).json({
+        success: false,
+        message: `Payment not successful. Status: ${paymentStatus}`
+      });
+    }
+    
+    // Find user with pending dues payment matching this PhonePe transaction
+    // We'll search for users with pending dues payments
+    const users = await User.find({
+      'wallet.duesPayments': { $exists: true, $ne: [] }
+    });
+    
+    let processed = false;
+    let processedUserId = null;
+    
+    for (const user of users) {
+      const wallet = user.wallet || {};
+      const duesPayments = wallet.duesPayments || [];
+      
+      // Find pending dues payment
+      const pendingPayment = duesPayments.find(dp => dp.status === 'pending');
+      
+      if (pendingPayment) {
+        // Check if the amount matches (optional verification)
+        const orderId = pendingPayment.orderId;
+        
+        // Process the dues payment
+        const transactions = Array.isArray(wallet.transactions) ? wallet.transactions : [];
+        let duesPaidCount = 0;
+        let totalDuesPaid = 0;
+        
+        transactions.forEach(tx => {
+          if (tx.commission && tx.commission > 0 && !tx.duesPaid) {
+            tx.duesPaid = true;
+            tx.duesPaidAt = new Date().toISOString();
+            tx.duesPaymentOrderId = orderId;
+            tx.phonepeTransactionId = phonepeTransactionId;
+            duesPaidCount++;
+            totalDuesPaid += tx.commission || 0;
+          }
+        });
+        
+        // Update dues payment status
+        const duesPaymentIndex = duesPayments.findIndex(dp => dp.orderId === orderId);
+        if (duesPaymentIndex !== -1) {
+          duesPayments[duesPaymentIndex].status = 'completed';
+          duesPayments[duesPaymentIndex].completedAt = new Date();
+          duesPayments[duesPaymentIndex].phonepeTransactionId = phonepeTransactionId;
+        }
+        
+        await user.save();
+        
+        processed = true;
+        processedUserId = user._id;
+        
+        console.log('✅ Dues payment processed:', {
+          userId: user._id,
+          orderId,
+          phonepeTransactionId,
+          duesPaidCount,
+          totalDuesPaid
+        });
+        
+        break;
+      }
+    }
+    
+    if (!processed) {
+      return res.status(404).json({
+        success: false,
+        message: 'No pending dues payment found to process'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Dues payment processed successfully',
+      phonepeTransactionId,
+      userId: processedUserId,
+      paymentStatus
+    });
+    
+  } catch (error) {
+    console.error('❌ Error processing dues payment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process dues payment',
+      error: error.message
+    });
+  }
+});
+
 // Payment callback endpoint (for PhonePe redirects)
 app.post('/payment/callback', (req, res) => {
   try {

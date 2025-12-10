@@ -172,7 +172,7 @@ class PaymentService {
           type: 'PG_CHECKOUT',
           message: 'Payment for job',
           merchantUrls: {
-            redirectUrl: `${this.frontendUrl}/payment/success`
+            redirectUrl: `${this.frontendUrl}/freelancer/dashboard?tab=wallet&payment=success`
           }
         },
         // Optional but recommended
