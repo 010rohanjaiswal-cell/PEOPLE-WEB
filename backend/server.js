@@ -543,6 +543,112 @@ app.post('/payment/process/:orderId', async (req, res) => {
   }
 });
 
+// Process dues payment by order ID (DUES_userId_timestamp format)
+app.post('/payment/process-dues-order/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    console.log('🔄 Processing dues payment for order ID:', orderId);
+    
+    if (!orderId || !orderId.startsWith('DUES_')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID format. Expected format: DUES_userId_timestamp'
+      });
+    }
+    
+    const User = require('./models/User');
+    const orderParts = orderId.split('_');
+    
+    if (orderParts.length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID format'
+      });
+    }
+    
+    const userId = orderParts[1];
+    
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found', orderId });
+      }
+
+      const wallet = user.wallet || { balance: 0, transactions: [] };
+      const transactions = Array.isArray(wallet.transactions) ? wallet.transactions : [];
+
+      // Check if dues are already paid
+      const alreadyPaid = transactions.every(tx => 
+        !tx.commission || tx.commission <= 0 || tx.duesPaid
+      );
+      
+      if (alreadyPaid) {
+        return res.json({
+          success: true,
+          message: 'Dues already paid',
+          orderId,
+          alreadyPaid: true
+        });
+      }
+
+      // Mark all unpaid commission transactions as paid
+      let duesPaidCount = 0;
+      let totalDuesPaid = 0;
+      
+      transactions.forEach(tx => {
+        if (tx.commission && tx.commission > 0 && !tx.duesPaid) {
+          tx.duesPaid = true;
+          tx.duesPaidAt = new Date().toISOString();
+          tx.duesPaymentOrderId = orderId;
+          duesPaidCount++;
+          totalDuesPaid += tx.commission || 0;
+        }
+      });
+
+      // Update dues payment status
+      if (wallet.duesPayments && Array.isArray(wallet.duesPayments)) {
+        const duesPayment = wallet.duesPayments.find(dp => dp.orderId === orderId);
+        if (duesPayment) {
+          duesPayment.status = 'completed';
+          duesPayment.completedAt = new Date();
+        }
+      }
+
+      await user.save();
+
+      console.log('✅ Dues payment processed by order ID:', {
+        userId,
+        orderId,
+        duesPaidCount,
+        totalDuesPaid
+      });
+
+      return res.json({
+        success: true,
+        message: 'Dues payment processed successfully',
+        orderId,
+        userId,
+        duesPaidCount,
+        totalDuesPaid
+      });
+    } catch (error) {
+      console.error('❌ Error processing dues payment:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to process dues payment',
+        error: error.message
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error processing dues payment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process dues payment',
+      error: error.message
+    });
+  }
+});
+
 // Process dues payment by PhonePe transaction ID
 app.post('/payment/process-dues/:phonepeTransactionId', async (req, res) => {
   try {

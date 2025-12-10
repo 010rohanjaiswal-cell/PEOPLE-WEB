@@ -608,13 +608,26 @@ const payDues = async (req, res) => {
     });
     await fresh.save();
 
-    res.json({
+    const responseData = {
       success: true,
       message: 'Payment request created successfully',
       paymentUrl: paymentResult.paymentUrl,
-      orderId: paymentResult.orderId || orderId,
+      orderId: orderId, // Always return our order ID
       amount: unpaidCommission
+    };
+    
+    // Add PhonePe order ID if available
+    if (paymentResult.phonepeOrderId) {
+      responseData.phonepeOrderId = paymentResult.phonepeOrderId;
+    }
+    
+    console.log('✅ Dues payment request created:', {
+      orderId,
+      amount: unpaidCommission,
+      hasPaymentUrl: !!paymentResult.paymentUrl
     });
+    
+    res.json(responseData);
 
   } catch (error) {
     console.error('Pay dues error:', error);

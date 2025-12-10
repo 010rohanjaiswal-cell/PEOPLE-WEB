@@ -106,25 +106,44 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
 
     try {
       setPayingDues(true);
+      console.log('🔄 Initiating dues payment...');
       const result = await freelancerService.payDues();
       
-      if (result.success && result.paymentUrl) {
-        // Open PhonePe payment URL in new window
-        window.open(result.paymentUrl, '_blank');
-        
-        // Show success message
-        alert('Payment page opened. Please complete the payment.');
-        
-        // Refresh wallet after a delay to check payment status
-        setTimeout(() => {
-          if (onRefresh) onRefresh();
-        }, 3000);
+      console.log('📋 Payment response:', result);
+      
+      if (result.success) {
+        if (result.paymentUrl) {
+          // Open PhonePe payment URL in new window
+          console.log('🔗 Opening payment URL:', result.paymentUrl);
+          const paymentWindow = window.open(result.paymentUrl, '_blank', 'noopener,noreferrer');
+          
+          if (!paymentWindow) {
+            // Popup blocked - try redirect instead
+            alert('Popup blocked. Redirecting to payment page...');
+            window.location.href = result.paymentUrl;
+            return;
+          }
+          
+          // Show success message with order ID
+          const orderId = result.orderId || 'N/A';
+          alert(`Payment page opened.\n\nOrder ID: ${orderId}\n\nPlease complete the payment and note the Order ID for verification.`);
+          
+          // Refresh wallet after a delay to check payment status
+          setTimeout(() => {
+            if (onRefresh) onRefresh();
+          }, 5000);
+        } else {
+          console.error('❌ No payment URL in response:', result);
+          alert('Payment URL not received. Please check console for details.');
+        }
       } else {
+        console.error('❌ Payment request failed:', result);
         alert(result.message || 'Failed to create payment request');
       }
     } catch (error) {
-      console.error('Error paying dues:', error);
-      alert(error.message || 'Failed to process dues payment');
+      console.error('❌ Error paying dues:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to process dues payment';
+      alert(`Error: ${errorMessage}`);
     } finally {
       setPayingDues(false);
     }
