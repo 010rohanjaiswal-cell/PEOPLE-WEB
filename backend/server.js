@@ -259,6 +259,14 @@ app.use('/api/freelancer', freelancerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/commission', require('./routes/commission'));
+
+// Bulkpe webhook routes (no auth required for webhooks)
+const bulkpeWebhookController = require('./controllers/bulkpeWebhookController');
+app.post('/api/bulkpe/webhook', bulkpeWebhookController.handlePayoutStatusWebhook);
+app.get('/api/bulkpe/status/:transactionId', bulkpeWebhookController.getPayoutStatus);
+
+// Bulkpe test routes (for testing integration)
+app.use('/api/bulkpe/test', require('./routes/bulkpeTest'));
 // Try to load payment routes, but don't fail if unavailable
 try {
   app.use('/api/payment', require('./routes/payment'));
@@ -290,6 +298,71 @@ const processSuccessfulPayment = async (orderId, req, res) => {
     const jobId = jobIdMatch[1];
     console.log('📋 Extracted job ID:', jobId);
     
+    // Check if this is a dues payment
+    if (orderId && orderId.startsWith('DUES_')) {
+      console.log('💰 Processing dues payment for order:', orderId);
+      const User = require('./models/User');
+      const orderParts = orderId.split('_');
+      const userId = orderParts[1];
+      
+      try {
+        const user = await User.findById(userId);
+        if (!user) {
+          return res.json({ success: false, message: 'User not found', orderId });
+        }
+
+        const wallet = user.wallet || { balance: 0, transactions: [] };
+        const transactions = Array.isArray(wallet.transactions) ? wallet.transactions : [];
+
+        // Mark all unpaid commission transactions as paid
+        let duesPaidCount = 0;
+        let totalDuesPaid = 0;
+        
+        transactions.forEach(tx => {
+          if (tx.commission && tx.commission > 0 && !tx.duesPaid) {
+            tx.duesPaid = true;
+            tx.duesPaidAt = new Date().toISOString();
+            tx.duesPaymentOrderId = orderId;
+            duesPaidCount++;
+            totalDuesPaid += tx.commission || 0;
+          }
+        });
+
+        // Update dues payment status
+        if (wallet.duesPayments && Array.isArray(wallet.duesPayments)) {
+          const duesPayment = wallet.duesPayments.find(dp => dp.orderId === orderId);
+          if (duesPayment) {
+            duesPayment.status = 'completed';
+            duesPayment.completedAt = new Date();
+          }
+        }
+
+        await user.save();
+
+        console.log('✅ Dues payment processed:', {
+          userId,
+          orderId,
+          duesPaidCount,
+          totalDuesPaid
+        });
+
+        return res.json({
+          success: true,
+          message: 'Dues payment processed successfully',
+          orderId,
+          duesPaidCount,
+          totalDuesPaid
+        });
+      } catch (error) {
+        console.error('❌ Error processing dues payment:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to process dues payment',
+          orderId
+        });
+      }
+    }
+
     // Try MongoDB first
     const dbService = require('./services/databaseService');
     let job = await dbService.getJobById(jobId);

@@ -16,5 +16,6 @@ router.post('/make-offer/:jobId', authMiddleware.verifyToken, freelancerControll
 router.get('/cooldown-status/:jobId', authMiddleware.verifyToken, freelancerController.checkCooldownStatus);
 router.post('/mark-complete/:jobId', authMiddleware.verifyToken, freelancerController.markJobComplete);
 router.post('/mark-fully-complete/:jobId', authMiddleware.verifyToken, freelancerController.markJobFullyComplete);
+router.post('/pay-dues', authMiddleware.verifyToken, freelancerController.payDues);
 
 module.exports = router;

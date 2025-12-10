@@ -364,5 +364,15 @@ export const freelancerService = {
     } catch (error) {
       throw error.response?.data || error;
     }
+  },
+
+  // Pay dues (commission) via PhonePe
+  payDues: async () => {
+    try {
+      const response = await api.post('/freelancer/pay-dues');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   }
 };

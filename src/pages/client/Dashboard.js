@@ -3,13 +3,11 @@ import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../api/authService';
 import { clientService } from '../../api/clientService';
 import { userService } from '../../api/userService';
-import paymentService from '../../api/paymentService';
 import { Button } from '../../components/common/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Label } from '../../components/common/Label';
-// DebugPanel removed
-import PayCashModal from '../../components/modals/PayCashModal';
+import BillModal from '../../components/modals/BillModal';
 import { 
   Plus, 
   Briefcase, 
@@ -34,8 +32,8 @@ const ClientDashboard = () => {
   const [activeJobOffers, setActiveJobOffers] = useState(null);
   const [editJobModal, setEditJobModal] = useState({ open: false, job: null });
   const [viewProfileModal, setViewProfileModal] = useState({ open: false, data: null });
-  const [showPayCashModal, setShowPayCashModal] = useState(false);
-  const [selectedJobForCash, setSelectedJobForCash] = useState(null);
+  const [showBillModal, setShowBillModal] = useState(false);
+  const [selectedJobForPayment, setSelectedJobForPayment] = useState(null);
 
   // Job posting form state
   const [jobForm, setJobForm] = useState({
@@ -212,170 +210,38 @@ const ClientDashboard = () => {
     }
   };
 
-  const handlePayment = async (jobId, paymentMethod) => {
-    if (paymentMethod === 'cash') {
-      // Handle cash payment (existing logic)
-      if (!window.confirm('Are you sure you want to pay for this job via cash? This will complete the job.')) {
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError('');
-        const result = await clientService.payJob(jobId, paymentMethod);
-        if (result.success) {
-          console.log('✅ Cash payment processed successfully:', result.job);
-          await loadClientData(); // Refresh data
-          setError('');
-        } else {
-          setError(result.message || 'Failed to process payment');
-        }
-      } catch (error) {
-        console.error('Error processing cash payment:', error);
-        setError(error.message || 'Failed to process payment');
-      } finally {
-        setLoading(false);
-      }
-    } else if (paymentMethod === 'upi') {
-      // Handle UPI payment (new logic)
-      handleUPIPayment(jobId);
-    }
+  const handlePay = (job) => {
+    setSelectedJobForPayment(job);
+    setShowBillModal(true);
   };
 
-  const handleUPIPayment = async (jobId) => {
+  const handleConfirmPayment = async (jobId) => {
     try {
       setLoading(true);
       setError('');
       
-      // Create UPI payment request
-      const result = await paymentService.createUPIPayment(jobId);
-      
-      if (result.success) {
-        console.log('✅ UPI payment request created:', result);
-        
-        // Show simple payment confirmation
-        const paymentAmount = result.amounts.totalAmount;
-        const paymentConfirmation = `Pay ₹${paymentAmount} for this job?\n\nYou will be redirected to the payment gateway.`;
-        
-        if (window.confirm(paymentConfirmation)) {
-          // Open payment gateway in new window
-          const paymentWindow = window.open(result.paymentUrl, '_blank', 'width=800,height=600');
-          
-          // Start polling for payment status
-          pollPaymentStatus(jobId, result.orderId);
-        }
-      } else {
-        setError(result.message || 'Failed to create payment request');
-      }
-    } catch (error) {
-      console.error('Error creating UPI payment:', error);
-      setError(error.message || 'Failed to create payment request');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePayCash = (job) => {
-    setSelectedJobForCash(job);
-    setShowPayCashModal(true);
-  };
-
-  const handleConfirmCashPayment = async (jobId, paymentDetails) => {
-    try {
-      setLoading(true);
-      setError('');
-      
-      // Call backend to record cash payment and add commission to ledger
-      const response = await clientService.payJob(jobId, 'cash');
+      // Mark job as paid (completed) - this will add commission to ledger
+      const response = await clientService.payJob(jobId, 'offline');
       
       if (response.success) {
         setError('');
         // Reload active jobs to reflect the payment
         await loadClientData();
-        setShowPayCashModal(false);
-        setSelectedJobForCash(null);
-      } else {
-        setError(response.message || 'Failed to record cash payment');
-      }
-    } catch (error) {
-      console.error('Error recording cash payment:', error);
-      setError(error.message || 'Failed to record cash payment');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleManualPaymentConfirmation = async (job) => {
-    try {
-      setLoading(true);
-      setError('');
-      
-      // Check if job has payment details (orderId)
-      if (!job.paymentDetails?.orderId) {
-        setError('No payment order found for this job. Please create a payment first.');
-        return;
-      }
-      
-      const orderId = job.paymentDetails.orderId;
-      console.log('🧪 Manual payment confirmation for order:', orderId);
-      
-      // Simulate successful payment
-      const result = await paymentService.simulateSuccessfulPayment(orderId);
-      
-      if (result.success) {
-        console.log('✅ Manual payment confirmation successful:', result);
-        setError('');
+        setShowBillModal(false);
+        setSelectedJobForPayment(null);
         
         // Show success message
-        alert(`Payment confirmed successfully!\n\nJob Amount: ₹${result.jobAmount}\nFreelancer Amount: ₹${result.freelancerAmount}\nCommission: ₹${result.commission}\n\n${result.walletMessage}`);
-        
-        // Reload data to reflect changes
-        await loadClientData();
+        setError('Payment confirmed successfully! Job marked as completed.');
+        setTimeout(() => setError(''), 3000);
       } else {
-        setError(result.message || 'Failed to confirm payment');
+        setError(response.message || 'Failed to confirm payment');
       }
     } catch (error) {
-      console.error('Error confirming payment manually:', error);
+      console.error('Error confirming payment:', error);
       setError(error.message || 'Failed to confirm payment');
     } finally {
       setLoading(false);
     }
-  };
-
-  const pollPaymentStatus = async (jobId, orderId) => {
-    const maxAttempts = 30; // 5 minutes with 10-second intervals
-    let attempts = 0;
-    
-    const checkStatus = async () => {
-      try {
-        attempts++;
-        const result = await paymentService.verifyUPIPayment(orderId);
-        
-        if (result.success && result.isSuccess) {
-          console.log('✅ Payment completed successfully');
-          await loadClientData(); // Refresh data
-          setError('');
-          return;
-        }
-        
-        if (attempts < maxAttempts) {
-          setTimeout(checkStatus, 10000); // Check again in 10 seconds
-        } else {
-          console.log('⏰ Payment status check timeout');
-          setError('Payment verification timeout. Please check your payment status manually.');
-        }
-      } catch (error) {
-        console.error('Error checking payment status:', error);
-        if (attempts < maxAttempts) {
-          setTimeout(checkStatus, 10000);
-        } else {
-          setError('Failed to verify payment status');
-        }
-      }
-    };
-    
-    // Start checking after 5 seconds
-    setTimeout(checkStatus, 5000);
   };
 
   const handleAcceptOffer = async (jobId, freelancerId) => {
@@ -736,25 +602,10 @@ const ClientDashboard = () => {
                       <div className="flex space-x-2">
                         <Button 
                           size="sm" 
-                          onClick={() => handlePayment(job.id, 'upi')}
+                          onClick={() => handlePay(job)}
                           className="bg-blue-600 hover:bg-blue-700"
                         >
-                          Pay UPI
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          onClick={() => handlePayCash(job)}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          Pay Cash
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          onClick={() => handleManualPaymentConfirmation(job)}
-                          className="bg-orange-600 hover:bg-orange-700"
-                          title="Simulate successful payment for testing"
-                        >
-                          ✓ Confirm Payment
+                          Pay
                         </Button>
                         {job.assignedFreelancer?.id && (
                           <Button 
@@ -1199,15 +1050,15 @@ const ClientDashboard = () => {
         )}
       </div>
 
-      {/* Pay Cash Modal */}
-      <PayCashModal
-        isOpen={showPayCashModal}
+      {/* Bill Modal */}
+      <BillModal
+        isOpen={showBillModal}
         onClose={() => {
-          setShowPayCashModal(false);
-          setSelectedJobForCash(null);
+          setShowBillModal(false);
+          setSelectedJobForPayment(null);
         }}
-        job={selectedJobForCash}
-        onConfirmPayment={handleConfirmCashPayment}
+        job={selectedJobForPayment}
+        onConfirmPayment={handleConfirmPayment}
       />
     </div>
   );

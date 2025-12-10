@@ -533,6 +533,98 @@ const checkCooldownStatus = async (req, res) => {
   }
 };
 
+// Pay dues (commission) via PhonePe
+const payDues = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.user?.id;
+    const fresh = await User.findById(userId);
+    
+    if (!fresh) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const wallet = fresh.wallet || { balance: 0, transactions: [] };
+    const transactions = Array.isArray(wallet.transactions) ? wallet.transactions : [];
+
+    // Calculate total unpaid commission
+    const unpaidCommission = transactions
+      .filter(tx => tx.commission && tx.commission > 0 && !tx.duesPaid)
+      .reduce((sum, tx) => sum + (tx.commission || 0), 0);
+
+    if (unpaidCommission <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No dues to pay'
+      });
+    }
+
+    // Load payment service
+    const loadPaymentService = async () => {
+      try {
+        return require('../services/paymentService');
+      } catch (error) {
+        console.warn('Payment service not available:', error.message);
+        return null;
+      }
+    };
+
+    const paymentService = await loadPaymentService();
+    if (!paymentService) {
+      return res.status(503).json({
+        success: false,
+        message: 'Payment service not available'
+      });
+    }
+
+    // Create payment order ID
+    const orderId = `DUES_${userId}_${Date.now()}`;
+
+    // Create PhonePe payment request
+    const paymentResult = await paymentService.createPaymentRequest(
+      unpaidCommission,
+      orderId,
+      userId,
+      null, // jobId - not applicable for dues
+      'Commission Dues Payment'
+    );
+
+    if (!paymentResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: paymentResult.error || 'Failed to create payment request'
+      });
+    }
+
+    // Store payment order ID in user's wallet for tracking
+    if (!fresh.wallet.duesPayments) {
+      fresh.wallet.duesPayments = [];
+    }
+    fresh.wallet.duesPayments.push({
+      orderId,
+      amount: unpaidCommission,
+      status: 'pending',
+      createdAt: new Date()
+    });
+    await fresh.save();
+
+    res.json({
+      success: true,
+      message: 'Payment request created successfully',
+      paymentUrl: paymentResult.paymentUrl,
+      orderId: paymentResult.orderId || orderId,
+      amount: unpaidCommission
+    });
+
+  } catch (error) {
+    console.error('Pay dues error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process dues payment',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   submitVerification,
   getVerificationStatus,
@@ -545,5 +637,6 @@ module.exports = {
   checkCooldownStatus,
   markJobComplete,
   markJobFullyComplete,
-  getOrderHistory
+  getOrderHistory,
+  payDues
 };
