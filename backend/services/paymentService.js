@@ -152,10 +152,19 @@ class PaymentService {
     }
     
     try {
+      // Validate frontend URL
+      if (!this.frontendUrl || this.frontendUrl.includes('localhost')) {
+        console.warn('⚠️ FRONTEND_URL not set or using localhost. PhonePe may block this.');
+        console.warn('⚠️ Current FRONTEND_URL:', this.frontendUrl);
+        console.warn('⚠️ Please set FRONTEND_URL environment variable to your production domain');
+      }
+      
       // Get OAuth token
       const bearer = await this.getAuthToken();
       console.log('🔑 OAuth token retrieved:', bearer ? 'Present' : 'Missing');
       console.log('🔑 Token type:', this._tokenType);
+      console.log('🌐 Frontend URL:', this.frontendUrl);
+      console.log('🔗 Redirect URL:', `${this.frontendUrl}/freelancer/dashboard`);
       
       // Convert ObjectId to string if needed
       const merchantUserId = typeof userId === 'object' ? userId.toString() : userId;
@@ -172,7 +181,8 @@ class PaymentService {
           type: 'PG_CHECKOUT',
           message: 'Payment for job',
           merchantUrls: {
-            redirectUrl: `${this.frontendUrl}/freelancer/dashboard?tab=wallet&payment=success`
+            // Use root domain for redirect to avoid query parameter issues
+            redirectUrl: `${this.frontendUrl}/freelancer/dashboard`
           }
         },
         // Optional but recommended
