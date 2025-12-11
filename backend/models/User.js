@@ -76,10 +76,32 @@ const userSchema = new mongoose.Schema({
       totalAmount: Number,
       commission: Number,
       paymentOrderId: String,
+      // Dues payment tracking
+      duesPaid: {
+        type: Boolean,
+        default: false
+      },
+      duesPaidAt: Date,
+      duesPaymentOrderId: String,
       createdAt: {
         type: Date,
         default: Date.now
       }
+    }],
+    duesPayments: [{
+      orderId: String,
+      amount: Number,
+      status: {
+        type: String,
+        enum: ['pending', 'completed', 'failed'],
+        default: 'pending'
+      },
+      phonepeOrderId: String,
+      createdAt: {
+        type: Date,
+        default: Date.now
+      },
+      completedAt: Date
     }]
   },
   isActive: {

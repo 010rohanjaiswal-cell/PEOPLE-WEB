@@ -765,45 +765,70 @@ app.post('/payment/process-dues/:phonepeTransactionId', async (req, res) => {
   }
 });
 
-// Payment callback endpoint (for PhonePe redirects)
-app.post('/payment/callback', (req, res) => {
+// Payment callback handler (shared for GET and POST)
+const handlePaymentCallback = async (req, res) => {
   try {
-    console.log('🔄 Payment callback POST received:');
-    console.log('  Body:', req.body);
-    console.log('  Query:', req.query);
-    console.log('  Headers:', req.headers);
+    console.log(`🔄 Payment callback ${req.method} received:`);
+    console.log('  Body:', JSON.stringify(req.body, null, 2));
+    console.log('  Query:', JSON.stringify(req.query, null, 2));
+    console.log('  URL:', req.url);
     
-    // PhonePe sends payment status in the request body
-    const { 
-      orderId, 
-      state, 
-      code, 
-      message, 
-      data,
-      // Alternative parameter names
-      merchantOrderId,
-      status,
-      response,
-      // Nested data
-      order_id,
-      payment_status
-    } = req.body;
+    // PhonePe may send data in body (POST) or query params (GET redirect)
+    const bodyData = req.body || {};
+    const queryData = req.query || {};
+    const allData = { ...bodyData, ...queryData };
     
     // Try to extract order ID from different possible fields
-    const finalOrderId = orderId || merchantOrderId || order_id || req.body['order_id'] || req.body['merchant_order_id'];
-    const finalState = state || status || payment_status || req.body['payment_status'] || req.body['state'];
+    const finalOrderId = 
+      allData.orderId || 
+      allData.merchantOrderId || 
+      allData.order_id || 
+      allData.merchant_order_id ||
+      allData.merchantTransactionId ||
+      allData.transactionId;
     
-    console.log('  Extracted orderId:', finalOrderId);
-    console.log('  Extracted state:', finalState);
+    // Try to extract payment state/status
+    const finalState = 
+      allData.state || 
+      allData.status || 
+      allData.payment_status || 
+      allData.code ||
+      allData.response?.code;
     
-    if (finalState === 'SUCCESS' || finalState === 'success') {
-      console.log('✅ Payment successful for order:', finalOrderId);
+    console.log('  📋 Extracted orderId:', finalOrderId);
+    console.log('  📋 Extracted state/status:', finalState);
+    
+    if (!finalOrderId) {
+      console.error('❌ No order ID found in callback');
+      return res.json({ 
+        success: false, 
+        message: 'No order ID in callback',
+        receivedData: allData
+      });
+    }
+    
+    // Check if this is a dues payment
+    if (finalOrderId.startsWith('DUES_')) {
+      console.log('💰 Dues payment callback detected');
       
-      // Process successful payment
-      processSuccessfulPayment(finalOrderId, req, res);
+      // If state is SUCCESS, process it
+      if (finalState === 'SUCCESS' || finalState === 'success' || finalState === 'PAYMENT_SUCCESS') {
+        console.log('✅ Dues payment successful, processing...');
+        return await processSuccessfulPayment(finalOrderId, req, res);
+      } else {
+        console.log('⚠️ Dues payment callback received but state is not SUCCESS:', finalState);
+        // Still try to process if no state (might be redirect after payment)
+        return await processSuccessfulPayment(finalOrderId, req, res);
+      }
+    }
+    
+    // Regular job payment
+    if (finalState === 'SUCCESS' || finalState === 'success' || finalState === 'PAYMENT_SUCCESS') {
+      console.log('✅ Payment successful for order:', finalOrderId);
+      return await processSuccessfulPayment(finalOrderId, req, res);
     } else {
       console.log('❌ Payment failed for order:', finalOrderId, 'State:', finalState);
-      res.json({ 
+      return res.json({ 
         success: false, 
         message: 'Payment failed',
         orderId: finalOrderId,
@@ -812,12 +837,17 @@ app.post('/payment/callback', (req, res) => {
     }
   } catch (error) {
     console.error('❌ Payment callback error:', error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       success: false, 
-      message: 'Callback processing failed' 
+      message: 'Callback processing failed',
+      error: error.message
     });
   }
-});
+};
+
+// Payment callback endpoints (GET and POST)
+app.get('/payment/callback', handlePaymentCallback);
+app.post('/payment/callback', handlePaymentCallback);
 
 // Payment callback GET endpoint (for browser redirects)
 app.get('/payment/callback', (req, res) => {
