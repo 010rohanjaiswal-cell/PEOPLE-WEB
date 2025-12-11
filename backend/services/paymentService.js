@@ -97,12 +97,14 @@ class PaymentService {
       const payload = {
         merchantId: this.merchantId,
         merchantTransactionId: orderId,
+        merchantOrderId: orderId, // keep order id in both fields for clarity
         merchantUserId: merchantUserId,
         amount: amountInPaise,
         redirectUrl: `${this.frontendUrl}/freelancer/dashboard`,
-        redirectMode: 'REDIRECT',
+        redirectMode: 'POST', // PhonePe prefers POST for web flows
         callbackUrl: this.redirectUrl,
         mobileNumber: '',
+        deviceContext: { deviceOS: 'WEB' },
         paymentInstrument: {
           type: 'PAY_PAGE'
         }
