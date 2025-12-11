@@ -230,9 +230,9 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
   return (
     <div className="space-y-6">
       {/* Dues Summary */}
-      <Card className="border-red-200 bg-gradient-to-br from-red-50 to-orange-50">
+      <Card className={totalDues > 0 ? "border-red-200 bg-gradient-to-br from-red-50 to-orange-50" : "border-green-200 bg-gradient-to-br from-green-50 to-emerald-50"}>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center justify-between text-red-800">
+          <CardTitle className={`flex items-center justify-between ${totalDues > 0 ? 'text-red-800' : 'text-green-800'}`}>
             <div className="flex items-center space-x-2">
               <Receipt className="w-5 h-5" />
               <span>Total Dues</span>
@@ -242,7 +242,7 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
               variant="outline"
               size="sm"
               loading={loading}
-              className="border-red-300 text-red-700 hover:bg-red-100"
+              className={totalDues > 0 ? "border-red-300 text-red-700 hover:bg-red-100" : "border-green-300 text-green-700 hover:bg-green-100"}
             >
               <RefreshCw className="w-4 h-4" />
             </Button>
@@ -251,12 +251,25 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
         <CardContent>
           <div className="space-y-4">
             <div className="text-center">
-              <div className="text-3xl font-bold text-red-700 mb-2">
-                {formatAmount(totalDues)}
-              </div>
-              <div className="text-sm text-red-600">
-                Commission dues to be paid
-              </div>
+              {totalDues > 0 ? (
+                <>
+                  <div className="text-3xl font-bold text-red-700 mb-2">
+                    {formatAmount(totalDues)}
+                  </div>
+                  <div className="text-sm text-red-600">
+                    Commission dues to be paid
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-3xl font-bold text-green-700 mb-2">
+                    ₹0.00
+                  </div>
+                  <div className="text-sm text-green-600">
+                    No dues is pending
+                  </div>
+                </>
+              )}
             </div>
             {totalDues > 0 && (
               <Button
