@@ -119,7 +119,9 @@ class PaymentService {
       console.log('📤 PhonePe Payment Request:');
       console.log('  Order ID:', orderId);
       console.log('  Amount:', amount, '₹ →', amountInPaise, 'paise');
-      console.log('  Redirect URL:', payload.redirectUrl);
+      console.log('  Frontend URL:', this.frontendUrl);
+      console.log('  Redirect URL:', payload.paymentFlow?.merchantUrls?.redirectUrl || 'MISSING');
+      console.log('  Callback URL:', this.redirectUrl);
 
       // Make API request
       const response = await axios.post(
