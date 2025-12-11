@@ -1,14 +1,13 @@
-Options -Indexes
-
+# React Router SPA Configuration
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
-  # Serve existing files/directories directly
-  RewriteCond %{REQUEST_FILENAME} -f [OR]
-  RewriteCond %{REQUEST_FILENAME} -d
-  RewriteRule ^ - [L]
-  # Fallback all other routes to index.html (React SPA)
-  RewriteRule . /index.html [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.html [L]
 </IfModule>
 
-
+# Enforce referrer policy for PhonePe PG
+<IfModule mod_headers.c>
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
