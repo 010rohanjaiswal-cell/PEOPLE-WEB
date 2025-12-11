@@ -374,5 +374,15 @@ export const freelancerService = {
     } catch (error) {
       throw error.response?.data || error;
     }
+  },
+
+  // Process dues payment after return (manual trigger using our orderId)
+  processDuesOrder: async (orderId) => {
+    try {
+      const response = await api.post(`/payment/process-dues-order/${orderId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
   }
 };

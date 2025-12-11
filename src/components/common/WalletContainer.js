@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './Card';
 import { Button } from './Button';
-import { Wallet, RefreshCw, Receipt, ChevronDown, ChevronUp, CreditCard } from 'lucide-react';
+import { Wallet, RefreshCw, Receipt, ChevronDown, ChevronUp, CreditCard, History } from 'lucide-react';
 import { freelancerService } from '../../api/freelancerService';
 
 const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
   const [loading, setLoading] = useState(false);
   const [payingDues, setPayingDues] = useState(false);
+  const [processingDues, setProcessingDues] = useState(false);
   const [expandedTransactions, setExpandedTransactions] = useState(new Set());
+  const [showTransactionHistory, setShowTransactionHistory] = useState(false);
 
   // Calculate total unpaid commission (dues) from transactions
   const calculateTotalDues = () => {
@@ -26,6 +28,21 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
       const dateB = new Date(b.createdAt || b.timestamp || 0);
       return dateB - dateA; // Newest first
     });
+
+  // Get transaction history for dues (all transactions with commission)
+  const transactionHistory = commissionTransactions.map(tx => {
+    const jobAmount = tx.totalAmount || 0;
+    const commission = tx.commission || 0;
+    const freelancerAmount = jobAmount - commission;
+    return {
+      id: tx.id || tx.jobId,
+      freelancerAmount,
+      orderId: tx.duesPaymentOrderId || tx.paymentOrderId || 'N/A',
+      date: tx.createdAt || tx.timestamp,
+      jobTitle: tx.description || tx.jobTitle || 'Job Payment',
+      isPaid: tx.duesPaid || false
+    };
+  });
 
   const formatAmount = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -94,6 +111,38 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
     }, 1000);
   };
 
+  // Attempt to process dues payment using stored orderId (after redirect)
+  const processDuesOrder = async (orderId, { silent = false } = {}) => {
+    if (!orderId) return;
+    try {
+      setProcessingDues(true);
+      const result = await freelancerService.processDuesOrder(orderId);
+      console.log('✅ Dues processed:', result);
+      if (!silent) {
+        alert('Dues cleared successfully.');
+      }
+      localStorage.removeItem('lastDuesOrderId');
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error('❌ Failed to process dues order:', err);
+      if (!silent) {
+        const msg = err?.message || err?.error || 'Failed to process dues payment';
+        alert(msg);
+      }
+    } finally {
+      setProcessingDues(false);
+    }
+  };
+
+  // On mount, if there is a stored orderId, try to process dues automatically
+  useEffect(() => {
+    const storedOrderId = localStorage.getItem('lastDuesOrderId');
+    if (storedOrderId) {
+      console.log('🔄 Found stored dues orderId, attempting to process:', storedOrderId);
+      processDuesOrder(storedOrderId, { silent: true });
+    }
+  }, []);
+
   const handlePayDues = async () => {
     if (totalDues <= 0) {
       alert('No dues to pay');
@@ -126,12 +175,20 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
           
           // Show success message with order ID
           const orderId = result.orderId || 'N/A';
-          alert(`Payment page opened.\n\nOrder ID: ${orderId}\n\nPlease complete the payment and note the Order ID for verification.`);
+
+          // Persist orderId so we can process dues after redirect/success
+          if (orderId && orderId !== 'N/A') {
+            localStorage.setItem('lastDuesOrderId', orderId);
+          }
+
+          alert(`Payment page opened.\n\nOrder ID: ${orderId}\n\nAfter completing payment, we will auto-check dues clearance when you return.`);
           
-          // Refresh wallet after a delay to check payment status
-          setTimeout(() => {
-            if (onRefresh) onRefresh();
-          }, 5000);
+          // After a short delay, try processing dues (silent) in case redirect already happened
+          if (orderId && orderId !== 'N/A') {
+            setTimeout(() => {
+              processDuesOrder(orderId, { silent: true });
+            }, 7000);
+          }
         } else {
           console.error('❌ No payment URL in response:', result);
           alert('Payment URL not received. Please check console for details.');
@@ -171,8 +228,8 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center space-y-4">
-            <div>
+          <div className="space-y-4">
+            <div className="text-center">
               <div className="text-3xl font-bold text-red-700 mb-2">
                 {formatAmount(totalDues)}
               </div>
@@ -190,6 +247,77 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
                 <CreditCard className="w-4 h-4 mr-2" />
                 Pay Dues
               </Button>
+            )}
+            
+            {/* Transaction History */}
+            {transactionHistory.length > 0 && (
+              <div className="border-t pt-4 mt-4">
+                <button
+                  onClick={() => setShowTransactionHistory(!showTransactionHistory)}
+                  className="w-full flex items-center justify-between text-left text-sm font-semibold text-red-800 hover:text-red-900 transition-colors"
+                >
+                  <div className="flex items-center space-x-2">
+                    <History className="w-4 h-4" />
+                    <span>Transaction History</span>
+                    <span className="text-xs font-normal text-red-600">
+                      ({transactionHistory.length})
+                    </span>
+                  </div>
+                  {showTransactionHistory ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </button>
+                
+                {showTransactionHistory && (
+                  <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
+                    {transactionHistory.map((tx, index) => (
+                      <div
+                        key={tx.id || index}
+                        className={`p-3 rounded-lg border ${
+                          tx.isPaid
+                            ? 'bg-green-50 border-green-200'
+                            : 'bg-red-50 border-red-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900 text-sm">
+                              {tx.jobTitle}
+                            </div>
+                            <div className="text-xs text-gray-600 mt-1">
+                              {formatDateOnly(tx.date)} • {formatTime(tx.date)}
+                            </div>
+                            <div className="mt-2">
+                              <div className="text-xs text-gray-500">Order ID:</div>
+                              <div className="text-xs font-mono text-gray-700 bg-white px-2 py-1 rounded mt-1 inline-block">
+                                {tx.orderId}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right ml-4">
+                            <div className="text-xs text-gray-600 mb-1">Amount Received</div>
+                            <div className="text-lg font-bold text-green-600">
+                              {formatAmount(tx.freelancerAmount)}
+                            </div>
+                            {tx.isPaid && (
+                              <div className="text-xs text-green-600 font-semibold mt-1">
+                                ✓ Paid
+                              </div>
+                            )}
+                            {!tx.isPaid && (
+                              <div className="text-xs text-red-600 font-semibold mt-1">
+                                Pending
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </CardContent>
