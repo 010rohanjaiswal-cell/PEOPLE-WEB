@@ -169,20 +169,29 @@ class PaymentService {
       // Convert ObjectId to string if needed
       const merchantUserId = typeof userId === 'object' ? userId.toString() : userId;
       
+      // Validate and convert amount to paise (PhonePe requires amount in paise)
+      const amountInPaise = Math.round(Number(amount) * 100);
+      if (isNaN(amountInPaise) || amountInPaise <= 0) {
+        throw new Error(`Invalid amount: ${amount}. Must be a positive number in rupees.`);
+      }
+      
       const payload = {
         // Keep core identifiers
         merchantId: this.merchantId,
         merchantTransactionId: orderId,
         merchantOrderId: orderId,
         merchantUserId: merchantUserId,
-        amount: amount * 100, // Amount in paise
-        // As per PhonePe support, use paymentFlow (PG_CHECKOUT) instead of paymentInstrument
+        amount: amountInPaise, // Amount in paise (PhonePe requirement)
+        // PhonePe V2: PG_CHECKOUT should show all payment options including QR code
+        // Ensure proper structure for QR code generation
         paymentFlow: {
           type: 'PG_CHECKOUT',
           message: 'Payment for job',
           merchantUrls: {
-            // Use root domain for redirect to avoid query parameter issues
-            redirectUrl: `${this.frontendUrl}/freelancer/dashboard`
+            redirectUrl: `${this.frontendUrl}/freelancer/dashboard`,
+            // Add cancel and failure URLs for better error handling
+            cancelUrl: `${this.frontendUrl}/freelancer/dashboard`,
+            failureUrl: `${this.frontendUrl}/freelancer/dashboard`
           }
         },
         // Optional but recommended
@@ -203,12 +212,12 @@ class PaymentService {
       // Switch to raw JSON body to avoid decode errors like 'amount must not be null'
       // Minimal payload to avoid server-side 500s due to optional fields
       const requestData = payload;
-
+      
       console.log('🔍 PhonePe V2 API Request Details:');
       console.log('  URL:', `${this.baseUrl}/checkout/v2/pay`);
       console.log('  Merchant ID:', this.merchantId);
       console.log('  Order ID:', orderId);
-      console.log('  Amount:', amount, '(₹' + (amount/100) + ')');
+      console.log('  Amount (Rupees):', amount, '→ Amount (Paise):', amountInPaise);
       console.log('  Merchant User ID:', merchantUserId, '(type:', typeof merchantUserId, ')');
       console.log('  Payload:', JSON.stringify(payload, null, 2));
       console.log('  Request Data (raw JSON):', JSON.stringify(requestData, null, 2));
@@ -238,10 +247,27 @@ class PaymentService {
 
       console.log('✅ PhonePe API Response:');
       console.log('  Status:', response.status);
-      console.log('  Data:', JSON.stringify(response.data, null, 2));
+      console.log('  Status Text:', response.statusText);
+      console.log('  Headers:', JSON.stringify(response.headers, null, 2));
+      console.log('  Full Response Data:', JSON.stringify(response.data, null, 2));
 
       // Try multiple shapes for redirect URL per different API variants
       const data = response.data;
+      
+      // Check for errors in response
+      if (data?.success === false || data?.code || data?.message) {
+        console.error('❌ PhonePe API returned error:');
+        console.error('  Code:', data?.code);
+        console.error('  Message:', data?.message);
+        console.error('  Data:', data?.data);
+        return {
+          success: false,
+          error: data?.message || 'PhonePe API error',
+          code: data?.code,
+          details: data
+        };
+      }
+      
       const redirectUrl = data?.data?.instrumentResponse?.redirectInfo?.url
         || data?.data?.redirectInfo?.url
         || data?.data?.url
@@ -249,12 +275,25 @@ class PaymentService {
         || data?.url;
 
       console.log('🎯 PhonePe Response Analysis:');
-      console.log('  Full response data:', JSON.stringify(data, null, 2));
+      console.log('  Response Success:', data?.success !== false);
       console.log('  Extracted redirectUrl:', redirectUrl);
       console.log('  PhonePe orderId:', data?.orderId || data?.data?.orderId);
-      console.log('  Available fields:', Object.keys(data || {}));
+      console.log('  PhonePe transactionId:', data?.transactionId || data?.data?.transactionId);
+      console.log('  Available top-level fields:', Object.keys(data || {}));
       if (data?.data) {
-        console.log('  Data fields:', Object.keys(data.data || {}));
+        console.log('  Data object fields:', Object.keys(data.data || {}));
+        if (data.data.instrumentResponse) {
+          console.log('  InstrumentResponse fields:', Object.keys(data.data.instrumentResponse || {}));
+          if (data.data.instrumentResponse.redirectInfo) {
+            console.log('  RedirectInfo fields:', Object.keys(data.data.instrumentResponse.redirectInfo || {}));
+          }
+        }
+      }
+      
+      if (!redirectUrl) {
+        console.error('⚠️ WARNING: No redirect URL found in PhonePe response!');
+        console.error('  This might cause QR code not to display.');
+        console.error('  Full response structure:', JSON.stringify(data, null, 2));
       }
       
       return {
