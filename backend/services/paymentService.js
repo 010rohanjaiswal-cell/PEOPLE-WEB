@@ -94,19 +94,26 @@ class PaymentService {
       const merchantUserId = String(userId);
 
       // Create payload - Simple and clean structure
+      // Try PG_CHECKOUT flow (alternative to PAY_PAGE) to avoid PG 500
       const payload = {
         merchantId: this.merchantId,
         merchantTransactionId: orderId,
-        merchantOrderId: orderId, // keep order id in both fields for clarity
+        merchantOrderId: orderId,
         merchantUserId: merchantUserId,
         amount: amountInPaise,
-        redirectUrl: `${this.frontendUrl}/freelancer/dashboard`,
-        redirectMode: 'REDIRECT', // Use REDIRECT to avoid PG internal errors
+        // PhonePe PG checkout with merchantUrls
+        paymentFlow: {
+          type: 'PG_CHECKOUT',
+          merchantUrls: {
+            redirectUrl: `${this.frontendUrl}/freelancer/dashboard`,
+            cancelUrl: `${this.frontendUrl}/freelancer/dashboard`,
+            failureUrl: `${this.frontendUrl}/freelancer/dashboard`
+          }
+        },
+        redirectMode: 'REDIRECT',
         callbackUrl: this.redirectUrl,
-        mobileNumber: '',
-        paymentInstrument: {
-          type: 'PAY_PAGE'
-        }
+        deviceContext: { deviceOS: 'WEB' },
+        mobileNumber: ''
       };
 
       console.log('📤 PhonePe Payment Request:');
