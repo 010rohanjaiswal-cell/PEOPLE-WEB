@@ -134,7 +134,7 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
     }
   };
 
-  // On mount, if there is a stored orderId or URL param, try to process dues automatically
+  // On mount and when transactions change, check if we need to process dues
   useEffect(() => {
     // Check URL params for payment success
     const urlParams = new URLSearchParams(window.location.search);
@@ -147,22 +147,45 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
     // Priority: URL param > localStorage
     const orderIdToProcess = orderIdFromUrl || storedOrderId;
     
+    console.log('🔍 WalletContainer: Checking for dues to process:', {
+      orderIdFromUrl,
+      storedOrderId,
+      orderIdToProcess,
+      totalDues,
+      hasUnpaidDues: totalDues > 0,
+      transactionCount: transactions.length
+    });
+    
     if (orderIdToProcess && orderIdToProcess.startsWith('DUES_')) {
-      console.log('🔄 Found dues orderId, processing...', orderIdToProcess);
-      // Small delay to ensure component is fully mounted and wallet data loaded
-      setTimeout(() => {
-        processDuesOrder(orderIdToProcess, { silent: true });
-      }, 2000);
-      
-      // Clean up URL params after processing
-      if (orderIdFromUrl) {
-        setTimeout(() => {
+      if (totalDues > 0) {
+        console.log('🔄 Found dues orderId with unpaid dues, processing in 2s...', orderIdToProcess);
+        // Small delay to ensure component is fully mounted and wallet data loaded
+        const timeoutId = setTimeout(() => {
+          console.log('⏰ Processing dues now...', orderIdToProcess);
+          processDuesOrder(orderIdToProcess, { silent: true });
+        }, 2000);
+        
+        // Clean up URL params after processing
+        if (orderIdFromUrl) {
+          setTimeout(() => {
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+          }, 3000);
+        }
+        
+        return () => clearTimeout(timeoutId);
+      } else {
+        // Dues already cleared, remove from localStorage
+        console.log('✅ Dues already cleared, cleaning up orderId');
+        localStorage.removeItem('lastDuesOrderId');
+        if (orderIdFromUrl) {
           const newUrl = window.location.pathname;
           window.history.replaceState({}, '', newUrl);
-        }, 3000);
+        }
       }
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transactions.length, totalDues]);
 
   const handlePayDues = async () => {
     if (totalDues <= 0) {
@@ -272,15 +295,36 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
               )}
             </div>
             {totalDues > 0 && (
-              <Button
-                onClick={handlePayDues}
-                loading={payingDues}
-                disabled={payingDues || totalDues <= 0}
-                className="w-full bg-red-600 hover:bg-red-700 text-white"
-              >
-                <CreditCard className="w-4 h-4 mr-2" />
-                Pay Dues
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  onClick={handlePayDues}
+                  loading={payingDues}
+                  disabled={payingDues || totalDues <= 0}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white"
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Pay Dues
+                </Button>
+                {/* Manual clear button if auto-processing failed */}
+                {(() => {
+                  const storedOrderId = localStorage.getItem('lastDuesOrderId');
+                  if (storedOrderId && storedOrderId.startsWith('DUES_')) {
+                    return (
+                      <Button
+                        onClick={() => processDuesOrder(storedOrderId, { silent: false })}
+                        loading={processingDues}
+                        disabled={processingDues}
+                        variant="outline"
+                        className="w-full border-green-600 text-green-700 hover:bg-green-50"
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Clear Dues (Manual)
+                      </Button>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
             )}
             
             {/* Transaction History */}
