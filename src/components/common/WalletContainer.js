@@ -134,12 +134,33 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
     }
   };
 
-  // On mount, if there is a stored orderId, try to process dues automatically
+  // On mount, if there is a stored orderId or URL param, try to process dues automatically
   useEffect(() => {
+    // Check URL params for payment success
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentSuccess = urlParams.get('payment') === 'success';
+    const orderIdFromUrl = urlParams.get('orderId');
+    
+    // Check localStorage for stored orderId
     const storedOrderId = localStorage.getItem('lastDuesOrderId');
-    if (storedOrderId) {
-      console.log('🔄 Found stored dues orderId, attempting to process:', storedOrderId);
-      processDuesOrder(storedOrderId, { silent: true });
+    
+    // Priority: URL param > localStorage
+    const orderIdToProcess = orderIdFromUrl || storedOrderId;
+    
+    if (orderIdToProcess && orderIdToProcess.startsWith('DUES_')) {
+      console.log('🔄 Found dues orderId, processing...', orderIdToProcess);
+      // Small delay to ensure component is fully mounted and wallet data loaded
+      setTimeout(() => {
+        processDuesOrder(orderIdToProcess, { silent: true });
+      }, 2000);
+      
+      // Clean up URL params after processing
+      if (orderIdFromUrl) {
+        setTimeout(() => {
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+        }, 3000);
+      }
     }
   }, []);
 
