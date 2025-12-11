@@ -101,10 +101,9 @@ class PaymentService {
         merchantUserId: merchantUserId,
         amount: amountInPaise,
         redirectUrl: `${this.frontendUrl}/freelancer/dashboard`,
-        redirectMode: 'POST', // PhonePe prefers POST for web flows
+        redirectMode: 'REDIRECT', // Use REDIRECT to avoid PG internal errors
         callbackUrl: this.redirectUrl,
         mobileNumber: '',
-        deviceContext: { deviceOS: 'WEB' },
         paymentInstrument: {
           type: 'PAY_PAGE'
         }
