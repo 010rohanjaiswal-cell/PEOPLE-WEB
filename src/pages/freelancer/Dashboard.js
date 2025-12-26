@@ -35,7 +35,6 @@ const FreelancerDashboard = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [withdrawalHistory, setWithdrawalHistory] = useState([]);
   const [freelancerId, setFreelancerId] = useState(null);
   const [showCommissionLedger, setShowCommissionLedger] = useState(false);
   const [commissionStatus, setCommissionStatus] = useState({});
@@ -47,9 +46,6 @@ const FreelancerDashboard = () => {
   // Debug: pickup logs
   const [pickupDebugLogs, setPickupDebugLogs] = useState([]);
   const [showPickupDebug, setShowPickupDebug] = useState(true);
-  // Debug: withdrawals
-  const [showWithdrawalDebug, setShowWithdrawalDebug] = useState(true);
-  const [withdrawalDebug, setWithdrawalDebug] = useState({ lastPost: null, lastHistory: null });
 
   // Check cooldown status for all jobs when component loads
   useEffect(() => {
@@ -92,11 +88,6 @@ const FreelancerDashboard = () => {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
-  const [withdrawalForm, setWithdrawalForm] = useState({
-    amount: '',
-    upiId: ''
-  });
-
   useEffect(() => {
     loadFreelancerData();
   }, []);
@@ -104,12 +95,11 @@ const FreelancerDashboard = () => {
   const loadFreelancerData = async () => {
     try {
       setLoading(true);
-      const [jobsRes, assignedRes, walletRes, ordersRes, wdRes] = await Promise.all([
+      const [jobsRes, assignedRes, walletRes, ordersRes] = await Promise.all([
         freelancerService.getAvailableJobs(),
         freelancerService.getAssignedJobs(),
         freelancerService.getWallet(),
-        freelancerService.getOrders(),
-        freelancerService.getWithdrawalHistory()
+        freelancerService.getOrders()
       ]);
       
       console.log('📋 loadFreelancerData - assignedRes:', assignedRes);
@@ -121,8 +111,6 @@ const FreelancerDashboard = () => {
       setFreelancerId(walletRes.data?.freelancerId || null);
       setWalletTransactions(walletRes.data?.transactions || []);
       setOrders(ordersRes.data || []);
-      setWithdrawalHistory(wdRes.data || []);
-      setWithdrawalDebug(prev => ({ ...prev, lastHistory: wdRes }));
       
       console.log('💰 Dashboard - wallet data:', {
         balance: walletRes.data?.balance,
@@ -344,30 +332,6 @@ const FreelancerDashboard = () => {
     }
   };
 
-  const handleWithdrawal = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      const result = await freelancerService.requestWithdrawal(withdrawalForm);
-      if (result.success) {
-        setWithdrawalForm({ amount: '', upiId: '' });
-        // Optimistically add to recent withdrawals for instant feedback
-        if (result.request) {
-          setWithdrawalHistory(prev => [result.request, ...(prev || [])]);
-        }
-        setWithdrawalDebug(prev => ({ ...prev, lastPost: result }));
-        loadFreelancerData(); // Refresh data from server
-        setError('');
-      } else {
-        setError(result.message || 'Withdrawal request failed');
-      }
-    } catch (error) {
-      console.error('Error requesting withdrawal:', error);
-      setError(error.message || 'Withdrawal request failed');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const openViewClient = async (clientUserId) => {
     try {
@@ -755,43 +719,10 @@ const FreelancerDashboard = () => {
 
   const renderWallet = () => (
     <div className="space-y-6">
-      {/* Withdrawal Debug Panel */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm">Withdrawal Debug</CardTitle>
-          <Button size="sm" variant="ghost" onClick={() => setShowWithdrawalDebug(v => !v)}>
-            {showWithdrawalDebug ? 'Hide' : 'Show'}
-          </Button>
-        </CardHeader>
-        {showWithdrawalDebug && (
-          <CardContent>
-            <div className="text-xs space-y-2">
-              <div><span className="font-semibold">Form:</span> {JSON.stringify(withdrawalForm)}</div>
-              <div><span className="font-semibold">Last POST result:</span> {JSON.stringify(withdrawalDebug.lastPost)}</div>
-              <div><span className="font-semibold">Last History payload:</span> {JSON.stringify(withdrawalDebug.lastHistory)}</div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={async () => {
-                  try {
-                    const res = await freelancerService.getWithdrawalHistory();
-                    setWithdrawalHistory(res.data || []);
-                    setWithdrawalDebug(prev => ({ ...prev, lastHistory: res }));
-                  } catch (err) {
-                    console.error('Debug refresh withdrawal history error:', err);
-                  }
-                }}>Refresh History</Button>
-                <Button size="sm" variant="outline" onClick={loadFreelancerData}>Reload All</Button>
-              </div>
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
       <WalletContainer 
         user={user} 
         onRefresh={loadFreelancerData} 
-        balance={walletBalance} 
         transactions={walletTransactions}
-        withdrawals={withdrawalHistory}
       />
     </div>
   );

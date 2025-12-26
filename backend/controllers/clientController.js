@@ -279,102 +279,48 @@ const payJob = async (req, res) => {
     console.log('💳 payJob - job marked as completed');
     console.log('💳 payJob - payment method:', paymentMethod);
     
-    // Credit freelancer's wallet
+    // For offline payments, add commission to freelancer's ledger
+    // No wallet credit needed - freelancer receives payment directly from client
     const User = require('../models/User');
     const freelancerId = job.assignedFreelancer.id;
     const jobAmount = job.budget;
+    const commission = Math.round(jobAmount * 0.1 * 100) / 100; // 10% commission
     
-    try {
-      const freelancer = await User.findById(freelancerId);
-      if (freelancer) {
-        // Calculate freelancer's portion based on payment method
-        let freelancerAmount;
-        if (paymentMethod === 'cash') {
-          // For cash payments, no wallet credit (freelancer already received cash)
-          freelancerAmount = 0;
-          console.log('💰 payJob - cash payment, no wallet credit needed');
-        } else {
-          // For UPI payments, credit only 90% (freelancer's portion)
-          freelancerAmount = Math.round(jobAmount * 0.9 * 100) / 100;
-        }
-        
-        if (freelancerAmount > 0) {
-          // Update wallet balance
-          freelancer.wallet.balance = (freelancer.wallet.balance || 0) + freelancerAmount;
-          freelancer.wallet.totalEarnings = (freelancer.wallet.totalEarnings || 0) + freelancerAmount;
+    // Always add commission entry to freelancer's ledger for offline payments
+    if (paymentMethod === 'offline' || paymentMethod === 'cash') {
+      try {
+        const freelancer = await User.findById(freelancerId);
+        if (freelancer) {
+          // Initialize wallet if it doesn't exist
+          if (!freelancer.wallet) {
+            freelancer.wallet = { balance: 0, totalEarnings: 0, transactions: [] };
+          }
           
-          // Add transaction record
+          // Add commission transaction to ledger (for tracking only, no balance change)
           if (!freelancer.wallet.transactions) {
             freelancer.wallet.transactions = [];
           }
           
           freelancer.wallet.transactions.unshift({
             id: 'txn-' + Date.now(),
-            type: 'credit',
-            amount: freelancerAmount,
+            type: 'commission',
+            amount: 0, // No balance change
             description: `Payment for job: ${job.title}`,
-            clientName: req.user.fullName,
+            clientName: req.user.fullName || 'Unknown Client',
             jobId: job.id,
-            totalAmount: jobAmount, // Store original job amount for reference
-            commission: Math.round(jobAmount * 0.1 * 100) / 100, // 10% commission
+            totalAmount: jobAmount,
+            commission: commission, // 10% commission
             createdAt: new Date().toISOString()
           });
           
           await freelancer.save();
-          console.log('💰 payJob - freelancer wallet credited:', { 
+          console.log('✅ payJob - commission added to ledger:', { 
             freelancerId, 
             jobAmount, 
-            freelancerAmount, 
-            commission: Math.round(jobAmount * 0.1 * 100) / 100,
+            commission,
             paymentMethod 
           });
         }
-      } else {
-        console.log('⚠️ payJob - freelancer not found:', freelancerId);
-      }
-    } catch (walletError) {
-      console.error('❌ payJob - wallet credit error:', walletError);
-      // Don't fail the payment if wallet update fails
-    }
-
-    // For cash payments, add commission entry to freelancer's ledger
-    if (paymentMethod === 'cash') {
-      try {
-        const commissionController = require('./commissionController');
-        const commission = Math.round(jobAmount * 0.1 * 100) / 100; // 10% commission
-        
-        // Add commission entry
-        const commissionEntry = {
-          freelancerId: freelancerId,
-          jobId: job.id,
-          jobTitle: job.title,
-          clientName: req.user.fullName || 'Unknown Client',
-          amount: commission,
-          totalAmount: jobAmount
-        };
-        
-        // Create a mock request/response for the commission controller
-        const mockReq = {
-          body: commissionEntry,
-          user: req.user
-        };
-        
-        const mockRes = {
-          json: (data) => {
-            if (data.success) {
-              console.log('✅ payJob - commission entry added:', data.entry);
-            } else {
-              console.error('❌ payJob - commission entry failed:', data.message);
-            }
-          },
-          status: (code) => ({
-            json: (data) => {
-              console.error(`❌ payJob - commission entry error ${code}:`, data.message);
-            }
-          })
-        };
-        
-        await commissionController.addCommissionEntry(mockReq, mockRes);
       } catch (commissionError) {
         console.error('❌ payJob - commission entry error:', commissionError);
         // Don't fail the payment if commission entry fails

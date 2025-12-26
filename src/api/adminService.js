@@ -525,14 +525,46 @@ export const adminService = {
       }
       
       // Production: Real API call
+      console.log('🔍 Calling search-users API with phoneNumber:', phoneNumber || '(empty - all users)');
       const response = await api.get('/admin/search-users', {
-        params: { phoneNumber }
+        params: { phoneNumber: phoneNumber || '' }
       });
       
+      console.log('✅ Search users API response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Search users error:', error);
-      throw error.response?.data || error;
+      console.error('❌ Search users API error:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        url: error?.config?.url
+      });
+      
+      // Return error in a consistent format
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        const errorObj = new Error(errorData.message || 'Failed to search users');
+        Object.assign(errorObj, { ...errorData, success: false });
+        throw errorObj;
+      } else if (error.response) {
+        const errorObj = new Error(error.response.statusText || 'Failed to search users');
+        Object.assign(errorObj, {
+          success: false,
+          message: error.response.statusText || 'Failed to search users',
+          error: error.message
+        });
+        throw errorObj;
+      } else {
+        const errorObj = new Error(error.message || 'Network error. Please check your connection.');
+        Object.assign(errorObj, {
+          success: false,
+          message: error.message || 'Network error. Please check your connection.',
+          error: error.message
+        });
+        throw errorObj;
+      }
     }
   },
 

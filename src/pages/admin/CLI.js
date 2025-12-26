@@ -61,10 +61,14 @@ const AdminDashboard = () => {
 
   // Real-time filtering when search query changes
   useEffect(() => {
-    if (activeTab === 'search') {
-      filterUsers();
+    if (activeTab === 'search' && !searchLoading) {
+      // Only filter if we're not currently loading and allUsers is properly initialized
+      if (allUsers && (Array.isArray(allUsers.clients) || Array.isArray(allUsers.freelancers))) {
+        filterUsers();
+      }
     }
-  }, [searchQuery, allUsers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, allUsers, activeTab, searchLoading]);
 
   const loadAdminData = async () => {
     try {
@@ -166,45 +170,135 @@ const AdminDashboard = () => {
     try {
       setSearchLoading(true);
       setError('');
+      console.log('🔍 Loading all users...');
+      
       // Search with empty query to get all users
       const result = await adminService.searchUsers('');
       
-      if (result.success) {
-        setAllUsers(result.data);
-        setFilteredResults(result.data);
+      console.log('📥 Search users result:', result);
+      console.log('📥 Result data type:', typeof result?.data, Array.isArray(result?.data) ? 'Array' : 'Object');
+      console.log('📥 Result data:', result?.data);
+      
+      if (result && result.success && result.data) {
+        let userData;
+        
+        // Handle both response formats: object with clients/freelancers OR array of users
+        if (Array.isArray(result.data)) {
+          // Old format: data is an array of users
+          console.warn('⚠️ Received array format, converting to object format');
+          const users = result.data;
+          const clients = [];
+          const freelancers = [];
+          
+          users.forEach(user => {
+            if (user.role === 'client' || !user.role) {
+              clients.push({
+                ...user,
+                displayRole: 'client',
+                isCurrentRole: user.role === 'client'
+              });
+            }
+            if (user.role === 'freelancer' || user.verificationDocuments || user.verificationStatus) {
+              freelancers.push({
+                ...user,
+                displayRole: 'freelancer',
+                isCurrentRole: user.role === 'freelancer'
+              });
+            }
+          });
+          
+          userData = {
+            clients,
+            freelancers,
+            total: users.length
+          };
+        } else if (result.data && typeof result.data === 'object') {
+          // New format: data is an object with clients, freelancers, total
+          userData = {
+            clients: Array.isArray(result.data.clients) ? result.data.clients : [],
+            freelancers: Array.isArray(result.data.freelancers) ? result.data.freelancers : [],
+            total: result.data.total || 0
+          };
+        } else {
+          // Invalid format
+          console.error('❌ Invalid data format:', result.data);
+          userData = { clients: [], freelancers: [], total: 0 };
+        }
+        
+        console.log('✅ Loaded users:', { clients: userData.clients.length, freelancers: userData.freelancers.length, total: userData.total });
+        setAllUsers(userData);
+        setFilteredResults(userData);
+        setError(''); // Clear any previous errors
       } else {
-        setError(result.message || 'Failed to load users');
-        setAllUsers({ clients: [], freelancers: [], total: 0 });
-        setFilteredResults({ clients: [], freelancers: [], total: 0 });
+        const errorMsg = result?.message || result?.error || 'Failed to load users';
+        console.error('❌ Invalid response structure:', result);
+        setError(errorMsg);
+        const emptyData = { clients: [], freelancers: [], total: 0 };
+        setAllUsers(emptyData);
+        setFilteredResults(emptyData);
       }
     } catch (error) {
-      console.error('Load all users error:', error);
-      setError('Failed to load users. Please try again.');
-      setAllUsers({ clients: [], freelancers: [], total: 0 });
-      setFilteredResults({ clients: [], freelancers: [], total: 0 });
+      console.error('❌ Load all users error:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText
+      });
+      
+      // Extract error message from different possible structures
+      let errorMessage = 'Failed to load users. Please try again.';
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      setError(errorMessage);
+      const emptyData = { clients: [], freelancers: [], total: 0 };
+      setAllUsers(emptyData);
+      setFilteredResults(emptyData);
     } finally {
       setSearchLoading(false);
     }
   };
 
   const filterUsers = () => {
+    // Ensure allUsers has the correct structure
+    if (!allUsers || typeof allUsers !== 'object') {
+      setFilteredResults({ clients: [], freelancers: [], total: 0 });
+      return;
+    }
+
+    // Ensure clients and freelancers arrays exist
+    const clients = Array.isArray(allUsers.clients) ? allUsers.clients : [];
+    const freelancers = Array.isArray(allUsers.freelancers) ? allUsers.freelancers : [];
+
     if (!searchQuery.trim()) {
       // If no search query, show all users
-      setFilteredResults(allUsers);
+      setFilteredResults({
+        clients: clients,
+        freelancers: freelancers,
+        total: clients.length + freelancers.length
+      });
       return;
     }
 
     const query = searchQuery.toLowerCase().trim();
     
     // Filter clients
-    const filteredClients = allUsers.clients.filter(client => {
-      const phoneNumber = (client.phoneNumber || client.phone || '').toString();
+    const filteredClients = clients.filter(client => {
+      const phoneNumber = (client.phoneNumber || client.phone || '').toString().toLowerCase();
       return phoneNumber.includes(query);
     });
 
     // Filter freelancers
-    const filteredFreelancers = allUsers.freelancers.filter(freelancer => {
-      const phoneNumber = (freelancer.phoneNumber || freelancer.phone || '').toString();
+    const filteredFreelancers = freelancers.filter(freelancer => {
+      const phoneNumber = (freelancer.phoneNumber || freelancer.phone || '').toString().toLowerCase();
       return phoneNumber.includes(query);
     });
 

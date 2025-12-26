@@ -116,13 +116,21 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
     if (!orderId) return;
     try {
       setProcessingDues(true);
+      console.log('🔄 Processing dues order:', orderId);
       const result = await freelancerService.processDuesOrder(orderId);
       console.log('✅ Dues processed:', result);
+      
+      // Immediately refresh wallet data
+      if (onRefresh) {
+        onRefresh();
+      }
+      
+      // Clean up localStorage
+      localStorage.removeItem('lastDuesOrderId');
+      
       if (!silent) {
         alert('Dues cleared successfully.');
       }
-      localStorage.removeItem('lastDuesOrderId');
-      if (onRefresh) onRefresh();
     } catch (err) {
       console.error('❌ Failed to process dues order:', err);
       if (!silent) {
@@ -158,19 +166,20 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
     
     if (orderIdToProcess && orderIdToProcess.startsWith('DUES_')) {
       if (totalDues > 0) {
-        console.log('🔄 Found dues orderId with unpaid dues, processing in 2s...', orderIdToProcess);
-        // Small delay to ensure component is fully mounted and wallet data loaded
+        console.log('🔄 Found dues orderId with unpaid dues, processing immediately...', orderIdToProcess);
+        // Process immediately if transactions are loaded, otherwise wait a short moment
+        const delay = transactions.length > 0 ? 300 : 1000;
         const timeoutId = setTimeout(() => {
           console.log('⏰ Processing dues now...', orderIdToProcess);
           processDuesOrder(orderIdToProcess, { silent: true });
-        }, 2000);
+        }, delay);
         
         // Clean up URL params after processing
         if (orderIdFromUrl) {
           setTimeout(() => {
             const newUrl = window.location.pathname;
             window.history.replaceState({}, '', newUrl);
-          }, 3000);
+          }, delay + 1000);
         }
         
         return () => clearTimeout(timeoutId);
@@ -231,7 +240,7 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
           if (orderId && orderId !== 'N/A') {
             setTimeout(() => {
               processDuesOrder(orderId, { silent: true });
-            }, 7000);
+            }, 3000);
           }
         } else {
           console.error('❌ No payment URL in response:', result);

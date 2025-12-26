@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const bulkpeService = require('../services/bulkpeService');
 
 // Get freelancer verifications
 const getFreelancerVerifications = async (req, res) => {
@@ -134,11 +135,94 @@ const approveWithdrawal = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // In a real implementation, you'd update the withdrawal status
-    res.json({
-      success: true,
-      message: 'Withdrawal approved successfully'
+    // Find the withdrawal request
+    const withdrawal = await Withdrawal.findById(id);
+    if (!withdrawal) {
+      return res.status(404).json({
+        success: false,
+        message: 'Withdrawal request not found'
+      });
+    }
+
+    if (withdrawal.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Withdrawal request is not pending'
+      });
+    }
+
+    // Get user details for payout
+    const user = await User.findById(withdrawal.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if user has sufficient balance
+    if (!user.wallet || user.wallet.balance < withdrawal.amount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient balance'
+      });
+    }
+
+    console.log('🚀 Processing withdrawal payout via Bulkpe:', {
+      userId: user._id,
+      amount: withdrawal.amount,
+      upiId: withdrawal.upiId,
+      bankDetails: withdrawal.bankDetails
     });
+
+    // Process payout via Bulkpe
+    const payoutResult = await bulkpeService.processWithdrawalRequest({
+      amount: withdrawal.amount,
+      upiId: withdrawal.upiId,
+      bankDetails: withdrawal.bankDetails,
+      beneficiaryName: user.fullName
+    });
+
+    if (payoutResult.success) {
+      // Update withdrawal status
+      withdrawal.status = 'processing';
+      withdrawal.bulkpeTransactionId = payoutResult.transactionId;
+      withdrawal.bulkpeReferenceId = payoutResult.referenceId;
+      withdrawal.approvedAt = new Date();
+      await withdrawal.save();
+
+      // Deduct amount from user's wallet
+      user.wallet.balance -= withdrawal.amount;
+      
+      // Add transaction record
+      if (!user.wallet.transactions) {
+        user.wallet.transactions = [];
+      }
+      
+      user.wallet.transactions.push({
+        type: 'withdrawal',
+        amount: -withdrawal.amount,
+        description: `Withdrawal payout - ${payoutResult.transactionId}`,
+        status: 'processing',
+        bulkpeTransactionId: payoutResult.transactionId,
+        createdAt: new Date()
+      });
+      
+      await user.save();
+
+      res.json({
+        success: true,
+        message: 'Withdrawal approved and payout initiated',
+        transactionId: payoutResult.transactionId,
+        status: payoutResult.status
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to process payout',
+        error: payoutResult.error
+      });
+    }
 
   } catch (error) {
     console.error('Approve withdrawal error:', error);
@@ -174,54 +258,71 @@ const searchUsers = async (req, res) => {
   try {
     const { phoneNumber } = req.query;
     
+    console.log('🔍 Admin searchUsers called with phoneNumber:', phoneNumber);
+    
     let query = {};
     
     // If phoneNumber is provided and not empty, filter by it
-    if (phoneNumber && phoneNumber.trim().length > 0) {
+    if (phoneNumber && typeof phoneNumber === 'string' && phoneNumber.trim().length > 0) {
       query = {
         $or: [
-          { phoneNumber: { $regex: phoneNumber, $options: 'i' } },
-          { phone: { $regex: phoneNumber, $options: 'i' } }
+          { phoneNumber: { $regex: phoneNumber.trim(), $options: 'i' } },
+          { phone: { $regex: phoneNumber.trim(), $options: 'i' } }
         ]
       };
+      console.log('🔍 Filtering users by phone number:', phoneNumber.trim());
+    } else {
+      console.log('📋 No phone number filter - returning all users');
     }
     // If no phoneNumber provided, get all users
 
     // Search for users with matching phone number (supporting both phone and phoneNumber fields)
+    console.log('🔍 MongoDB query:', JSON.stringify(query, null, 2));
+    
     const users = await User.find(query)
     .select('_id fullName phoneNumber phone email role verificationStatus profilePhoto createdAt updatedAt wallet verificationDocuments')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean(); // Use lean() for better performance and to ensure we get plain objects
 
-    console.log(`🔍 Search for phone: ${phoneNumber}`);
-    console.log(`📊 Found ${users.length} users:`, users.map(u => ({ 
-      id: u._id, 
-      name: u.fullName, 
-      role: u.role, 
-      phone: u.phoneNumber || u.phone 
-    })));
+    console.log(`🔍 Search for phone: ${phoneNumber || '(all users)'}`);
+    console.log(`📊 Found ${users.length} users in database`);
+    
+    if (users.length > 0) {
+      console.log(`📊 Sample users:`, users.slice(0, 3).map(u => ({ 
+        id: u._id, 
+        name: u.fullName, 
+        role: u.role, 
+        phone: u.phoneNumber || u.phone 
+      })));
+    } else {
+      console.log('⚠️ No users found. Checking if User model is connected...');
+      const totalUsers = await User.countDocuments({});
+      console.log(`📊 Total users in database: ${totalUsers}`);
+    }
 
     // For role-switching users, prioritize freelancer data and show in both tabs
     const clients = [];
     const freelancers = [];
 
     users.forEach(user => {
-      const userObj = user.toObject();
+      // user is already a plain object due to .lean(), no need for toObject()
+      const userObj = user;
       
       // If user has freelancer data, show them in freelancer tab
-      if (user.verificationDocuments || user.verificationStatus || user.role === 'freelancer') {
+      if (userObj.verificationDocuments || userObj.verificationStatus || userObj.role === 'freelancer') {
         freelancers.push({
           ...userObj,
           displayRole: 'freelancer',
-          isCurrentRole: user.role === 'freelancer'
+          isCurrentRole: userObj.role === 'freelancer'
         });
       }
       
       // If user has APPROVED freelancer data, also show in client tab with freelancer details
-      if (user.verificationDocuments && user.verificationStatus === 'approved') {
+      if (userObj.verificationDocuments && userObj.verificationStatus === 'approved') {
         clients.push({
           ...userObj,
           displayRole: 'client',
-          isCurrentRole: user.role === 'client',
+          isCurrentRole: userObj.role === 'client',
           hasApprovedFreelancerData: true // Flag to indicate this user has approved freelancer data
         });
       } else {
@@ -229,7 +330,7 @@ const searchUsers = async (req, res) => {
         clients.push({
           ...userObj,
           displayRole: 'client',
-          isCurrentRole: user.role === 'client',
+          isCurrentRole: userObj.role === 'client',
           hasApprovedFreelancerData: false
         });
       }
@@ -237,13 +338,25 @@ const searchUsers = async (req, res) => {
 
     console.log(`👥 Clients: ${clients.length}, Freelancers: ${freelancers.length}`);
 
+    // Ensure we always return the correct format (object with clients, freelancers, total)
+    // Never return an array directly in data field
+    const responseData = {
+      clients: Array.isArray(clients) ? clients : [],
+      freelancers: Array.isArray(freelancers) ? freelancers : [],
+      total: typeof users.length === 'number' ? users.length : 0
+    };
+
+    console.log('📤 Sending response with format:', {
+      hasClients: Array.isArray(responseData.clients),
+      hasFreelancers: Array.isArray(responseData.freelancers),
+      clientsCount: responseData.clients.length,
+      freelancersCount: responseData.freelancers.length,
+      total: responseData.total
+    });
+
     res.json({
       success: true,
-      data: {
-        clients,
-        freelancers,
-        total: users.length
-      }
+      data: responseData
     });
 
   } catch (error) {
