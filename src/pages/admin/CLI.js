@@ -288,21 +288,43 @@ const AdminDashboard = () => {
       return;
     }
 
-    const query = searchQuery.toLowerCase().trim();
+    const query = searchQuery.trim();
+    // Normalize query: remove spaces, +, -, and convert to lowercase for comparison
+    const normalizedQuery = query.replace(/[\s+\-()]/g, '').toLowerCase();
+    
+    // Helper function to normalize phone numbers for comparison
+    const normalizePhone = (phone) => {
+      if (!phone) return '';
+      return phone.toString().replace(/[\s+\-()]/g, '').toLowerCase();
+    };
     
     // Filter clients
     const filteredClients = clients.filter(client => {
-      const phoneNumber = (client.phoneNumber || client.phone || '').toString().toLowerCase();
-      return phoneNumber.includes(query);
+      const phoneNumber = normalizePhone(client.phoneNumber || client.phone || '');
+      const fullName = (client.fullName || '').toLowerCase();
+      // Search in both phone number and name
+      return phoneNumber.includes(normalizedQuery) || fullName.includes(query.toLowerCase());
     });
 
     // Filter freelancers
     const filteredFreelancers = freelancers.filter(freelancer => {
-      const phoneNumber = (freelancer.phoneNumber || freelancer.phone || '').toString().toLowerCase();
-      return phoneNumber.includes(query);
+      const phoneNumber = normalizePhone(freelancer.phoneNumber || freelancer.phone || '');
+      const fullName = (freelancer.fullName || '').toLowerCase();
+      // Search in both phone number and name
+      return phoneNumber.includes(normalizedQuery) || fullName.includes(query.toLowerCase());
     });
 
     const total = filteredClients.length + filteredFreelancers.length;
+    
+    console.log('🔍 Filtering users:', {
+      query,
+      normalizedQuery,
+      clientsBefore: clients.length,
+      clientsAfter: filteredClients.length,
+      freelancersBefore: freelancers.length,
+      freelancersAfter: filteredFreelancers.length,
+      total
+    });
     
     setFilteredResults({
       clients: filteredClients,
@@ -666,7 +688,11 @@ const AdminDashboard = () => {
       </Card>
 
       {/* Search Results */}
-      {filteredResults.total > 0 && (
+      {searchLoading ? (
+        <div className="text-center py-8">
+          <p className="text-gray-500">Loading users...</p>
+        </div>
+      ) : filteredResults.total > 0 ? (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">
@@ -781,6 +807,29 @@ const AdminDashboard = () => {
                 )}
               </CardContent>
             </Card>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="text-center py-12 px-6">
+            <Search className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              {searchQuery.trim() ? 'No users found' : 'No users loaded'}
+            </h3>
+            <p className="text-gray-500">
+              {searchQuery.trim() 
+                ? `No users match "${searchQuery}". Try a different phone number or name.`
+                : 'Users are being loaded. Please wait...'}
+            </p>
+            {!searchQuery.trim() && allUsers && allUsers.total === 0 && (
+              <Button 
+                onClick={loadAllUsers} 
+                variant="outline" 
+                className="mt-4"
+              >
+                Retry Loading Users
+              </Button>
+            )}
           </div>
         </div>
       )}
