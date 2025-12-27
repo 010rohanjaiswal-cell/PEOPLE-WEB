@@ -260,9 +260,20 @@ const AdminDashboard = () => {
           phone: f.phoneNumber || f.phone
         })));
         
+        // Warn if no users found
+        if (userData.total === 0) {
+          console.warn('⚠️ [DEBUG] No users found in response!');
+          console.warn('⚠️ [DEBUG] This might mean:');
+          console.warn('⚠️ [DEBUG] 1. Backend on Render.com needs to be updated');
+          console.warn('⚠️ [DEBUG] 2. Backend is connecting to a different database');
+          console.warn('⚠️ [DEBUG] 3. MongoDB query is not finding users');
+          setError('No users found. Please ensure the backend is updated and connected to the correct database.');
+        } else {
+          setError(''); // Clear any previous errors
+        }
+        
         setAllUsers(userData);
         setFilteredResults(userData);
-        setError(''); // Clear any previous errors
         
         console.log('✅ [DEBUG] State updated - allUsers and filteredResults set');
         console.log('✅ [DEBUG] Will trigger re-render with new data');
@@ -900,12 +911,24 @@ const AdminDashboard = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               {searchQuery.trim() ? 'No users found' : 'No users loaded'}
             </h3>
-            <p className="text-gray-500">
+            <p className="text-gray-500 mb-4">
               {searchQuery.trim() 
                 ? `No users match "${searchQuery}". Try a different phone number or name.`
-                : 'Users are being loaded. Please wait...'}
+                : allUsers && allUsers.total === 0
+                  ? 'The backend returned 0 users. Check the console for details.'
+                  : 'Users are being loaded. Please wait...'}
             </p>
-            {!searchQuery.trim() && allUsers && allUsers.total === 0 && (
+            {error && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 text-left max-w-2xl mx-auto">
+                <p className="text-sm text-yellow-800 font-semibold mb-1">⚠️ Backend Issue Detected</p>
+                <p className="text-xs text-yellow-700 mb-2">{error}</p>
+                <p className="text-xs text-yellow-600">
+                  <strong>Solution:</strong> The backend on Render.com needs to be updated with the latest code. 
+                  The backend should return users in format: <code className="bg-yellow-100 px-1 rounded">{"{clients: [], freelancers: [], total: X}"}</code>
+                </p>
+              </div>
+            )}
+            {(!searchQuery.trim() && allUsers && allUsers.total === 0) && (
               <Button 
                 onClick={loadAllUsers} 
                 variant="outline" 
