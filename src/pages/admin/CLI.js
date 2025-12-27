@@ -61,11 +61,26 @@ const AdminDashboard = () => {
 
   // Real-time filtering when search query changes
   useEffect(() => {
+    console.log('🔄 [DEBUG] useEffect triggered for search filtering');
+    console.log('🔄 [DEBUG] activeTab:', activeTab);
+    console.log('🔄 [DEBUG] searchLoading:', searchLoading);
+    console.log('🔄 [DEBUG] searchQuery:', searchQuery);
+    console.log('🔄 [DEBUG] allUsers:', allUsers);
+    
     if (activeTab === 'search' && !searchLoading) {
       // Only filter if we're not currently loading and allUsers is properly initialized
       if (allUsers && (Array.isArray(allUsers.clients) || Array.isArray(allUsers.freelancers))) {
+        console.log('🔄 [DEBUG] Conditions met - calling filterUsers()');
         filterUsers();
+      } else {
+        console.warn('⚠️ [DEBUG] Conditions not met for filtering:', {
+          hasAllUsers: !!allUsers,
+          clientsIsArray: Array.isArray(allUsers?.clients),
+          freelancersIsArray: Array.isArray(allUsers?.freelancers)
+        });
       }
+    } else {
+      console.log('🔄 [DEBUG] Not filtering - activeTab:', activeTab, 'searchLoading:', searchLoading);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, allUsers, activeTab, searchLoading]);
@@ -170,14 +185,18 @@ const AdminDashboard = () => {
     try {
       setSearchLoading(true);
       setError('');
-      console.log('🔍 Loading all users...');
+      console.log('🔍 [DEBUG] Loading all users...');
+      console.log('🔍 [DEBUG] Current allUsers state:', allUsers);
+      console.log('🔍 [DEBUG] Current filteredResults state:', filteredResults);
       
       // Search with empty query to get all users
       const result = await adminService.searchUsers('');
       
-      console.log('📥 Search users result:', result);
-      console.log('📥 Result data type:', typeof result?.data, Array.isArray(result?.data) ? 'Array' : 'Object');
-      console.log('📥 Result data:', result?.data);
+      console.log('📥 [DEBUG] Search users API result:', result);
+      console.log('📥 [DEBUG] Result success:', result?.success);
+      console.log('📥 [DEBUG] Result data type:', typeof result?.data, Array.isArray(result?.data) ? 'Array' : 'Object');
+      console.log('📥 [DEBUG] Result data:', JSON.stringify(result?.data, null, 2));
+      console.log('📥 [DEBUG] Result data keys:', result?.data ? Object.keys(result.data) : 'No data');
       
       if (result && result.success && result.data) {
         let userData;
@@ -225,10 +244,28 @@ const AdminDashboard = () => {
           userData = { clients: [], freelancers: [], total: 0 };
         }
         
-        console.log('✅ Loaded users:', { clients: userData.clients.length, freelancers: userData.freelancers.length, total: userData.total });
+        console.log('✅ [DEBUG] Loaded users data:', { 
+          clients: userData.clients.length, 
+          freelancers: userData.freelancers.length, 
+          total: userData.total 
+        });
+        console.log('✅ [DEBUG] Sample clients:', userData.clients.slice(0, 3).map(c => ({
+          id: c._id,
+          name: c.fullName,
+          phone: c.phoneNumber || c.phone
+        })));
+        console.log('✅ [DEBUG] Sample freelancers:', userData.freelancers.slice(0, 3).map(f => ({
+          id: f._id,
+          name: f.fullName,
+          phone: f.phoneNumber || f.phone
+        })));
+        
         setAllUsers(userData);
         setFilteredResults(userData);
         setError(''); // Clear any previous errors
+        
+        console.log('✅ [DEBUG] State updated - allUsers and filteredResults set');
+        console.log('✅ [DEBUG] Will trigger re-render with new data');
       } else {
         const errorMsg = result?.message || result?.error || 'Failed to load users';
         console.error('❌ Invalid response structure:', result);
@@ -268,8 +305,13 @@ const AdminDashboard = () => {
   };
 
   const filterUsers = () => {
+    console.log('🔍 [DEBUG] filterUsers called');
+    console.log('🔍 [DEBUG] searchQuery:', searchQuery);
+    console.log('🔍 [DEBUG] allUsers:', allUsers);
+    
     // Ensure allUsers has the correct structure
     if (!allUsers || typeof allUsers !== 'object') {
+      console.warn('⚠️ [DEBUG] allUsers is invalid:', allUsers);
       setFilteredResults({ clients: [], freelancers: [], total: 0 });
       return;
     }
@@ -277,14 +319,22 @@ const AdminDashboard = () => {
     // Ensure clients and freelancers arrays exist
     const clients = Array.isArray(allUsers.clients) ? allUsers.clients : [];
     const freelancers = Array.isArray(allUsers.freelancers) ? allUsers.freelancers : [];
+    
+    console.log('🔍 [DEBUG] Clients array length:', clients.length);
+    console.log('🔍 [DEBUG] Freelancers array length:', freelancers.length);
+    console.log('🔍 [DEBUG] Sample client phones:', clients.slice(0, 3).map(c => c.phoneNumber || c.phone));
+    console.log('🔍 [DEBUG] Sample freelancer phones:', freelancers.slice(0, 3).map(f => f.phoneNumber || f.phone));
 
     if (!searchQuery.trim()) {
       // If no search query, show all users
-      setFilteredResults({
+      console.log('🔍 [DEBUG] No search query - showing all users');
+      const allResults = {
         clients: clients,
         freelancers: freelancers,
         total: clients.length + freelancers.length
-      });
+      };
+      console.log('🔍 [DEBUG] Setting filteredResults to all users:', allResults);
+      setFilteredResults(allResults);
       return;
     }
 
@@ -316,7 +366,7 @@ const AdminDashboard = () => {
 
     const total = filteredClients.length + filteredFreelancers.length;
     
-    console.log('🔍 Filtering users:', {
+    console.log('🔍 [DEBUG] Filtering users:', {
       query,
       normalizedQuery,
       clientsBefore: clients.length,
@@ -325,12 +375,26 @@ const AdminDashboard = () => {
       freelancersAfter: filteredFreelancers.length,
       total
     });
+    console.log('🔍 [DEBUG] Filtered clients:', filteredClients.map(c => ({
+      id: c._id,
+      name: c.fullName,
+      phone: c.phoneNumber || c.phone
+    })));
+    console.log('🔍 [DEBUG] Filtered freelancers:', filteredFreelancers.map(f => ({
+      id: f._id,
+      name: f.fullName,
+      phone: f.phoneNumber || f.phone
+    })));
     
-    setFilteredResults({
+    const filteredResultsData = {
       clients: filteredClients,
       freelancers: filteredFreelancers,
       total: total
-    });
+    };
+    
+    console.log('🔍 [DEBUG] Setting filteredResults:', filteredResultsData);
+    setFilteredResults(filteredResultsData);
+    console.log('🔍 [DEBUG] filteredResults state updated');
   };
 
   const handleViewProfile = async (userId) => {
@@ -686,6 +750,26 @@ const AdminDashboard = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Debug Info */}
+      {process.env.NODE_ENV === 'development' && (
+        <Card className="bg-gray-50 border-gray-200">
+          <CardContent className="p-4">
+            <h4 className="text-sm font-semibold mb-2">🔍 Debug Information</h4>
+            <div className="text-xs space-y-1 font-mono">
+              <div>Search Query: <span className="font-bold">{searchQuery || '(empty)'}</span></div>
+              <div>Loading: <span className="font-bold">{searchLoading ? 'Yes' : 'No'}</span></div>
+              <div>All Users Total: <span className="font-bold">{allUsers?.total || 0}</span></div>
+              <div>All Users Clients: <span className="font-bold">{allUsers?.clients?.length || 0}</span></div>
+              <div>All Users Freelancers: <span className="font-bold">{allUsers?.freelancers?.length || 0}</span></div>
+              <div>Filtered Total: <span className="font-bold">{filteredResults?.total || 0}</span></div>
+              <div>Filtered Clients: <span className="font-bold">{filteredResults?.clients?.length || 0}</span></div>
+              <div>Filtered Freelancers: <span className="font-bold">{filteredResults?.freelancers?.length || 0}</span></div>
+              <div>Active Tab: <span className="font-bold">{activeTab}</span></div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Search Results */}
       {searchLoading ? (
