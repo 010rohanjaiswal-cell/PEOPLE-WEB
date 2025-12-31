@@ -20,6 +20,9 @@ const api = axios.create({
   },
 });
 
+// Export API_BASE_URL for debugging purposes
+export const getAdminApiBaseUrl = () => API_BASE_URL;
+
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {

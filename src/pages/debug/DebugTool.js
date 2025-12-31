@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { adminService } from '../../api/adminService';
+import { adminService, getAdminApiBaseUrl } from '../../api/adminService';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 
@@ -98,11 +98,22 @@ const DebugTool = () => {
 
   const checkAPIBaseURL = () => {
     // Get the actual API base URL from adminService
-    const apiUrl = process.env.REACT_APP_API_BASE_URL || 'https://people-web-5hqi.onrender.com/api';
+    const apiUrl = getAdminApiBaseUrl();
     addLog(`🌐 API Base URL: ${apiUrl}`, 'info');
     addLog(`🌐 Full Search Users URL: ${apiUrl}/admin/search-users`, 'info');
     addLog(`🌐 NODE_ENV: ${process.env.NODE_ENV}`, 'info');
     addLog(`🌐 Window Location: ${window.location.href}`, 'info');
+    
+    // Check localStorage override
+    try {
+      const override = localStorage.getItem('apiBaseUrlOverride');
+      if (override) {
+        addLog(`⚠️ localStorage override detected: ${override}`, 'warning');
+        addLog(`⚠️ This will override the default API URL!`, 'warning');
+      }
+    } catch (e) {
+      addLog(`⚠️ Could not check localStorage: ${e.message}`, 'warning');
+    }
     
     // Check if we can access adminService's API URL
     try {
