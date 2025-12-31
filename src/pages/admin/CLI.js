@@ -5,22 +5,15 @@ import { authService } from '../../api/authService';
 import { adminService } from '../../api/adminService';
 import { Button } from '../../components/common/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card';
-import { Input } from '../../components/common/Input';
 import { Label } from '../../components/common/Label';
 import { 
   Shield, 
-  User, 
   LogOut, 
   CheckCircle,
   XCircle,
-  Clock,
-  DollarSign,
-  Users,
   FileText,
-  AlertCircle,
   Search,
-  Eye,
-  Phone
+  User
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -36,69 +29,32 @@ const AdminDashboard = () => {
   const [verificationDetails, setVerificationDetails] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   
-  // Withdrawal data
-  const [pendingWithdrawals, setPendingWithdrawals] = useState([]);
-  const [withdrawalDetails, setWithdrawalDetails] = useState(null);
-  
-  // Search data
+  // Search Users data
+  const [allUsers, setAllUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [allUsers, setAllUsers] = useState({ clients: [], freelancers: [], total: 0 });
-  const [filteredResults, setFilteredResults] = useState({ clients: [], freelancers: [], total: 0 });
   const [searchLoading, setSearchLoading] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
     loadAdminData();
   }, [verificationFilter]);
 
-  // Load all users when search tab is activated
+  // Load users when search tab is activated
   useEffect(() => {
-    if (activeTab === 'search') {
+    if (activeTab === 'search' && allUsers.length === 0) {
       loadAllUsers();
     }
   }, [activeTab]);
 
-  // Real-time filtering when search query changes
-  useEffect(() => {
-    console.log('🔄 [DEBUG] useEffect triggered for search filtering');
-    console.log('🔄 [DEBUG] activeTab:', activeTab);
-    console.log('🔄 [DEBUG] searchLoading:', searchLoading);
-    console.log('🔄 [DEBUG] searchQuery:', searchQuery);
-    console.log('🔄 [DEBUG] allUsers:', allUsers);
-    
-    if (activeTab === 'search' && !searchLoading) {
-      // Only filter if we're not currently loading and allUsers is properly initialized
-      if (allUsers && (Array.isArray(allUsers.clients) || Array.isArray(allUsers.freelancers))) {
-        console.log('🔄 [DEBUG] Conditions met - calling filterUsers()');
-        filterUsers();
-      } else {
-        console.warn('⚠️ [DEBUG] Conditions not met for filtering:', {
-          hasAllUsers: !!allUsers,
-          clientsIsArray: Array.isArray(allUsers?.clients),
-          freelancersIsArray: Array.isArray(allUsers?.freelancers)
-        });
-      }
-    } else {
-      console.log('🔄 [DEBUG] Not filtering - activeTab:', activeTab, 'searchLoading:', searchLoading);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, allUsers, activeTab, searchLoading]);
 
   const loadAdminData = async () => {
     try {
       setLoading(true);
-      const [verificationsRes, withdrawalsRes] = await Promise.all([
-        adminService.getFreelancerVerifications(verificationFilter),
-        adminService.getWithdrawalRequests('pending')
-      ]);
+      const verificationsRes = await adminService.getFreelancerVerifications(verificationFilter);
       
       console.log('📋 Verifications response:', verificationsRes);
       console.log('📋 Verifications array:', verificationsRes.verifications);
-      console.log('📋 Withdrawals response:', withdrawalsRes);
       
       setPendingVerifications(verificationsRes.verifications || []);
-      setPendingWithdrawals(withdrawalsRes.withdrawals || []);
       
       console.log('📋 Set pendingVerifications to:', verificationsRes.verifications || []);
     } catch (error) {
@@ -139,36 +95,6 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleWithdrawalAction = async (withdrawalId, action) => {
-    try {
-      setLoading(true);
-      
-      if (action === 'approve') {
-        await adminService.approveWithdrawal(withdrawalId);
-      } else if (action === 'reject') {
-        const reason = prompt('Please provide a reason for rejection:');
-        if (reason) {
-          await adminService.rejectWithdrawal(withdrawalId, reason);
-        } else {
-          setLoading(false);
-          return;
-        }
-      }
-      
-      // Update local state
-      setPendingWithdrawals(prev => 
-        prev.filter(w => w.id !== withdrawalId)
-      );
-      
-      setError('');
-    } catch (error) {
-      console.error('Error processing withdrawal:', error);
-      setError('Failed to process withdrawal');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleLogout = async () => {
     try {
       await authService.logout();
@@ -181,263 +107,157 @@ const AdminDashboard = () => {
     }
   };
 
+  const tabs = [
+    { id: 'verifications', label: 'Verifications', icon: Shield },
+    { id: 'search', label: 'Search Users', icon: Search }
+  ];
+
   const loadAllUsers = async () => {
     try {
       setSearchLoading(true);
       setError('');
-      console.log('🔍 [DEBUG] Loading all users...');
-      console.log('🔍 [DEBUG] Current allUsers state:', allUsers);
-      console.log('🔍 [DEBUG] Current filteredResults state:', filteredResults);
-      
-      // Search with empty query to get all users
       const result = await adminService.searchUsers('');
       
-      console.log('📥 [DEBUG] Search users API result:', result);
-      console.log('📥 [DEBUG] Result success:', result?.success);
-      console.log('📥 [DEBUG] Result data type:', typeof result?.data, Array.isArray(result?.data) ? 'Array' : 'Object');
-      console.log('📥 [DEBUG] Result data:', JSON.stringify(result?.data, null, 2));
-      console.log('📥 [DEBUG] Result data keys:', result?.data ? Object.keys(result.data) : 'No data');
-      
       if (result && result.success && result.data) {
-        let userData;
-        
-        // Handle both response formats: object with clients/freelancers OR array of users
+        // Handle both array and object formats
+        let users = [];
         if (Array.isArray(result.data)) {
-          // Old format: data is an array of users
-          console.warn('⚠️ Received array format, converting to object format');
-          const users = result.data;
-          const clients = [];
-          const freelancers = [];
-          
-          users.forEach(user => {
-            if (user.role === 'client' || !user.role) {
-              clients.push({
-                ...user,
-                displayRole: 'client',
-                isCurrentRole: user.role === 'client'
-              });
-            }
-            if (user.role === 'freelancer' || user.verificationDocuments || user.verificationStatus) {
-              freelancers.push({
-                ...user,
-                displayRole: 'freelancer',
-                isCurrentRole: user.role === 'freelancer'
-              });
-            }
-          });
-          
-          userData = {
-            clients,
-            freelancers,
-            total: users.length
-          };
+          users = result.data;
         } else if (result.data && typeof result.data === 'object') {
-          // New format: data is an object with clients, freelancers, total
-          userData = {
-            clients: Array.isArray(result.data.clients) ? result.data.clients : [],
-            freelancers: Array.isArray(result.data.freelancers) ? result.data.freelancers : [],
-            total: result.data.total || 0
-          };
-        } else {
-          // Invalid format
-          console.error('❌ Invalid data format:', result.data);
-          userData = { clients: [], freelancers: [], total: 0 };
+          // Combine clients and freelancers
+          users = [
+            ...(result.data.clients || []),
+            ...(result.data.freelancers || [])
+          ];
         }
-        
-        console.log('✅ [DEBUG] Loaded users data:', { 
-          clients: userData.clients.length, 
-          freelancers: userData.freelancers.length, 
-          total: userData.total 
-        });
-        console.log('✅ [DEBUG] Sample clients:', userData.clients.slice(0, 3).map(c => ({
-          id: c._id,
-          name: c.fullName,
-          phone: c.phoneNumber || c.phone
-        })));
-        console.log('✅ [DEBUG] Sample freelancers:', userData.freelancers.slice(0, 3).map(f => ({
-          id: f._id,
-          name: f.fullName,
-          phone: f.phoneNumber || f.phone
-        })));
-        
-        // Warn if no users found
-        if (userData.total === 0) {
-          console.warn('⚠️ [DEBUG] No users found in response!');
-          console.warn('⚠️ [DEBUG] This might mean:');
-          console.warn('⚠️ [DEBUG] 1. Backend on Render.com needs to be updated');
-          console.warn('⚠️ [DEBUG] 2. Backend is connecting to a different database');
-          console.warn('⚠️ [DEBUG] 3. MongoDB query is not finding users');
-          setError('No users found. Please ensure the backend is updated and connected to the correct database.');
-        } else {
-          setError(''); // Clear any previous errors
-        }
-        
-        setAllUsers(userData);
-        setFilteredResults(userData);
-        
-        console.log('✅ [DEBUG] State updated - allUsers and filteredResults set');
-        console.log('✅ [DEBUG] Will trigger re-render with new data');
+        setAllUsers(users);
       } else {
-        const errorMsg = result?.message || result?.error || 'Failed to load users';
-        console.error('❌ Invalid response structure:', result);
-        setError(errorMsg);
-        const emptyData = { clients: [], freelancers: [], total: 0 };
-        setAllUsers(emptyData);
-        setFilteredResults(emptyData);
+        setError('Failed to load users');
+        setAllUsers([]);
       }
     } catch (error) {
-      console.error('❌ Load all users error:', error);
-      console.error('Error details:', {
-        message: error?.message,
-        response: error?.response?.data,
-        status: error?.response?.status,
-        statusText: error?.response?.statusText
-      });
-      
-      // Extract error message from different possible structures
-      let errorMessage = 'Failed to load users. Please try again.';
-      if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error?.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      
-      setError(errorMessage);
-      const emptyData = { clients: [], freelancers: [], total: 0 };
-      setAllUsers(emptyData);
-      setFilteredResults(emptyData);
+      console.error('Error loading users:', error);
+      setError('Failed to load users');
+      setAllUsers([]);
     } finally {
       setSearchLoading(false);
     }
   };
 
-  const filterUsers = () => {
-    console.log('🔍 [DEBUG] filterUsers called');
-    console.log('🔍 [DEBUG] searchQuery:', searchQuery);
-    console.log('🔍 [DEBUG] allUsers:', allUsers);
-    
-    // Ensure allUsers has the correct structure
-    if (!allUsers || typeof allUsers !== 'object') {
-      console.warn('⚠️ [DEBUG] allUsers is invalid:', allUsers);
-      setFilteredResults({ clients: [], freelancers: [], total: 0 });
-      return;
-    }
+  const renderSearch = () => {
+    // Filter users based on search query
+    const filteredUsers = searchQuery.trim()
+      ? allUsers.filter(user => {
+          const phone = (user.phoneNumber || user.phone || '').toLowerCase();
+          const name = (user.fullName || '').toLowerCase();
+          const query = searchQuery.toLowerCase();
+          return phone.includes(query) || name.includes(query);
+        })
+      : allUsers;
 
-    // Ensure clients and freelancers arrays exist
-    const clients = Array.isArray(allUsers.clients) ? allUsers.clients : [];
-    const freelancers = Array.isArray(allUsers.freelancers) ? allUsers.freelancers : [];
-    
-    console.log('🔍 [DEBUG] Clients array length:', clients.length);
-    console.log('🔍 [DEBUG] Freelancers array length:', freelancers.length);
-    console.log('🔍 [DEBUG] Sample client phones:', clients.slice(0, 3).map(c => c.phoneNumber || c.phone));
-    console.log('🔍 [DEBUG] Sample freelancer phones:', freelancers.slice(0, 3).map(f => f.phoneNumber || f.phone));
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Search Users</h2>
+          <Button onClick={loadAllUsers} variant="outline" disabled={searchLoading}>
+            {searchLoading ? 'Loading...' : 'Refresh'}
+          </Button>
+        </div>
 
-    if (!searchQuery.trim()) {
-      // If no search query, show all users
-      console.log('🔍 [DEBUG] No search query - showing all users');
-      const allResults = {
-        clients: clients,
-        freelancers: freelancers,
-        total: clients.length + freelancers.length
-      };
-      console.log('🔍 [DEBUG] Setting filteredResults to all users:', allResults);
-      setFilteredResults(allResults);
-      return;
-    }
+        {/* Search Input */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Search by phone number or name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-    const query = searchQuery.trim();
-    // Normalize query: remove spaces, +, -, and convert to lowercase for comparison
-    const normalizedQuery = query.replace(/[\s+\-()]/g, '').toLowerCase();
-    
-    // Helper function to normalize phone numbers for comparison
-    const normalizePhone = (phone) => {
-      if (!phone) return '';
-      return phone.toString().replace(/[\s+\-()]/g, '').toLowerCase();
-    };
-    
-    // Filter clients
-    const filteredClients = clients.filter(client => {
-      const phoneNumber = normalizePhone(client.phoneNumber || client.phone || '');
-      const fullName = (client.fullName || '').toLowerCase();
-      // Search in both phone number and name
-      return phoneNumber.includes(normalizedQuery) || fullName.includes(query.toLowerCase());
-    });
-
-    // Filter freelancers
-    const filteredFreelancers = freelancers.filter(freelancer => {
-      const phoneNumber = normalizePhone(freelancer.phoneNumber || freelancer.phone || '');
-      const fullName = (freelancer.fullName || '').toLowerCase();
-      // Search in both phone number and name
-      return phoneNumber.includes(normalizedQuery) || fullName.includes(query.toLowerCase());
-    });
-
-    const total = filteredClients.length + filteredFreelancers.length;
-    
-    console.log('🔍 [DEBUG] Filtering users:', {
-      query,
-      normalizedQuery,
-      clientsBefore: clients.length,
-      clientsAfter: filteredClients.length,
-      freelancersBefore: freelancers.length,
-      freelancersAfter: filteredFreelancers.length,
-      total
-    });
-    console.log('🔍 [DEBUG] Filtered clients:', filteredClients.map(c => ({
-      id: c._id,
-      name: c.fullName,
-      phone: c.phoneNumber || c.phone
-    })));
-    console.log('🔍 [DEBUG] Filtered freelancers:', filteredFreelancers.map(f => ({
-      id: f._id,
-      name: f.fullName,
-      phone: f.phoneNumber || f.phone
-    })));
-    
-    const filteredResultsData = {
-      clients: filteredClients,
-      freelancers: filteredFreelancers,
-      total: total
-    };
-    
-    console.log('🔍 [DEBUG] Setting filteredResults:', filteredResultsData);
-    setFilteredResults(filteredResultsData);
-    console.log('🔍 [DEBUG] filteredResults state updated');
+        {/* Users List */}
+        {searchLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading users...</p>
+          </div>
+        ) : filteredUsers.length === 0 ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <Search className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {searchQuery.trim() ? 'No users found' : 'No users loaded'}
+              </h3>
+              <p className="text-gray-500">
+                {searchQuery.trim() 
+                  ? `No users match "${searchQuery}"`
+                  : 'Click Refresh to load users'}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            <div className="text-sm text-gray-600">
+              Showing {filteredUsers.length} of {allUsers.length} users
+            </div>
+            <div className="grid gap-4">
+              {filteredUsers.map((user) => (
+                <Card key={user._id || user.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                          {user.profilePhoto ? (
+                            <img 
+                              src={user.profilePhoto} 
+                              alt={user.fullName || 'User'} 
+                              className="w-full h-full object-cover" 
+                            />
+                          ) : (
+                            <User className="w-6 h-6 text-blue-600" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {user.fullName || 'No name'}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {user.phoneNumber || user.phone || 'No phone'}
+                          </p>
+                          <div className="flex items-center space-x-2 mt-1">
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                              user.role === 'freelancer' ? 'bg-green-100 text-green-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>
+                              {user.role || 'client'}
+                            </span>
+                            {user.verificationStatus && (
+                              <span className={`text-xs px-2 py-1 rounded-full ${
+                                user.verificationStatus === 'approved' ? 'bg-green-100 text-green-700' :
+                                user.verificationStatus === 'rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {user.verificationStatus}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
-
-  const handleViewProfile = async (userId) => {
-    try {
-      setLoading(true);
-      const result = await adminService.getUserProfile(userId);
-      
-      if (result.success) {
-        setUserProfile(result.data);
-        setSelectedUser(userId);
-      } else {
-        setError(result.message || 'Failed to load user profile');
-      }
-    } catch (error) {
-      console.error('Get user profile error:', error);
-      setError(error.message || 'Failed to load user profile');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const closeUserProfile = () => {
-    setUserProfile(null);
-    setSelectedUser(null);
-  };
-
-  const tabs = [
-    { id: 'verifications', label: 'Verifications', icon: Shield },
-    { id: 'withdrawals', label: 'Withdrawals', icon: DollarSign },
-    { id: 'search', label: 'Search Users', icon: Search },
-    { id: 'profile', label: 'Profile', icon: User }
-  ];
 
   const renderVerifications = () => {
     console.log('🎨 Rendering verifications, pendingVerifications:', pendingVerifications);
@@ -580,368 +400,6 @@ const AdminDashboard = () => {
     );
   };
 
-  const renderWithdrawals = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Pending Withdrawals</h2>
-        <Button onClick={loadAdminData} variant="outline">
-          Refresh
-        </Button>
-      </div>
-      
-      {pendingWithdrawals.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-          <div className="text-center py-12 px-6">
-            <CheckCircle className="w-16 h-16 mx-auto text-green-500 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
-            <p className="text-gray-500">No pending withdrawals at the moment</p>
-          </div>
-        </div>
-      ) : (
-        <div className="grid gap-6">
-          {pendingWithdrawals.map(withdrawal => (
-            <div key={withdrawal.id} className="bg-white border border-gray-200 rounded-lg shadow-sm">
-              <div className="bg-gray-50 p-6 rounded-t-lg">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold text-gray-900">{withdrawal.freelancerName}</h3>
-                  <span className="text-3xl font-bold text-green-600">
-                    ₹{withdrawal.amount.toLocaleString()}
-                  </span>
-                </div>
-                <p className="text-gray-600 mt-2">
-                  UPI ID: {withdrawal.upiId}
-                </p>
-              </div>
-              <div className="p-6">
-                <div className="space-y-6">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <Clock className="w-5 h-5 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-800">
-                        Requested on {new Date(withdrawal.requestedAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Action buttons */}
-                  <div className="flex space-x-3">
-                    <button 
-                      onClick={() => handleWithdrawalAction(withdrawal.id, 'approve')}
-                      disabled={loading}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Approve
-                    </button>
-                    <button 
-                      onClick={() => handleWithdrawalAction(withdrawal.id, 'reject')}
-                      disabled={loading}
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center"
-                    >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Reject
-                    </button>
-                    <button 
-                      onClick={() => setWithdrawalDetails(withdrawal)}
-                      className="border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg"
-                    >
-                      View Details
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  const renderProfile = () => (
-    <div className="space-y-6">
-      <Card className="border border-gray-200 shadow-sm">
-        <CardHeader className="bg-gray-50">
-          <CardTitle className="text-2xl text-gray-900">Admin Profile</CardTitle>
-          <CardDescription className="text-gray-600">
-            Manage your admin account and view platform statistics
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6 space-y-6">
-          <div className="flex items-center space-x-6">
-            <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center">
-              <Shield className="w-10 h-10 text-white" />
-            </div>
-            <div>
-              <h3 className="text-xl font-semibold text-gray-900">{user?.fullName}</h3>
-              <p className="text-gray-600">{user?.phone}</p>
-              <p className="text-sm text-blue-600 font-medium bg-blue-100 px-3 py-1 rounded-full inline-block mt-2">
-                Administrator
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div>
-              <Label className="text-lg font-semibold text-gray-900">Platform Statistics</Label>
-              <div className="grid grid-cols-2 gap-6 mt-4">
-                <div className="p-6 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-                      <Users className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-3xl font-bold text-blue-600">
-                        {pendingVerifications.length}
-                      </div>
-                      <div className="text-sm text-blue-700 font-medium">Pending Verifications</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-6 bg-green-50 rounded-lg border border-green-200">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
-                      <DollarSign className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-3xl font-bold text-green-600">
-                        {pendingWithdrawals.length}
-                      </div>
-                      <div className="text-sm text-green-700 font-medium">Pending Withdrawals</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-gray-200">
-              <Button 
-                variant="destructive" 
-                onClick={handleLogout}
-                className="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  const renderSearch = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Search Users</h2>
-      </div>
-      
-      {/* Search Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Search className="w-5 h-5 mr-2" />
-            Filter Users by Phone Number
-          </CardTitle>
-          <CardDescription>
-            All users are loaded. Start typing to filter by phone number.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Input
-              type="text"
-              placeholder="Type to filter users (e.g., 9292, +919876543210)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full"
-            />
-            {searchLoading && (
-              <p className="text-sm text-blue-600">Loading all users...</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Debug Info */}
-      {process.env.NODE_ENV === 'development' && (
-        <Card className="bg-gray-50 border-gray-200">
-          <CardContent className="p-4">
-            <h4 className="text-sm font-semibold mb-2">🔍 Debug Information</h4>
-            <div className="text-xs space-y-1 font-mono">
-              <div>Search Query: <span className="font-bold">{searchQuery || '(empty)'}</span></div>
-              <div>Loading: <span className="font-bold">{searchLoading ? 'Yes' : 'No'}</span></div>
-              <div>All Users Total: <span className="font-bold">{allUsers?.total || 0}</span></div>
-              <div>All Users Clients: <span className="font-bold">{allUsers?.clients?.length || 0}</span></div>
-              <div>All Users Freelancers: <span className="font-bold">{allUsers?.freelancers?.length || 0}</span></div>
-              <div>Filtered Total: <span className="font-bold">{filteredResults?.total || 0}</span></div>
-              <div>Filtered Clients: <span className="font-bold">{filteredResults?.clients?.length || 0}</span></div>
-              <div>Filtered Freelancers: <span className="font-bold">{filteredResults?.freelancers?.length || 0}</span></div>
-              <div>Active Tab: <span className="font-bold">{activeTab}</span></div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Search Results */}
-      {searchLoading ? (
-        <div className="text-center py-8">
-          <p className="text-gray-500">Loading users...</p>
-        </div>
-      ) : filteredResults.total > 0 ? (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">
-              {searchQuery.trim() ? `Filtered Results (${filteredResults.total} found)` : `All Users (${filteredResults.total} total)`}
-            </h3>
-            {filteredResults.clients.some(c => c.hasApprovedFreelancerData) && (
-              <div className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
-                User has approved freelancer data (shown in both tabs)
-              </div>
-            )}
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Clients Tab */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Users className="w-5 h-5 mr-2" />
-                  Clients ({filteredResults.clients.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {filteredResults.clients.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No clients found</p>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredResults.clients.map((client) => (
-                      <div key={client._id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
-                            {client.profilePhoto ? (
-                              <img src={client.profilePhoto} alt={client.fullName} className="w-full h-full object-cover" />
-                            ) : (
-                              <User className="w-5 h-5 text-blue-600" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-medium">{client.fullName}</p>
-                            <p className="text-sm text-gray-500 flex items-center">
-                              <Phone className="w-3 h-3 mr-1" />
-                              {client.phoneNumber || client.phone}
-                            </p>
-                            <p className="text-xs text-blue-600 font-medium">
-                              Client Account {client.isCurrentRole && '(Current Role)'}
-                              {client.hasApprovedFreelancerData && ' • Has Approved Freelancer Data'}
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleViewProfile(client._id)}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          View Profile
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Freelancers Tab */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Shield className="w-5 h-5 mr-2" />
-                  Freelancers ({filteredResults.freelancers.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {filteredResults.freelancers.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No freelancers found</p>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredResults.freelancers.map((freelancer) => (
-                      <div key={freelancer._id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center overflow-hidden">
-                            {freelancer.profilePhoto ? (
-                              <img src={freelancer.profilePhoto} alt={freelancer.fullName} className="w-full h-full object-cover" />
-                            ) : (
-                              <Shield className="w-5 h-5 text-green-600" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-medium">{freelancer.fullName}</p>
-                            <p className="text-sm text-gray-500 flex items-center">
-                              <Phone className="w-3 h-3 mr-1" />
-                              {freelancer.phoneNumber || freelancer.phone}
-                            </p>
-                            <p className="text-xs text-green-600 font-medium">
-                              Freelancer Account {freelancer.isCurrentRole && '(Current Role)'}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              Status: {freelancer.verificationStatus || 'Not verified'}
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleViewProfile(freelancer._id)}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          View Profile
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-          <div className="text-center py-12 px-6">
-            <Search className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {searchQuery.trim() ? 'No users found' : 'No users loaded'}
-            </h3>
-            <p className="text-gray-500 mb-4">
-              {searchQuery.trim() 
-                ? `No users match "${searchQuery}". Try a different phone number or name.`
-                : allUsers && allUsers.total === 0
-                  ? 'The backend returned 0 users. Check the console for details.'
-                  : 'Users are being loaded. Please wait...'}
-            </p>
-            {error && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 text-left max-w-2xl mx-auto">
-                <p className="text-sm text-yellow-800 font-semibold mb-1">⚠️ Backend Issue Detected</p>
-                <p className="text-xs text-yellow-700 mb-2">{error}</p>
-                <p className="text-xs text-yellow-600">
-                  <strong>Solution:</strong> The backend on Render.com needs to be updated with the latest code. 
-                  The backend should return users in format: <code className="bg-yellow-100 px-1 rounded">{"{clients: [], freelancers: [], total: X}"}</code>
-                </p>
-              </div>
-            )}
-            {(!searchQuery.trim() && allUsers && allUsers.total === 0) && (
-              <Button 
-                onClick={loadAllUsers} 
-                variant="outline" 
-                className="mt-4"
-              >
-                Retry Loading Users
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-white">
@@ -1013,9 +471,7 @@ const AdminDashboard = () => {
 
         {/* Tab Content */}
         {activeTab === 'verifications' && renderVerifications()}
-        {activeTab === 'withdrawals' && renderWithdrawals()}
         {activeTab === 'search' && renderSearch()}
-        {activeTab === 'profile' && renderProfile()}
         {/* Details Modal */}
         {verificationDetails && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
@@ -1070,136 +526,6 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* User Profile Modal */}
-        {userProfile && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold">User Profile</h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={closeUserProfile}
-                  >
-                    Close
-                  </Button>
-                </div>
-              </div>
-              <div className="p-6 space-y-6">
-                {/* Basic Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm text-gray-600">Full Name</Label>
-                      <div className="text-gray-900 font-medium">{userProfile.fullName}</div>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-600">Phone Number</Label>
-                      <div className="text-gray-900">{userProfile.phoneNumber || userProfile.phone}</div>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-600">Email</Label>
-                      <div className="text-gray-900">{userProfile.email || 'Not provided'}</div>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-600">Role</Label>
-                      <div className="text-gray-900 capitalize">{userProfile.role}</div>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm text-gray-600">Verification Status</Label>
-                      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        userProfile.verificationStatus === 'approved' ? 'bg-green-100 text-green-800' :
-                        userProfile.verificationStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        userProfile.verificationStatus === 'rejected' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {userProfile.verificationStatus || 'Not verified'}
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-600">Account Status</Label>
-                      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        userProfile.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {userProfile.isActive ? 'Active' : 'Inactive'}
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-600">Profile Setup</Label>
-                      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        userProfile.profileSetupCompleted ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {userProfile.profileSetupCompleted ? 'Completed' : 'Pending'}
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-gray-600">Member Since</Label>
-                      <div className="text-gray-900">
-                        {new Date(userProfile.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Wallet Information */}
-                {userProfile.wallet && (
-                  <div className="border-t pt-6">
-                    <h4 className="text-lg font-semibold mb-4">Wallet Information</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm text-gray-600">Current Balance</Label>
-                        <div className="text-gray-900 font-medium">₹{userProfile.wallet.balance || 0}</div>
-                      </div>
-                      <div>
-                        <Label className="text-sm text-gray-600">Total Earnings</Label>
-                        <div className="text-gray-900 font-medium">₹{userProfile.wallet.totalEarnings || 0}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Verification Documents (for freelancers) */}
-                {userProfile.role === 'freelancer' && userProfile.verificationDocuments && (
-                  <div className="border-t pt-6">
-                    <h4 className="text-lg font-semibold mb-4">Verification Documents</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {[
-                        { label: 'Aadhaar Front', key: 'aadhaarFront' },
-                        { label: 'Aadhaar Back', key: 'aadhaarBack' },
-                        { label: 'PAN Card', key: 'panCard' }
-                      ].map((doc) => (
-                        <div key={doc.key}>
-                          <Label className="text-sm text-gray-600">{doc.label}</Label>
-                          {userProfile.verificationDocuments[doc.key] ? (
-                            <div className="mt-1">
-                              <img
-                                src={userProfile.verificationDocuments[doc.key]}
-                                alt={doc.label}
-                                className="w-full h-32 object-cover rounded border cursor-pointer"
-                                onClick={() => window.open(userProfile.verificationDocuments[doc.key], '_blank')}
-                              />
-                            </div>
-                          ) : (
-                            <div className="mt-1 text-gray-400 text-sm">Not uploaded</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    {userProfile.verificationDocuments.address && (
-                      <div className="mt-4">
-                        <Label className="text-sm text-gray-600">Address</Label>
-                        <div className="text-gray-900">{userProfile.verificationDocuments.address}</div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
