@@ -98,7 +98,7 @@ const DebugTool = () => {
 
   const checkAPIBaseURL = () => {
     // Get the actual API base URL from adminService
-    const apiUrl = process.env.REACT_APP_API_BASE_URL || 'https://freelancing-platform-backend-backup.onrender.com/api';
+    const apiUrl = process.env.REACT_APP_API_BASE_URL || 'https://people-web-5hqi.onrender.com/api';
     addLog(`🌐 API Base URL: ${apiUrl}`, 'info');
     addLog(`🌐 Full Search Users URL: ${apiUrl}/admin/search-users`, 'info');
     addLog(`🌐 NODE_ENV: ${process.env.NODE_ENV}`, 'info');
