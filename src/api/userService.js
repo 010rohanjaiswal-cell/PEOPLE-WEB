@@ -2,7 +2,7 @@ import axios from 'axios';
 import { storage } from '../utils/storage';
 import { cloudinaryService } from './cloudinaryService';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://freelancing-platform-backend-backup.onrender.com/api';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://people-web-5hqi.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

@@ -50,7 +50,9 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
       'http://localhost:3002',
       'https://your-frontend-domain.com',
       'https://www.people.com.de',
-      'https://people.com.de'
+      'https://people.com.de',
+      'http://www.people.com.de',
+      'https://people-web-5hqi.onrender.com'
     ];
 
 const corsOptions = {

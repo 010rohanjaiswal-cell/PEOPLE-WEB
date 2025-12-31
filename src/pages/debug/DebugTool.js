@@ -8,11 +8,69 @@ const DebugTool = () => {
   const [apiResponse, setApiResponse] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [localStorageOverride, setLocalStorageOverride] = useState(null);
+  const [correctApiUrl, setCorrectApiUrl] = useState('https://people-web-5hqi.onrender.com/api');
 
   const addLog = (message, type = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
     setLogs(prev => [...prev, { timestamp, message, type }]);
     console.log(`[${timestamp}] ${message}`);
+  };
+
+  // Check for localStorage override on mount
+  useEffect(() => {
+    try {
+      const override = localStorage.getItem('apiBaseUrlOverride');
+      if (override) {
+        setLocalStorageOverride(override);
+        addLog(`⚠️ localStorage override detected: ${override}`, 'warning');
+        addLog('⚠️ This is overriding the default API URL!', 'warning');
+      } else {
+        addLog('✅ No localStorage override found', 'success');
+      }
+    } catch (e) {
+      addLog(`⚠️ Could not check localStorage: ${e.message}`, 'warning');
+    }
+    
+    // Get the actual API URL being used
+    const actualUrl = getAdminApiBaseUrl();
+    addLog(`🌐 Current API Base URL: ${actualUrl}`, 'info');
+    addLog(`🌐 Expected API Base URL: ${correctApiUrl}`, 'info');
+    
+    if (actualUrl !== correctApiUrl) {
+      addLog(`❌ API URL mismatch! Current: ${actualUrl}`, 'error');
+      addLog(`❌ Expected: ${correctApiUrl}`, 'error');
+    } else {
+      addLog('✅ API URL is correct!', 'success');
+    }
+  }, []);
+
+  const clearLocalStorageOverride = () => {
+    try {
+      localStorage.removeItem('apiBaseUrlOverride');
+      setLocalStorageOverride(null);
+      addLog('✅ Cleared localStorage API override', 'success');
+      addLog('🔄 Please reload the page to see the updated API URL', 'info');
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (e) {
+      addLog(`❌ Error clearing localStorage: ${e.message}`, 'error');
+    }
+  };
+
+  const setCorrectApiUrlOverride = () => {
+    try {
+      localStorage.setItem('apiBaseUrlOverride', correctApiUrl);
+      setLocalStorageOverride(correctApiUrl);
+      addLog(`✅ Set localStorage override to: ${correctApiUrl}`, 'success');
+      addLog('🔄 Please reload the page to use the new API URL', 'info');
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (e) {
+      addLog(`❌ Error setting localStorage: ${e.message}`, 'error');
+    }
   };
 
   const testSearchUsersAPI = async () => {
@@ -21,6 +79,8 @@ const DebugTool = () => {
       setError(null);
       addLog('🔍 Starting Search Users API test...', 'info');
       
+      const currentUrl = getAdminApiBaseUrl();
+      addLog(`📡 Using API URL: ${currentUrl}`, 'info');
       addLog('📡 Calling adminService.searchUsers("")...', 'info');
       const startTime = Date.now();
       
@@ -55,36 +115,15 @@ const DebugTool = () => {
       } else {
         addLog(`❌ API returned error: ${result?.message || result?.error || 'Unknown error'}`, 'error');
       }
-      
     } catch (err) {
       addLog(`❌ Error: ${err.message}`, 'error');
       addLog(`   Stack: ${err.stack}`, 'error');
       setError(err.message);
       
-      // Log error details
       if (err.response) {
         addLog(`   Status: ${err.response.status}`, 'error');
         addLog(`   Data: ${JSON.stringify(err.response.data, null, 2)}`, 'error');
       }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const testWithPhoneNumber = async (phoneNumber) => {
-    try {
-      setLoading(true);
-      setError(null);
-      addLog(`🔍 Testing search with phone number: "${phoneNumber}"`, 'info');
-      
-      const result = await adminService.searchUsers(phoneNumber);
-      setApiResponse(result);
-      
-      addLog(`📥 Response: ${JSON.stringify(result, null, 2)}`, 'info');
-      
-    } catch (err) {
-      addLog(`❌ Error: ${err.message}`, 'error');
-      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -96,48 +135,53 @@ const DebugTool = () => {
     setError(null);
   };
 
-  const checkAPIBaseURL = () => {
-    // Get the actual API base URL from adminService
-    const apiUrl = getAdminApiBaseUrl();
-    addLog(`🌐 API Base URL: ${apiUrl}`, 'info');
-    addLog(`🌐 Full Search Users URL: ${apiUrl}/admin/search-users`, 'info');
-    addLog(`🌐 NODE_ENV: ${process.env.NODE_ENV}`, 'info');
-    addLog(`🌐 Window Location: ${window.location.href}`, 'info');
-    
-    // Check localStorage override
-    try {
-      const override = localStorage.getItem('apiBaseUrlOverride');
-      if (override) {
-        addLog(`⚠️ localStorage override detected: ${override}`, 'warning');
-        addLog(`⚠️ This will override the default API URL!`, 'warning');
-      }
-    } catch (e) {
-      addLog(`⚠️ Could not check localStorage: ${e.message}`, 'warning');
-    }
-    
-    // Check if we can access adminService's API URL
-    try {
-      const adminServiceUrl = adminService.searchUsers.toString();
-      addLog(`🔍 adminService.searchUsers function found`, 'info');
-    } catch (e) {
-      addLog(`⚠️ Could not inspect adminService: ${e.message}`, 'warning');
-    }
-  };
-
-  useEffect(() => {
-    addLog('🚀 Debug Tool initialized', 'info');
-    checkAPIBaseURL();
-  }, []);
-
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">🔧 Frontend Debug Tool</h1>
           <p className="text-gray-600">Test and debug the Search Users API functionality</p>
         </div>
 
-        {/* Control Panel */}
+        {/* API URL Fix Section */}
+        {localStorageOverride && (
+          <Card className="border-yellow-500 bg-yellow-50">
+            <CardHeader>
+              <CardTitle className="text-yellow-800">⚠️ API URL Override Detected</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-white p-4 rounded-lg border border-yellow-300">
+                <p className="text-sm text-gray-700 mb-2">
+                  <strong>Current Override:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{localStorageOverride}</code>
+                </p>
+                <p className="text-sm text-gray-700 mb-2">
+                  <strong>Expected URL:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{correctApiUrl}</code>
+                </p>
+                <p className="text-sm text-yellow-800 mb-4">
+                  A localStorage override is forcing the old API URL. Clear it to use the correct URL.
+                </p>
+                <div className="flex gap-3">
+                  <Button 
+                    onClick={clearLocalStorageOverride}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Clear Override & Reload
+                  </Button>
+                  <Button 
+                    onClick={setCorrectApiUrlOverride}
+                    variant="outline"
+                    className="border-green-600 text-green-700 hover:bg-green-50"
+                  >
+                    Set Correct URL & Reload
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Test Controls */}
         <Card>
           <CardHeader>
             <CardTitle>Test Controls</CardTitle>
@@ -145,7 +189,7 @@ const DebugTool = () => {
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-4">
               <Button 
-                onClick={testSearchUsersAPI} 
+                onClick={testSearchUsersAPI}
                 disabled={loading}
                 className="bg-blue-600 hover:bg-blue-700"
               >
@@ -153,30 +197,31 @@ const DebugTool = () => {
               </Button>
               
               <Button 
-                onClick={() => testWithPhoneNumber('+919292929292')} 
-                disabled={loading}
-                variant="outline"
-              >
-                Test with Phone: +919292929292
-              </Button>
-              
-              <Button 
-                onClick={() => testWithPhoneNumber('+919009009000')} 
-                disabled={loading}
-                variant="outline"
-              >
-                Test with Phone: +919009009000
-              </Button>
-              
-              <Button 
-                onClick={checkAPIBaseURL} 
+                onClick={() => {
+                  const currentUrl = getAdminApiBaseUrl();
+                  addLog(`🌐 Current API Base URL: ${currentUrl}`, 'info');
+                  addLog(`🌐 Expected API Base URL: ${correctApiUrl}`, 'info');
+                  addLog(`🌐 NODE_ENV: ${process.env.NODE_ENV}`, 'info');
+                  addLog(`🌐 Window Location: ${window.location.href}`, 'info');
+                  
+                  try {
+                    const override = localStorage.getItem('apiBaseUrlOverride');
+                    if (override) {
+                      addLog(`⚠️ localStorage override: ${override}`, 'warning');
+                    } else {
+                      addLog('✅ No localStorage override', 'success');
+                    }
+                  } catch (e) {
+                    addLog(`⚠️ Could not check localStorage: ${e.message}`, 'warning');
+                  }
+                }}
                 variant="outline"
               >
                 Check API Config
               </Button>
               
               <Button 
-                onClick={clearLogs} 
+                onClick={clearLogs}
                 variant="destructive"
               >
                 Clear Logs
@@ -211,12 +256,16 @@ const DebugTool = () => {
           </Card>
         )}
 
-        {/* Logs */}
+        {/* Debug Logs */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Debug Logs ({logs.length})</CardTitle>
-              <Button onClick={clearLogs} variant="outline" size="sm">
+              <Button 
+                onClick={clearLogs}
+                variant="outline"
+                size="sm"
+              >
                 Clear
               </Button>
             </div>
@@ -228,14 +277,14 @@ const DebugTool = () => {
               ) : (
                 <div className="space-y-1 font-mono text-xs">
                   {logs.map((log, index) => (
-                    <div
+                    <div 
                       key={index}
-                      className={`${
+                      className={
                         log.type === 'error' ? 'text-red-400' :
                         log.type === 'success' ? 'text-green-400' :
                         log.type === 'warning' ? 'text-yellow-400' :
                         'text-gray-300'
-                      }`}
+                      }
                     >
                       <span className="text-gray-500">[{log.timestamp}]</span> {log.message}
                     </div>
@@ -246,7 +295,7 @@ const DebugTool = () => {
           </CardContent>
         </Card>
 
-        {/* Environment Info */}
+        {/* Environment Information */}
         <Card>
           <CardHeader>
             <CardTitle>Environment Information</CardTitle>
@@ -257,30 +306,15 @@ const DebugTool = () => {
                 <span className="font-semibold">NODE_ENV:</span> {process.env.NODE_ENV}
               </div>
               <div>
-                <span className="font-semibold">API Base URL:</span> {process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api'}
+                <span className="font-semibold">API Base URL:</span> {getAdminApiBaseUrl()}
               </div>
               <div>
                 <span className="font-semibold">Window Location:</span> {window.location.href}
               </div>
               <div>
-                <span className="font-semibold">User Agent:</span> {navigator.userAgent.substring(0, 50)}...
+                <span className="font-semibold">LocalStorage Override:</span> {localStorageOverride || 'None'}
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Network Monitor */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Network Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600">
-              Open browser DevTools (F12) → Network tab to see all API requests
-            </p>
-            <p className="text-sm text-gray-600 mt-2">
-              Check Console tab for detailed logs
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -289,4 +323,3 @@ const DebugTool = () => {
 };
 
 export default DebugTool;
-

@@ -11,7 +11,7 @@ const runtimeApiBaseUrl = (() => {
   return undefined;
 })();
 
-const API_BASE_URL = runtimeApiBaseUrl || process.env.REACT_APP_API_BASE_URL || 'https://freelancing-platform-backend-backup.onrender.com/api';
+const API_BASE_URL = runtimeApiBaseUrl || process.env.REACT_APP_API_BASE_URL || 'https://people-web-5hqi.onrender.com/api';
 
 // Create axios instance
 const api = axios.create({
