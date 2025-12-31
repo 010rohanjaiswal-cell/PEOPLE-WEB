@@ -14,7 +14,7 @@ class PaymentService {
     this.authBaseUrl = process.env.PHONEPE_AUTH_BASE_URL || 'https://api.phonepe.com/apis/identity-manager';
     
     // Callback URLs
-    this.redirectUrl = process.env.PAYMENT_REDIRECT_URL || 'https://freelancing-platform-backend-backup.onrender.com/payment/callback';
+    this.redirectUrl = process.env.PAYMENT_REDIRECT_URL || 'https://people-web-5hqi.onrender.com/payment/callback';
     this.frontendUrl = process.env.FRONTEND_URL || 'https://www.people.com.de';
     
     // OAuth token cache

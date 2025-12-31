@@ -5,7 +5,7 @@ class PaymentServiceMinimal {
     this.saltKey = 'd74141aa-8762-4d1b-bfa1-dfe2a094d310';
     this.saltIndex = 1;
     this.baseUrl = 'https://api.phonepe.com/apis/hermes';
-    this.redirectUrl = process.env.PAYMENT_REDIRECT_URL || 'https://freelancing-platform-backend-backup.onrender.com/payment/callback';
+    this.redirectUrl = process.env.PAYMENT_REDIRECT_URL || 'https://people-web-5hqi.onrender.com/payment/callback';
   }
 
   // Calculate commission and freelancer amount
