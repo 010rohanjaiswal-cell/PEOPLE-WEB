@@ -34,14 +34,33 @@ const getFreelancerVerifications = async (req, res) => {
     const allVerifications = [];
     
     // Process verifications from FreelancerVerification collection
-    verificationsFromCollection.forEach(verification => {
-      const user = verification.user || {};
+    for (const verification of verificationsFromCollection) {
+      // Handle user field - could be populated object or ObjectId
+      let user = null;
+      let userId = null;
+      
+      if (verification.user) {
+        if (typeof verification.user === 'object' && verification.user._id) {
+          // Populated user object
+          user = verification.user;
+          userId = verification.user._id;
+        } else {
+          // ObjectId reference - fetch user
+          userId = verification.user;
+          try {
+            user = await User.findById(userId).select('phoneNumber phone fullName profilePhoto').lean();
+          } catch (err) {
+            console.error('Error fetching user for verification:', err);
+          }
+        }
+      }
+      
       allVerifications.push({
         _id: verification._id,
-        userId: verification.user?._id || verification.user,
-        fullName: verification.fullName || user.fullName || null,
-        phoneNumber: user.phoneNumber || user.phone || null,
-        phone: user.phone || user.phoneNumber || null,
+        userId: userId || verification.user,
+        fullName: verification.fullName || (user?.fullName) || null,
+        phoneNumber: user?.phoneNumber || user?.phone || null,
+        phone: user?.phone || user?.phoneNumber || null,
         verificationStatus: verification.status || 'pending',
         verificationDocuments: {
           aadhaarFront: verification.aadhaarFront || null,
@@ -51,11 +70,11 @@ const getFreelancerVerifications = async (req, res) => {
           dateOfBirth: verification.dob || null,
           gender: verification.gender || null
         },
-        profilePhoto: verification.profilePhoto || user.profilePhoto || null,
+        profilePhoto: verification.profilePhoto || (user?.profilePhoto) || null,
         createdAt: verification.createdAt,
         updatedAt: verification.updatedAt || verification.createdAt
       });
-    });
+    }
     
     // Process users with verificationDocuments (for backward compatibility)
     usersWithVerification.forEach(user => {
