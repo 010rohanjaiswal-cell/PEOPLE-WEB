@@ -101,27 +101,48 @@ export const adminService = {
       const response = await api.get('/admin/freelancer-verifications', {
         params: { status }
       });
+      
+      console.log('🔍 Raw API response:', JSON.stringify(response.data, null, 2));
+      
       // Normalize to expected shape in UI (verifications array with id/phone fields)
       const raw = response.data?.data || [];
-      const verifications = raw.map((u) => ({
-        _id: u._id || u.id,
-        id: u._id || u.id,
-        fullName: u.fullName,
-        phoneNumber: u.phoneNumber || u.phone,
-        phone: u.phoneNumber || u.phone,
-        status: u.verificationStatus || u.status || 'pending',
-        verificationStatus: u.verificationStatus || u.status || 'pending',
-        updatedAt: u.updatedAt || u.createdAt,
-        createdAt: u.createdAt,
-        submittedAt: u.createdAt || u.updatedAt,
-        profilePhoto: u.profilePhoto || u.verificationDocuments?.profilePhoto,
-        aadhaarFront: u.verificationDocuments?.aadhaarFront,
-        aadhaarBack: u.verificationDocuments?.aadhaarBack,
-        panCard: u.verificationDocuments?.panCard,
-        dateOfBirth: u.verificationDocuments?.dateOfBirth,
-        gender: u.verificationDocuments?.gender,
-        address: u.verificationDocuments?.address
-      }));
+      console.log('🔍 Raw verifications array:', raw);
+      console.log('🔍 First raw verification:', raw[0]);
+      
+      const verifications = raw.map((u) => {
+        console.log('🔍 Processing user:', {
+          _id: u._id,
+          fullName: u.fullName,
+          phoneNumber: u.phoneNumber,
+          phone: u.phone,
+          verificationStatus: u.verificationStatus,
+          verificationDocuments: u.verificationDocuments,
+          profilePhoto: u.profilePhoto
+        });
+        
+        return {
+          _id: u._id || u.id,
+          id: u._id || u.id,
+          fullName: u.fullName || 'Unknown User',
+          phoneNumber: u.phoneNumber || u.phone || 'No phone',
+          phone: u.phoneNumber || u.phone || 'No phone',
+          status: u.verificationStatus || u.status || 'pending',
+          verificationStatus: u.verificationStatus || u.status || 'pending',
+          updatedAt: u.updatedAt || u.createdAt,
+          createdAt: u.createdAt,
+          submittedAt: u.createdAt || u.updatedAt,
+          profilePhoto: u.profilePhoto || u.verificationDocuments?.profilePhoto || null,
+          aadhaarFront: u.verificationDocuments?.aadhaarFront || null,
+          aadhaarBack: u.verificationDocuments?.aadhaarBack || null,
+          panCard: u.verificationDocuments?.panCard || null,
+          dateOfBirth: u.verificationDocuments?.dateOfBirth || null,
+          gender: u.verificationDocuments?.gender || null,
+          address: u.verificationDocuments?.address || null
+        };
+      });
+      
+      console.log('🔍 Mapped verifications:', verifications);
+      
       return { success: true, verifications };
     } catch (error) {
       console.error('Freelancer verifications error:', error);

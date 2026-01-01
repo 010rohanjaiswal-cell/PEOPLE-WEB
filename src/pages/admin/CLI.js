@@ -369,11 +369,13 @@ const AdminDashboard = () => {
                         <User className="w-6 h-6 text-gray-500 m-3" />
                       )}
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900">{verification.fullName}</h3>
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      {verification.fullName || 'Unknown User'}
+                    </h3>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-600 bg-blue-100 px-3 py-1 rounded-full">
-                      {verification.phoneNumber || verification.phone}
+                      {verification.phoneNumber || verification.phone || 'No phone'}
                     </span>
                     <span className={`text-xs px-2 py-1 rounded-full ${((verification.verificationStatus || verification.status) === 'approved') ? 'bg-green-100 text-green-700' : ((verification.verificationStatus || verification.status) === 'rejected') ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
                       {verification.verificationStatus || verification.status}
