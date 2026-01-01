@@ -11,12 +11,26 @@ const getFreelancerVerifications = async (req, res) => {
     }
 
     const verifications = await User.find(filter)
-      .select('_id fullName phoneNumber verificationStatus verificationDocuments profilePhoto createdAt updatedAt')
+      .select('_id fullName phoneNumber phone verificationStatus verificationDocuments profilePhoto createdAt updatedAt')
+      .lean() // Use lean() to get plain JavaScript objects
       .sort({ updatedAt: -1 });
+
+    // Ensure all fields are present, even if null/undefined
+    const normalizedVerifications = verifications.map(user => ({
+      _id: user._id,
+      fullName: user.fullName || null,
+      phoneNumber: user.phoneNumber || user.phone || null,
+      phone: user.phone || user.phoneNumber || null,
+      verificationStatus: user.verificationStatus || 'pending',
+      verificationDocuments: user.verificationDocuments || null,
+      profilePhoto: user.profilePhoto || null,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt || user.createdAt
+    }));
 
     res.json({
       success: true,
-      data: verifications
+      data: normalizedVerifications
     });
 
   } catch (error) {
