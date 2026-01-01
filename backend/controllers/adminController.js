@@ -1,49 +1,107 @@
 const User = require('../models/User');
+const FreelancerVerification = require('../models/FreelancerVerification');
 const bulkpeService = require('../services/bulkpeService');
 
 // Get freelancer verifications
 const getFreelancerVerifications = async (req, res) => {
   try {
     const { status } = req.query;
-    const filter = { role: 'freelancer' };
+    
+    // Query the FreelancerVerification collection (primary source)
+    const verificationFilter = {};
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
-      filter.verificationStatus = status;
+      verificationFilter.status = status;
+    }
+    
+    // Get verifications from the separate collection
+    const verificationsFromCollection = await FreelancerVerification.find(verificationFilter)
+      .populate('user', 'phoneNumber phone fullName profilePhoto')
+      .lean()
+      .sort({ updatedAt: -1 });
+    
+    // Also get users with verificationStatus for backward compatibility
+    const userFilter = { role: 'freelancer' };
+    if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+      userFilter.verificationStatus = status;
     }
 
-    // First get users without selecting verificationDocuments to see if it exists
-    const verifications = await User.find(filter)
+    const usersWithVerification = await User.find(userFilter)
       .select('_id fullName phoneNumber phone verificationStatus verificationDocuments profilePhoto createdAt updatedAt')
-      .lean() // Use lean() to get plain JavaScript objects
+      .lean()
       .sort({ updatedAt: -1 });
 
-    // Ensure all fields are present, even if null/undefined
-    const normalizedVerifications = verifications.map(user => {
-      // Handle verificationDocuments - check if it's an empty object
-      let verificationDocs = user.verificationDocuments;
-      
-      // If verificationDocuments exists but is an empty object or all values are null/undefined
-      if (verificationDocs && typeof verificationDocs === 'object') {
-        const hasValues = Object.values(verificationDocs).some(v => v !== null && v !== undefined && v !== '');
-        if (!hasValues) {
-          // Empty object with no actual data
-          verificationDocs = null;
-        }
-      } else if (!verificationDocs) {
-        verificationDocs = null;
-      }
-      
-      return {
-        _id: user._id,
-        fullName: user.fullName || null,
+    // Combine verifications from both sources
+    const allVerifications = [];
+    
+    // Process verifications from FreelancerVerification collection
+    verificationsFromCollection.forEach(verification => {
+      const user = verification.user || {};
+      allVerifications.push({
+        _id: verification._id,
+        userId: verification.user?._id || verification.user,
+        fullName: verification.fullName || user.fullName || null,
         phoneNumber: user.phoneNumber || user.phone || null,
         phone: user.phone || user.phoneNumber || null,
-        verificationStatus: user.verificationStatus || 'pending',
-        verificationDocuments: verificationDocs,
-        profilePhoto: user.profilePhoto || null,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt || user.createdAt
-      };
+        verificationStatus: verification.status || 'pending',
+        verificationDocuments: {
+          aadhaarFront: verification.aadhaarFront || null,
+          aadhaarBack: verification.aadhaarBack || null,
+          panCard: verification.panCard || null,
+          address: verification.address || null,
+          dateOfBirth: verification.dob || null,
+          gender: verification.gender || null
+        },
+        profilePhoto: verification.profilePhoto || user.profilePhoto || null,
+        createdAt: verification.createdAt,
+        updatedAt: verification.updatedAt || verification.createdAt
+      });
     });
+    
+    // Process users with verificationDocuments (for backward compatibility)
+    usersWithVerification.forEach(user => {
+      // Skip if we already have this user from FreelancerVerification collection
+      const alreadyAdded = allVerifications.some(v => 
+        String(v.userId || v._id) === String(user._id)
+      );
+      
+      if (!alreadyAdded) {
+        // Handle verificationDocuments - check if it's an empty object
+        let verificationDocs = user.verificationDocuments;
+        
+        // If verificationDocuments exists but is an empty object or all values are null/undefined
+        if (verificationDocs && typeof verificationDocs === 'object') {
+          const hasValues = Object.values(verificationDocs).some(v => v !== null && v !== undefined && v !== '');
+          if (!hasValues) {
+            // Empty object with no actual data
+            verificationDocs = null;
+          }
+        } else if (!verificationDocs) {
+          verificationDocs = null;
+        }
+        
+        allVerifications.push({
+          _id: user._id,
+          userId: user._id,
+          fullName: user.fullName || null,
+          phoneNumber: user.phoneNumber || user.phone || null,
+          phone: user.phone || user.phoneNumber || null,
+          verificationStatus: user.verificationStatus || 'pending',
+          verificationDocuments: verificationDocs,
+          profilePhoto: user.profilePhoto || null,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt || user.createdAt
+        });
+      }
+    });
+    
+    // Sort by updatedAt descending
+    allVerifications.sort((a, b) => {
+      const dateA = new Date(a.updatedAt || a.createdAt);
+      const dateB = new Date(b.updatedAt || b.createdAt);
+      return dateB - dateA;
+    });
+    
+    const normalizedVerifications = allVerifications;
 
     res.json({
       success: true,
