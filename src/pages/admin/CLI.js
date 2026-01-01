@@ -30,7 +30,7 @@ const AdminDashboard = () => {
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   
   // Search Users data
-  const [allUsers, setAllUsers] = useState([]);
+  const [allUsers, setAllUsers] = useState({ clients: [], freelancers: [] });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
 
@@ -40,7 +40,7 @@ const AdminDashboard = () => {
 
   // Load users when search tab is activated
   useEffect(() => {
-    if (activeTab === 'search' && allUsers.length === 0) {
+    if (activeTab === 'search' && allUsers.clients.length === 0 && allUsers.freelancers.length === 0) {
       loadAllUsers();
     }
   }, [activeTab]);
@@ -120,25 +120,28 @@ const AdminDashboard = () => {
       
       if (result && result.success && result.data) {
         // Handle both array and object formats
-        let users = [];
+        let clients = [];
+        let freelancers = [];
+        
         if (Array.isArray(result.data)) {
-          users = result.data;
+          // If array format, separate by role
+          clients = result.data.filter(user => user.role === 'client' || !user.role);
+          freelancers = result.data.filter(user => user.role === 'freelancer');
         } else if (result.data && typeof result.data === 'object') {
-          // Combine clients and freelancers
-          users = [
-            ...(result.data.clients || []),
-            ...(result.data.freelancers || [])
-          ];
+          // Object format with separate clients and freelancers arrays
+          clients = result.data.clients || [];
+          freelancers = result.data.freelancers || [];
         }
-        setAllUsers(users);
+        
+        setAllUsers({ clients, freelancers });
       } else {
         setError('Failed to load users');
-        setAllUsers([]);
+        setAllUsers({ clients: [], freelancers: [] });
       }
     } catch (error) {
       console.error('Error loading users:', error);
       setError('Failed to load users');
-      setAllUsers([]);
+      setAllUsers({ clients: [], freelancers: [] });
     } finally {
       setSearchLoading(false);
     }
@@ -146,14 +149,59 @@ const AdminDashboard = () => {
 
   const renderSearch = () => {
     // Filter users based on search query
-    const filteredUsers = searchQuery.trim()
-      ? allUsers.filter(user => {
-          const phone = (user.phoneNumber || user.phone || '').toLowerCase();
-          const name = (user.fullName || '').toLowerCase();
-          const query = searchQuery.toLowerCase();
-          return phone.includes(query) || name.includes(query);
-        })
-      : allUsers;
+    const filterUsers = (users) => {
+      if (!searchQuery.trim()) return users;
+      return users.filter(user => {
+        const phone = (user.phoneNumber || user.phone || '').toLowerCase();
+        const name = (user.fullName || '').toLowerCase();
+        const query = searchQuery.toLowerCase();
+        return phone.includes(query) || name.includes(query);
+      });
+    };
+
+    const filteredClients = filterUsers(allUsers.clients || []);
+    const filteredFreelancers = filterUsers(allUsers.freelancers || []);
+    const totalUsers = (allUsers.clients?.length || 0) + (allUsers.freelancers?.length || 0);
+    const totalFiltered = filteredClients.length + filteredFreelancers.length;
+
+    const renderUserCard = (user) => (
+      <Card key={user._id || user.id} className="mb-3">
+        <CardContent className="p-4">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+              {user.profilePhoto ? (
+                <img 
+                  src={user.profilePhoto} 
+                  alt={user.fullName || 'User'} 
+                  className="w-full h-full object-cover" 
+                />
+              ) : (
+                <User className="w-6 h-6 text-blue-600" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-900 truncate">
+                {user.fullName || 'No name'}
+              </p>
+              <p className="text-sm text-gray-600 truncate">
+                {user.phoneNumber || user.phone || 'No phone'}
+              </p>
+              <div className="flex items-center space-x-2 mt-1">
+                {user.verificationStatus && (
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    user.verificationStatus === 'approved' ? 'bg-green-100 text-green-700' :
+                    user.verificationStatus === 'rejected' ? 'bg-red-100 text-red-700' :
+                    'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {user.verificationStatus}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
 
     return (
       <div className="space-y-6">
@@ -180,78 +228,81 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Users List */}
+        {/* Users List - Two Columns */}
         {searchLoading ? (
           <div className="text-center py-12">
             <p className="text-gray-500">Loading users...</p>
           </div>
-        ) : filteredUsers.length === 0 ? (
+        ) : totalUsers === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
               <Search className="w-16 h-16 mx-auto text-gray-400 mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {searchQuery.trim() ? 'No users found' : 'No users loaded'}
+                No users loaded
               </h3>
               <p className="text-gray-500">
-                {searchQuery.trim() 
-                  ? `No users match "${searchQuery}"`
-                  : 'Click Refresh to load users'}
+                Click Refresh to load users
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
             <div className="text-sm text-gray-600">
-              Showing {filteredUsers.length} of {allUsers.length} users
+              Showing {totalFiltered} of {totalUsers} users
+              {searchQuery.trim() && ` (${filteredClients.length} clients, ${filteredFreelancers.length} freelancers)`}
             </div>
-            <div className="grid gap-4">
-              {filteredUsers.map((user) => (
-                <Card key={user._id || user.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
-                          {user.profilePhoto ? (
-                            <img 
-                              src={user.profilePhoto} 
-                              alt={user.fullName || 'User'} 
-                              className="w-full h-full object-cover" 
-                            />
-                          ) : (
-                            <User className="w-6 h-6 text-blue-600" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">
-                            {user.fullName || 'No name'}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {user.phoneNumber || user.phone || 'No phone'}
-                          </p>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                              user.role === 'freelancer' ? 'bg-green-100 text-green-700' :
-                              'bg-blue-100 text-blue-700'
-                            }`}>
-                              {user.role || 'client'}
-                            </span>
-                            {user.verificationStatus && (
-                              <span className={`text-xs px-2 py-1 rounded-full ${
-                                user.verificationStatus === 'approved' ? 'bg-green-100 text-green-700' :
-                                user.verificationStatus === 'rejected' ? 'bg-red-100 text-red-700' :
-                                'bg-yellow-100 text-yellow-700'
-                              }`}>
-                                {user.verificationStatus}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
+            
+            {/* Two Column Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Clients Column */}
+              <div>
+                <Card className="mb-4">
+                  <CardHeader className="bg-blue-50 border-b">
+                    <CardTitle className="text-lg font-semibold text-blue-900 flex items-center">
+                      <User className="w-5 h-5 mr-2" />
+                      Clients ({filteredClients.length})
+                    </CardTitle>
+                  </CardHeader>
                 </Card>
-              ))}
+                <div className="max-h-[600px] overflow-y-auto">
+                  {filteredClients.length === 0 ? (
+                    <Card>
+                      <CardContent className="p-8 text-center">
+                        <p className="text-gray-500 text-sm">
+                          {searchQuery.trim() ? 'No clients found' : 'No clients'}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    filteredClients.map(renderUserCard)
+                  )}
+                </div>
+              </div>
+
+              {/* Freelancers Column */}
+              <div>
+                <Card className="mb-4">
+                  <CardHeader className="bg-green-50 border-b">
+                    <CardTitle className="text-lg font-semibold text-green-900 flex items-center">
+                      <User className="w-5 h-5 mr-2" />
+                      Freelancers ({filteredFreelancers.length})
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+                <div className="max-h-[600px] overflow-y-auto">
+                  {filteredFreelancers.length === 0 ? (
+                    <Card>
+                      <CardContent className="p-8 text-center">
+                        <p className="text-gray-500 text-sm">
+                          {searchQuery.trim() ? 'No freelancers found' : 'No freelancers'}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    filteredFreelancers.map(renderUserCard)
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
