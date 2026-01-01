@@ -10,23 +10,40 @@ const getFreelancerVerifications = async (req, res) => {
       filter.verificationStatus = status;
     }
 
+    // First get users without selecting verificationDocuments to see if it exists
     const verifications = await User.find(filter)
       .select('_id fullName phoneNumber phone verificationStatus verificationDocuments profilePhoto createdAt updatedAt')
       .lean() // Use lean() to get plain JavaScript objects
       .sort({ updatedAt: -1 });
 
     // Ensure all fields are present, even if null/undefined
-    const normalizedVerifications = verifications.map(user => ({
-      _id: user._id,
-      fullName: user.fullName || null,
-      phoneNumber: user.phoneNumber || user.phone || null,
-      phone: user.phone || user.phoneNumber || null,
-      verificationStatus: user.verificationStatus || 'pending',
-      verificationDocuments: user.verificationDocuments || null,
-      profilePhoto: user.profilePhoto || null,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt || user.createdAt
-    }));
+    const normalizedVerifications = verifications.map(user => {
+      // Handle verificationDocuments - check if it's an empty object
+      let verificationDocs = user.verificationDocuments;
+      
+      // If verificationDocuments exists but is an empty object or all values are null/undefined
+      if (verificationDocs && typeof verificationDocs === 'object') {
+        const hasValues = Object.values(verificationDocs).some(v => v !== null && v !== undefined && v !== '');
+        if (!hasValues) {
+          // Empty object with no actual data
+          verificationDocs = null;
+        }
+      } else if (!verificationDocs) {
+        verificationDocs = null;
+      }
+      
+      return {
+        _id: user._id,
+        fullName: user.fullName || null,
+        phoneNumber: user.phoneNumber || user.phone || null,
+        phone: user.phone || user.phoneNumber || null,
+        verificationStatus: user.verificationStatus || 'pending',
+        verificationDocuments: verificationDocs,
+        profilePhoto: user.profilePhoto || null,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt || user.createdAt
+      };
+    });
 
     res.json({
       success: true,
