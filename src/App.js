@@ -26,6 +26,7 @@ import AdminDashboard from './pages/admin/CLI';
 import DebugAuth from './pages/DebugAuth';
 import PaymentDebug from './pages/debug/PaymentDebug';
 import DebugTool from './pages/debug/DebugTool';
+import VerificationDebugTool from './pages/debug/VerificationDebugTool';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFailed from './pages/PaymentFailed';
 
@@ -132,6 +133,7 @@ function App() {
               <Route path="/debug-auth" element={<DebugAuth />} />
               <Route path="/debug-payment" element={<PaymentDebug />} />
               <Route path="/debug-tool" element={<DebugTool />} />
+              <Route path="/debug-verification" element={<VerificationDebugTool />} />
               <Route path="/payment/success" element={<PaymentSuccess />} />
               <Route path="/payment/failed" element={<PaymentFailed />} />
               
