@@ -54,9 +54,13 @@ const AdminDashboard = () => {
       console.log('📋 Verifications response:', verificationsRes);
       console.log('📋 Verifications array:', verificationsRes.verifications);
       
-      setPendingVerifications(verificationsRes.verifications || []);
+      const verifications = verificationsRes.verifications || [];
+      console.log('📋 First verification object:', verifications[0]);
+      console.log('📋 First verification keys:', verifications[0] ? Object.keys(verifications[0]) : 'No verifications');
       
-      console.log('📋 Set pendingVerifications to:', verificationsRes.verifications || []);
+      setPendingVerifications(verifications);
+      
+      console.log('📋 Set pendingVerifications to:', verifications);
     } catch (error) {
       console.error('Error loading admin data:', error);
       setError('Failed to load admin data');
@@ -313,6 +317,11 @@ const AdminDashboard = () => {
   const renderVerifications = () => {
     console.log('🎨 Rendering verifications, pendingVerifications:', pendingVerifications);
     console.log('🎨 pendingVerifications.length:', pendingVerifications.length);
+    console.log('🎨 verificationFilter:', verificationFilter);
+    if (pendingVerifications.length > 0) {
+      console.log('🎨 First verification in render:', pendingVerifications[0]);
+      console.log('🎨 First verification keys:', Object.keys(pendingVerifications[0]));
+    }
     
     return (
     <div className="space-y-4">

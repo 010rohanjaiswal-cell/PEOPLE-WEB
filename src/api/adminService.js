@@ -104,11 +104,15 @@ export const adminService = {
       // Normalize to expected shape in UI (verifications array with id/phone fields)
       const raw = response.data?.data || [];
       const verifications = raw.map((u) => ({
+        _id: u._id || u.id,
         id: u._id || u.id,
         fullName: u.fullName,
+        phoneNumber: u.phoneNumber || u.phone,
         phone: u.phoneNumber || u.phone,
         status: u.verificationStatus || u.status || 'pending',
         verificationStatus: u.verificationStatus || u.status || 'pending',
+        updatedAt: u.updatedAt || u.createdAt,
+        createdAt: u.createdAt,
         submittedAt: u.createdAt || u.updatedAt,
         profilePhoto: u.profilePhoto || u.verificationDocuments?.profilePhoto,
         aadhaarFront: u.verificationDocuments?.aadhaarFront,
