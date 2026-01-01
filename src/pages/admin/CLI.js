@@ -13,7 +13,8 @@ import {
   XCircle,
   FileText,
   Search,
-  User
+  User,
+  AlertCircle
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -388,41 +389,84 @@ const AdminDashboard = () => {
               </div>
               <div className="p-6">
                 <div className="space-y-6">
+                  {/* Check if verification documents are missing */}
+                  {(!verification.verificationDocuments && 
+                    !verification.aadhaarFront && 
+                    !verification.aadhaarBack && 
+                    !verification.panCard && 
+                    !verification.dateOfBirth && 
+                    !verification.gender && 
+                    !verification.address) ? (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                      <div className="flex items-start">
+                        <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+                        <div>
+                          <h4 className="text-sm font-semibold text-yellow-800 mb-1">
+                            Verification Documents Not Submitted
+                          </h4>
+                          <p className="text-sm text-yellow-700">
+                            This user has not submitted their verification documents yet. 
+                            The verification status is set to "pending" but no documents are available for review.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
                   {/* Personal details */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                      <p className="text-sm text-gray-500">Date of Birth</p>
-                      <p className="font-medium text-gray-900">{verification.dateOfBirth ? new Date(verification.dateOfBirth).toLocaleDateString() : '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Gender</p>
-                      <p className="font-medium text-gray-900">{verification.gender || '—'}</p>
-                    </div>
-                    <div className="md:col-span-1">
-                      <p className="text-sm text-gray-500">Address</p>
-                      <p className="font-medium text-gray-900 break-words">{verification.address || '—'}</p>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-4">Personal Details</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Date of Birth</p>
+                        <p className="font-medium text-gray-900">
+                          {verification.dateOfBirth 
+                            ? (verification.dateOfBirth instanceof Date 
+                                ? verification.dateOfBirth.toLocaleDateString() 
+                                : new Date(verification.dateOfBirth).toLocaleDateString())
+                            : <span className="text-gray-400 italic">Not provided</span>}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Gender</p>
+                        <p className="font-medium text-gray-900">
+                          {verification.gender || <span className="text-gray-400 italic">Not provided</span>}
+                        </p>
+                      </div>
+                      <div className="md:col-span-1">
+                        <p className="text-sm text-gray-500 mb-1">Address</p>
+                        <p className="font-medium text-gray-900 break-words">
+                          {verification.address || <span className="text-gray-400 italic">Not provided</span>}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
                   {/* Document previews */}
-                  <div className="grid grid-cols-3 gap-6">
-                    {[{label:'Aadhaar Front', key:'aadhaarFront'}, {label:'Aadhaar Back', key:'aadhaarBack'}, {label:'PAN Card', key:'panCard'}].map((doc) => (
-                      <div key={doc.key} className="text-center">
-                        <div className="w-24 h-24 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center mx-auto mb-3 overflow-hidden">
-                          {verification[doc.key] ? (
-                            <img 
-                              src={verification[doc.key]} 
-                              alt={doc.label} 
-                              className="w-full h-full object-cover cursor-zoom-in" 
-                              onClick={() => setImagePreviewUrl(verification[doc.key])}
-                            />
-                          ) : (
-                            <FileText className="w-8 h-8 text-gray-400" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-4">Verification Documents</h4>
+                    <div className="grid grid-cols-3 gap-6">
+                      {[{label:'Aadhaar Front', key:'aadhaarFront'}, {label:'Aadhaar Back', key:'aadhaarBack'}, {label:'PAN Card', key:'panCard'}].map((doc) => (
+                        <div key={doc.key} className="text-center">
+                          <div className="w-24 h-24 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center mx-auto mb-3 overflow-hidden">
+                            {verification[doc.key] ? (
+                              <img 
+                                src={verification[doc.key]} 
+                                alt={doc.label} 
+                                className="w-full h-full object-cover cursor-zoom-in" 
+                                onClick={() => setImagePreviewUrl(verification[doc.key])}
+                              />
+                            ) : (
+                              <FileText className="w-8 h-8 text-gray-400" />
+                            )}
+                          </div>
+                          <p className="text-sm font-medium text-gray-700">{doc.label}</p>
+                          {!verification[doc.key] && (
+                            <p className="text-xs text-gray-400 mt-1">Not uploaded</p>
                           )}
                         </div>
-                        <p className="text-sm font-medium text-gray-700">{doc.label}</p>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
 
                   {/* Action buttons - only show for pending verifications */}
