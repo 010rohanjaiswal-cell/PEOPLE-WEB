@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const FreelancerVerification = require('../models/FreelancerVerification');
 const Job = require('../models/Job');
@@ -513,7 +514,11 @@ const getOpenJobs = async (req, res) => {
 
     // Load client details for each job
     const uniqueClientIds = Array.from(
-      new Set(jobs.map(j => String(j.clientId)).filter(Boolean))
+      new Set(
+        jobs
+          .map(j => j.clientId)
+          .filter(id => id && mongoose.Types.ObjectId.isValid(id))
+      )
     );
 
     const clientsById = {};

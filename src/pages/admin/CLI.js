@@ -50,6 +50,14 @@ const AdminDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  // Load open jobs when Open Jobs tab is activated
+  useEffect(() => {
+    if (activeTab === 'open-jobs' && openJobs.length === 0 && !openJobsLoading) {
+      loadOpenJobs('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
 
   const loadAdminData = async () => {
     try {
