@@ -16,6 +16,7 @@ const CommissionLedgerModal = ({ isOpen, onClose, freelancerId, onPayCommission 
     if (isOpen) {
       loadLedgerEntries();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, freelancerId]);
 
   const loadLedgerEntries = async () => {

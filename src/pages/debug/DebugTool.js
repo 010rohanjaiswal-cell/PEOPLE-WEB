@@ -9,7 +9,7 @@ const DebugTool = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [localStorageOverride, setLocalStorageOverride] = useState(null);
-  const [correctApiUrl, setCorrectApiUrl] = useState('https://people-web-5hqi.onrender.com/api');
+  const correctApiUrl = 'https://people-web-5hqi.onrender.com/api';
 
   const addLog = (message, type = 'info') => {
     const timestamp = new Date().toLocaleTimeString();

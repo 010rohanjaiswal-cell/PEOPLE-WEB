@@ -16,12 +16,11 @@ import { Shield, ArrowLeft, CheckCircle } from 'lucide-react';
 const OTP = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { updateUser, login } = useAuth();
+  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resendLoading, setResendLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [roleSelection, setRoleSelection] = useState(null);
   const [showRoleSelection, setShowRoleSelection] = useState(false);
 
   const { phoneNumber, verificationId, selectedRole } = location.state || {};
@@ -66,12 +65,10 @@ const OTP = () => {
       });
       
       // Sign in with credential with timeout
-      const userCredential = await Promise.race([
+      await Promise.race([
         signInWithCredential(auth, credential),
         timeoutPromise
       ]);
-      
-      const idToken = await userCredential.user.getIdToken();
 
       // Use the selected role from login page
       if (selectedRole) {

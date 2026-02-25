@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const FreelancerVerification = require('../models/FreelancerVerification');
+const Job = require('../models/Job');
 const bulkpeService = require('../services/bulkpeService');
 
 // Get freelancer verifications
@@ -476,6 +477,117 @@ const searchUsers = async (req, res) => {
   }
 };
 
+// Admin: get open jobs (optionally filter by client phone)
+const getOpenJobs = async (req, res) => {
+  try {
+    const { phoneNumber } = req.query;
+
+    // Base filter: only "open" jobs (not assigned / cancelled etc.)
+    const jobFilter = { status: 'open' };
+
+    let clientIds = null;
+    if (phoneNumber && typeof phoneNumber === 'string' && phoneNumber.trim().length > 0) {
+      // Find users whose phone/phoneNumber matches the query
+      const phoneQuery = phoneNumber.trim();
+      const matchingUsers = await User.find({
+        $or: [
+          { phoneNumber: { $regex: phoneQuery, $options: 'i' } },
+          { phone: { $regex: phoneQuery, $options: 'i' } }
+        ]
+      })
+        .select('_id fullName phoneNumber phone')
+        .lean();
+
+      clientIds = matchingUsers.map(u => u._id);
+
+      if (clientIds.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      jobFilter.clientId = { $in: clientIds };
+    }
+
+    const jobs = await Job.find(jobFilter)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Load client details for each job
+    const uniqueClientIds = Array.from(
+      new Set(jobs.map(j => String(j.clientId)).filter(Boolean))
+    );
+
+    const clientsById = {};
+    if (uniqueClientIds.length > 0) {
+      const clients = await User.find({ _id: { $in: uniqueClientIds } })
+        .select('_id fullName phoneNumber phone')
+        .lean();
+      clients.forEach(c => {
+        clientsById[String(c._id)] = c;
+      });
+    }
+
+    const result = jobs.map(job => {
+      const client = clientsById[String(job.clientId)] || {};
+      return {
+        id: job.id,
+        mongoId: job._id,
+        title: job.title,
+        description: job.description,
+        address: job.address,
+        pincode: job.pincode,
+        budget: job.budget,
+        category: job.category,
+        gender: job.gender,
+        status: job.status,
+        createdAt: job.createdAt,
+        client: {
+          id: job.clientId,
+          fullName: client.fullName || null,
+          phoneNumber: client.phoneNumber || client.phone || null,
+          phone: client.phone || client.phoneNumber || null
+        }
+      };
+    });
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Get open jobs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch open jobs'
+    });
+  }
+};
+
+// Admin: hard delete a job (regardless of status)
+const deleteJobByAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const job = await Job.findOneAndDelete({ id });
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Job deleted successfully by admin'
+    });
+  } catch (error) {
+    console.error('Admin delete job error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete job'
+    });
+  }
+};
+
 // Get user profile by ID
 const getUserProfile = async (req, res) => {
   try {
@@ -513,5 +625,7 @@ module.exports = {
   approveWithdrawal,
   rejectWithdrawal,
   searchUsers,
-  getUserProfile
+  getUserProfile,
+  getOpenJobs,
+  deleteJobByAdmin
 };

@@ -100,8 +100,6 @@ export const AuthProvider = ({ children }) => {
 
     // Add a small delay to ensure storage is ready
     const timeoutId = setTimeout(checkAuth, 100);
-    
-    return () => clearTimeout(timeoutId);
 
     // Listen for storage changes (when user data is updated)
     const handleStorageChange = (e) => {
@@ -112,7 +110,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     window.addEventListener('storage', handleStorageChange);
-    
+
     // Also listen for custom events (for same-tab updates)
     const handleCustomStorageChange = () => {
       console.log('🔄 AuthContext: Custom storage event, rechecking authentication');
@@ -122,6 +120,7 @@ export const AuthProvider = ({ children }) => {
     window.addEventListener('userDataUpdated', handleCustomStorageChange);
 
     return () => {
+      clearTimeout(timeoutId);
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('userDataUpdated', handleCustomStorageChange);
     };

@@ -4,11 +4,10 @@ import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../api/authService';
 import { adminService } from '../../api/adminService';
 import { Button } from '../../components/common/Button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/common/Card';
 import { Label } from '../../components/common/Label';
 import { 
   Shield, 
-  LogOut, 
   CheckCircle,
   XCircle,
   FileText,
@@ -34,9 +33,13 @@ const AdminDashboard = () => {
   const [allUsers, setAllUsers] = useState({ clients: [], freelancers: [] });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
+  const [openJobs, setOpenJobs] = useState([]);
+  const [openJobsSearch, setOpenJobsSearch] = useState('');
+  const [openJobsLoading, setOpenJobsLoading] = useState(false);
 
   useEffect(() => {
     loadAdminData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verificationFilter]);
 
   // Load users when search tab is activated
@@ -44,6 +47,7 @@ const AdminDashboard = () => {
     if (activeTab === 'search' && allUsers.clients.length === 0 && allUsers.freelancers.length === 0) {
       loadAllUsers();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
 
@@ -114,7 +118,8 @@ const AdminDashboard = () => {
 
   const tabs = [
     { id: 'verifications', label: 'Verifications', icon: Shield },
-    { id: 'search', label: 'Search Users', icon: Search }
+    { id: 'search', label: 'Search Users', icon: Search },
+    { id: 'open-jobs', label: 'Open Jobs', icon: FileText }
   ];
 
   const loadAllUsers = async () => {
@@ -149,6 +154,26 @@ const AdminDashboard = () => {
       setAllUsers({ clients: [], freelancers: [] });
     } finally {
       setSearchLoading(false);
+    }
+  };
+
+  const loadOpenJobs = async (phoneFilter = '') => {
+    try {
+      setOpenJobsLoading(true);
+      setError('');
+      const result = await adminService.getOpenJobs(phoneFilter);
+      if (result && result.success) {
+        setOpenJobs(Array.isArray(result.data) ? result.data : []);
+      } else {
+        setError(result?.message || 'Failed to load open jobs');
+        setOpenJobs([]);
+      }
+    } catch (err) {
+      console.error('Error loading open jobs:', err);
+      setError(err?.message || 'Failed to load open jobs');
+      setOpenJobs([]);
+    } finally {
+      setOpenJobsLoading(false);
     }
   };
 
@@ -309,6 +334,175 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderOpenJobs = () => {
+    const filteredJobs = (() => {
+      if (!openJobsSearch.trim()) return openJobs;
+      const query = openJobsSearch.trim().toLowerCase();
+      return openJobs.filter((job) => {
+        const phone = (job.client?.phoneNumber || job.client?.phone || '').toLowerCase();
+        const title = (job.title || '').toLowerCase();
+        return phone.includes(query) || title.includes(query);
+      });
+    })();
+
+    const handleDeleteJob = async (jobId) => {
+      if (!window.confirm('Are you sure you want to delete this job? This cannot be undone.')) {
+        return;
+      }
+      try {
+        setLoading(true);
+        setError('');
+        await adminService.deleteJob(jobId);
+        setOpenJobs((prev) => prev.filter((j) => j.id !== jobId));
+      } catch (err) {
+        console.error('Error deleting job:', err);
+        setError(err?.message || 'Failed to delete job');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Open Jobs</h2>
+          <div className="flex items-center space-x-3">
+            <Button
+              variant="outline"
+              onClick={() => loadOpenJobs(openJobsSearch)}
+              disabled={openJobsLoading}
+            >
+              {openJobsLoading ? 'Loading...' : 'Refresh'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Search by client phone */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div className="md:col-span-2">
+                <Label className="text-sm text-gray-600">Search by client phone number</Label>
+                <div className="relative mt-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder="Enter phone number (e.g. +9199...)"
+                    value={openJobsSearch}
+                    onChange={(e) => setOpenJobsSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  className="w-full"
+                  onClick={() => loadOpenJobs(openJobsSearch)}
+                  disabled={openJobsLoading}
+                >
+                  {openJobsLoading ? 'Searching...' : 'Search'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setOpenJobsSearch('');
+                    loadOpenJobs('');
+                  }}
+                  disabled={openJobsLoading}
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Jobs list */}
+        {openJobsLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading open jobs...</p>
+          </div>
+        ) : filteredJobs.length === 0 ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <FileText className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No open jobs found
+              </h3>
+              <p className="text-gray-500">
+                Try adjusting the search or check again later.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4">
+            {filteredJobs.map((job) => (
+              <Card key={job.id} className="border border-gray-200">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg text-gray-900">
+                        {job.title}
+                      </CardTitle>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {job.category} • {job.gender || 'Any'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-green-700">
+                        ₹{job.budget}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {job.createdAt
+                          ? new Date(job.createdAt).toLocaleDateString()
+                          : ''}
+                      </p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {job.description && (
+                    <p className="text-sm text-gray-700">
+                      {job.description}
+                    </p>
+                  )}
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">Address:</span>{' '}
+                    {job.address}{' '}
+                    {job.pincode && (
+                      <span className="text-gray-500">- {job.pincode}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <div>
+                      <span className="font-medium">Client:</span>{' '}
+                      {job.client?.fullName || 'Unknown'}
+                    </div>
+                    <div>
+                      <span className="font-medium">Phone:</span>{' '}
+                      {job.client?.phoneNumber ||
+                        job.client?.phone ||
+                        'No phone'}
+                    </div>
+                  </div>
+                  <div className="pt-3 border-t flex justify-end">
+                    <Button
+                      variant="destructive"
+                      onClick={() => handleDeleteJob(job.id)}
+                      disabled={loading}
+                    >
+                      Delete Job
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
       </div>
@@ -578,6 +772,7 @@ const AdminDashboard = () => {
         {/* Tab Content */}
         {activeTab === 'verifications' && renderVerifications()}
         {activeTab === 'search' && renderSearch()}
+        {activeTab === 'open-jobs' && renderOpenJobs()}
         {/* Details Modal */}
         {verificationDetails && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">

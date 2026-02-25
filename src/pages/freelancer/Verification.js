@@ -12,7 +12,6 @@ import { Label } from '../../components/common/Label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/common/Card';
 import { 
   Shield, 
-  Upload, 
   CheckCircle, 
   Clock, 
   XCircle, 
@@ -33,13 +32,10 @@ const FreelancerVerification = () => {
     register,
     handleSubmit,
     formState: { errors },
-    watch,
     setValue
   } = useForm({
     resolver: yupResolver(freelancerVerificationSchema)
   });
-
-  const watchedFields = watch();
 
   const checkVerificationStatus = useCallback(async () => {
     try {
@@ -78,7 +74,7 @@ const FreelancerVerification = () => {
     } finally {
       setLoading(false);
     }
-  }, [navigate]);
+  }, [navigate, isAuthenticated, user]);
 
   useEffect(() => {
     // Only check verification status if user is authenticated

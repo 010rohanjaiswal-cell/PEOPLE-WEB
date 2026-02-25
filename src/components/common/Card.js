@@ -1,6 +1,8 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
 
+/* eslint-disable jsx-a11y/heading-has-content */
+
 const Card = React.forwardRef(({ className, ...props }, ref) => (
   <div
     ref={ref}

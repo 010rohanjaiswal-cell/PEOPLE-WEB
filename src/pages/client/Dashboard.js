@@ -16,8 +16,6 @@ import {
   LogOut, 
   Clock,
   Users,
-  AlertCircle,
-  Bug,
   Trash2,
   Edit
 } from 'lucide-react';
@@ -48,6 +46,7 @@ const ClientDashboard = () => {
 
   useEffect(() => {
     loadClientData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadClientData = async () => {

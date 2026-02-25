@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Label } from '../../components/common/Label';
-import paymentService from '../../api/paymentService';
 import { clientService } from '../../api/clientService';
-import { freelancerService } from '../../api/freelancerService';
 
 const PaymentDebug = () => {
-  const { user, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');

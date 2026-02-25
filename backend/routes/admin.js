@@ -15,4 +15,8 @@ router.post('/reject-withdrawal/:id', authMiddleware.verifyToken, authMiddleware
 router.get('/search-users', authMiddleware.verifyToken, authMiddleware.verifyAdmin, adminController.searchUsers);
 router.get('/user-profile/:id', authMiddleware.verifyToken, authMiddleware.verifyAdmin, adminController.getUserProfile);
 
+// Jobs management
+router.get('/open-jobs', authMiddleware.verifyToken, authMiddleware.verifyAdmin, adminController.getOpenJobs);
+router.delete('/jobs/:id', authMiddleware.verifyToken, authMiddleware.verifyAdmin, adminController.deleteJobByAdmin);
+
 module.exports = router;

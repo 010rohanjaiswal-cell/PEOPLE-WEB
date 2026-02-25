@@ -14,12 +14,8 @@ import {
   Wallet, 
   User, 
   LogOut, 
-  DollarSign,
   Clock,
   MapPin,
-  Star,
-  TrendingUp,
-  AlertCircle,
   CheckCircle,
   Eye,
   XCircle
@@ -90,6 +86,7 @@ const FreelancerDashboard = () => {
   }, []);
   useEffect(() => {
     loadFreelancerData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadFreelancerData = async () => {

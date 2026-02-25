@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './Card';
 import { Button } from './Button';
-import { Wallet, RefreshCw, Receipt, ChevronDown, ChevronUp, CreditCard, History } from 'lucide-react';
+import { RefreshCw, Receipt, ChevronDown, ChevronUp, CreditCard, History } from 'lucide-react';
 import { freelancerService } from '../../api/freelancerService';
 
 const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
@@ -51,21 +51,6 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(amount);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      return new Date(dateString).toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch {
-      return 'N/A';
-    }
   };
 
   const formatTime = (dateString) => {
@@ -144,9 +129,8 @@ const WalletContainer = ({ user, onRefresh, transactions = [] }) => {
 
   // On mount and when transactions change, check if we need to process dues
   useEffect(() => {
-    // Check URL params for payment success
+    // Check URL params for dues order
     const urlParams = new URLSearchParams(window.location.search);
-    const paymentSuccess = urlParams.get('payment') === 'success';
     const orderIdFromUrl = urlParams.get('orderId');
     
     // Check localStorage for stored orderId

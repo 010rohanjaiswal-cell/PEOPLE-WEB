@@ -19,7 +19,7 @@ const ProfileSetup = () => {
   const [error, setError] = useState('');
   const [previewImage, setPreviewImage] = useState(null);
 
-  const { phoneNumber, role, isNewUser } = location.state || {};
+  const { role } = location.state || {};
 
   const {
     register,

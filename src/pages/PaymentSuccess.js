@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card } from '../components/common/Card';
-import { Button } from '../components/common/Button';
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();

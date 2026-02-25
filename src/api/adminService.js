@@ -640,5 +640,31 @@ export const adminService = {
       console.error('Get user profile error:', error);
       throw error.response?.data || error;
     }
+  },
+
+  // Get open jobs (optionally filter by client phone number)
+  getOpenJobs: async (phoneNumber) => {
+    try {
+      const params = {};
+      if (phoneNumber && phoneNumber.trim()) {
+        params.phoneNumber = phoneNumber.trim();
+      }
+      const response = await api.get('/admin/open-jobs', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Get open jobs error:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  // Admin delete job
+  deleteJob: async (jobId) => {
+    try {
+      const response = await api.delete(`/admin/jobs/${jobId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Admin delete job error:', error);
+      throw error.response?.data || error;
+    }
   }
 };
