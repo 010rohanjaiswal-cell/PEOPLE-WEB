@@ -645,6 +645,19 @@ export const adminService = {
   // Get open jobs (optionally filter by client phone number)
   getOpenJobs: async (phoneNumber) => {
     try {
+      // Debug: verify token is present on client before calling
+      try {
+        const token = storage.getAuthToken && storage.getAuthToken();
+        console.log('🔍 GetOpenJobs debug:', {
+          API_BASE_URL,
+          path: '/admin/open-jobs',
+          hasToken: !!token,
+          tokenPrefix: token ? token.slice(0, 15) : null
+        });
+      } catch (e) {
+        console.warn('⚠️ GetOpenJobs debug: unable to read auth token', e);
+      }
+
       const params = {};
       if (phoneNumber && phoneNumber.trim()) {
         params.phoneNumber = phoneNumber.trim();
