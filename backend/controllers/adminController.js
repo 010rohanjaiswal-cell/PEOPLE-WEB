@@ -681,6 +681,68 @@ const deleteJobByAdmin = async (req, res) => {
   }
 };
 
+// Admin: unassign freelancer from a job (only when status is open or assigned)
+const unassignFreelancerByAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const job = await Job.findOne({ id });
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found'
+      });
+    }
+
+    // Only allow unassign when status is open or assigned
+    if (!['open', 'assigned'].includes(job.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot unassign freelancer when job status is '${job.status}'`
+      });
+    }
+
+    if (!job.assignedFreelancer || !job.assignedFreelancer.id) {
+      // Nothing to unassign, but treat as success
+      return res.json({
+        success: true,
+        message: 'Job has no assigned freelancer',
+        data: {
+          id: job.id,
+          status: job.status,
+          assignedFreelancer: null
+        }
+      });
+    }
+
+    // Clear assignment fields
+    job.assignedFreelancer = undefined;
+    job.assignedAt = undefined;
+    // If it was assigned, move it back to open
+    if (job.status === 'assigned') {
+      job.status = 'open';
+    }
+
+    await job.save();
+
+    res.json({
+      success: true,
+      message: 'Freelancer unassigned successfully',
+      data: {
+        id: job.id,
+        status: job.status,
+        assignedFreelancer: null
+      }
+    });
+  } catch (error) {
+    console.error('Admin unassign freelancer error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to unassign freelancer from job'
+    });
+  }
+};
+
 // Get user profile by ID
 const getUserProfile = async (req, res) => {
   try {
@@ -720,5 +782,6 @@ module.exports = {
   searchUsers,
   getUserProfile,
   getOpenJobs,
-  deleteJobByAdmin
+  deleteJobByAdmin,
+  unassignFreelancerByAdmin
 };

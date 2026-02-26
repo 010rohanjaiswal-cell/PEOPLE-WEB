@@ -381,6 +381,31 @@ const AdminDashboard = () => {
       }
     };
 
+    const handleUnassignJob = async (job) => {
+      if (!window.confirm('Are you sure you want to unassign the freelancer from this job?')) {
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError('');
+        const result = await adminService.unassignFreelancer(job.id);
+        const newStatus = result?.data?.status || (job.status === 'assigned' ? 'open' : job.status);
+        setOpenJobs((prev) =>
+          prev.map((j) =>
+            j.id === job.id
+              ? { ...j, status: newStatus, freelancer: null }
+              : j
+          )
+        );
+      } catch (err) {
+        console.error('Error unassigning freelancer:', err);
+        setError(err?.message || 'Failed to unassign freelancer');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -536,7 +561,16 @@ const AdminDashboard = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="pt-3 border-t flex justify-end">
+                  <div className="pt-3 border-t flex justify-end space-x-2">
+                    {job.freelancer && (job.status === 'open' || job.status === 'assigned') && (
+                      <Button
+                        variant="outline"
+                        onClick={() => handleUnassignJob(job)}
+                        disabled={loading}
+                      >
+                        Unassign Freelancer
+                      </Button>
+                    )}
                     <Button
                       variant="destructive"
                       onClick={() => handleDeleteJob(job.id)}

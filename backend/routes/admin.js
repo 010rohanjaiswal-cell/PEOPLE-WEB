@@ -18,5 +18,6 @@ router.get('/user-profile/:id', authMiddleware.verifyToken, authMiddleware.verif
 // Jobs management
 router.get('/open-jobs', authMiddleware.verifyToken, authMiddleware.verifyAdmin, adminController.getOpenJobs);
 router.delete('/jobs/:id', authMiddleware.verifyToken, authMiddleware.verifyAdmin, adminController.deleteJobByAdmin);
+router.post('/jobs/:id/unassign-freelancer', authMiddleware.verifyToken, authMiddleware.verifyAdmin, adminController.unassignFreelancerByAdmin);
 
 module.exports = router;

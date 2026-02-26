@@ -679,5 +679,16 @@ export const adminService = {
       console.error('Admin delete job error:', error);
       throw error.response?.data || error;
     }
+  },
+
+  // Admin unassign freelancer from job
+  unassignFreelancer: async (jobId) => {
+    try {
+      const response = await api.post(`/admin/jobs/${jobId}/unassign-freelancer`);
+      return response.data;
+    } catch (error) {
+      console.error('Admin unassign freelancer error:', error);
+      throw error.response?.data || error;
+    }
   }
 };
