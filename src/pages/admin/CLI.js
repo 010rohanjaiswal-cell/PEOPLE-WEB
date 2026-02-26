@@ -525,7 +525,9 @@ const AdminDashboard = () => {
                     </div>
                     <div>
                       <span className="font-medium">Freelancer:</span>{' '}
-                      {job.freelancer?.fullName || 'Not assigned'}
+                      {job.freelancer
+                        ? (job.freelancer.fullName || 'Assigned')
+                        : 'Not assigned'}
                       <div className="text-xs text-gray-500">
                         Phone:{' '}
                         {job.freelancer?.phoneNumber ||
