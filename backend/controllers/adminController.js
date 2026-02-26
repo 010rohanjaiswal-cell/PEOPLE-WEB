@@ -686,7 +686,8 @@ const unassignFreelancerByAdmin = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const job = await Job.findOne({ id });
+    // Load job without modifying it yet to avoid triggering validation
+    const job = await Job.findOne({ id }).lean();
     if (!job) {
       return res.status(404).json({
         success: false,
@@ -715,15 +716,21 @@ const unassignFreelancerByAdmin = async (req, res) => {
       });
     }
 
-    // Clear assignment fields
-    job.assignedFreelancer = undefined;
-    job.assignedAt = undefined;
-    // If it was assigned, move it back to open
+    // Build an update that only touches assignment-related fields.
+    // We explicitly avoid re-validating the whole document so that
+    // older jobs with missing clientId or lowercase gender don't fail.
+    const update = {
+      $unset: {
+        assignedFreelancer: '',
+        assignedAt: ''
+      }
+    };
+
     if (job.status === 'assigned') {
-      job.status = 'open';
+      update.$set = { status: 'open' };
     }
 
-    await job.save();
+    await Job.updateOne({ id }, update, { runValidators: false });
 
     res.json({
       success: true,
