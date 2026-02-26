@@ -566,10 +566,17 @@ const getOpenJobs = async (req, res) => {
     const result = jobs.map(job => {
       const clientKey = String(job.clientId || job.client || '');
       const client = clientsById[clientKey] || {};
-      const freelancerRawId =
-        (job.assignedFreelancer && job.assignedFreelancer.id) ||
-        job.assignedFreelancer ||
-        null;
+
+      // Normalize assignedFreelancer to always be an ID string when present
+      let freelancerRawId = null;
+      if (job.assignedFreelancer) {
+        if (typeof job.assignedFreelancer === 'object' && job.assignedFreelancer.id) {
+          freelancerRawId = job.assignedFreelancer.id;
+        } else {
+          freelancerRawId = job.assignedFreelancer;
+        }
+      }
+
       const freelancerKey = freelancerRawId ? String(freelancerRawId) : '';
       const freelancerUser = freelancerKey ? freelancersById[freelancerKey] : null;
 
@@ -615,7 +622,6 @@ const getOpenJobs = async (req, res) => {
                 null
             }
           : null
-        }
       };
     });
 
