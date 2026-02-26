@@ -562,7 +562,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   <div className="pt-3 border-t flex justify-end space-x-2">
-                    {job.freelancer && (job.status === 'open' || job.status === 'assigned') && (
+                    {job.freelancer && (
                       <Button
                         variant="outline"
                         onClick={() => handleUnassignJob(job)}
