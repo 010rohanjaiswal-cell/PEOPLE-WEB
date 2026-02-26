@@ -12,10 +12,11 @@ async function testOpenJobs() {
     });
     console.log('✅ Connected to MongoDB');
 
-    // Empty phoneNumber -> fetch all open jobs
+    // Optional phone filter from env (e.g. TEST_PHONE=+919009009000)
+    const phoneFilter = process.env.TEST_PHONE || '';
     const mockReq = {
       query: {
-        phoneNumber: '', // set to '+9199...' to filter by client phone
+        phoneNumber: phoneFilter, // empty = all, value = filter by client phone
       },
     };
 
@@ -32,7 +33,7 @@ async function testOpenJobs() {
       },
     };
 
-    console.log('\n🔍 Testing getOpenJobs controller function...');
+    console.log('\n🔍 Testing getOpenJobs controller function with phone filter:', phoneFilter || '(all)');
     await adminController.getOpenJobs(mockReq, mockRes);
 
     if (responseData) {

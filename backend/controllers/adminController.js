@@ -478,18 +478,21 @@ const searchUsers = async (req, res) => {
   }
 };
 
-// Admin: get open jobs (optionally filter by client phone)
+// Admin: get open/active jobs (optionally filter by client phone)
 const getOpenJobs = async (req, res) => {
   try {
     const { phoneNumber } = req.query;
 
-    // Base filter: only "open" jobs (not assigned / cancelled etc.)
-    const jobFilter = { status: 'open' };
+    // Treat these statuses as "active" for admin view
+    const activeStatuses = ['open', 'assigned', 'in-progress', 'work_done'];
+    const jobFilter = { status: { $in: activeStatuses } };
 
     let clientIds = null;
     if (phoneNumber && typeof phoneNumber === 'string' && phoneNumber.trim().length > 0) {
       // Find users whose phone/phoneNumber matches the query
-      const phoneQuery = phoneNumber.trim();
+      const rawPhoneQuery = phoneNumber.trim();
+      // Escape regex special characters to avoid invalid patterns (e.g. leading '+')
+      const phoneQuery = rawPhoneQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const matchingUsers = await User.find({
         $or: [
           { phoneNumber: { $regex: phoneQuery, $options: 'i' } },
@@ -505,19 +508,23 @@ const getOpenJobs = async (req, res) => {
         return res.json({ success: true, data: [] });
       }
 
-      jobFilter.clientId = { $in: clientIds };
+      // Support both schemas: jobs with clientId (ObjectId) and jobs with client (string id)
+      jobFilter.$or = [
+        { clientId: { $in: clientIds } },
+        { client: { $in: clientIds.map(id => String(id)) } }
+      ];
     }
 
     const jobs = await Job.find(jobFilter)
       .sort({ createdAt: -1 })
       .lean();
 
-    // Load client details for each job
+    // Load client details for each job (handle both clientId and client fields)
     const uniqueClientIds = Array.from(
       new Set(
         jobs
-          .map(j => j.clientId)
-          .filter(id => id && mongoose.Types.ObjectId.isValid(id))
+          .map(j => j.clientId || j.client)
+          .filter(id => id && mongoose.Types.ObjectId.isValid(String(id)))
       )
     );
 
@@ -532,7 +539,8 @@ const getOpenJobs = async (req, res) => {
     }
 
     const result = jobs.map(job => {
-      const client = clientsById[String(job.clientId)] || {};
+      const clientKey = String(job.clientId || job.client || '');
+      const client = clientsById[clientKey] || {};
       return {
         id: job.id,
         mongoId: job._id,
@@ -546,7 +554,7 @@ const getOpenJobs = async (req, res) => {
         status: job.status,
         createdAt: job.createdAt,
         client: {
-          id: job.clientId,
+          id: job.clientId || job.client || null,
           fullName: client.fullName || null,
           phoneNumber: client.phoneNumber || client.phone || null,
           phone: client.phone || client.phoneNumber || null
