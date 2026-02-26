@@ -478,6 +478,25 @@ const searchUsers = async (req, res) => {
   }
 };
 
+// Helper to normalize various ID representations (ObjectId, string, Buffer) to a string
+const normalizeId = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  // Mongoose ObjectId
+  if (typeof value.toHexString === 'function') {
+    return value.toHexString();
+  }
+  // Buffer representation of ObjectId
+  if (Buffer.isBuffer(value)) {
+    return value.toString('hex');
+  }
+  // Embedded document with _id
+  if (value._id) {
+    return normalizeId(value._id);
+  }
+  return String(value);
+};
+
 // Admin: get open/active jobs (optionally filter by client or freelancer phone)
 const getOpenJobs = async (req, res) => {
   try {
@@ -523,29 +542,31 @@ const getOpenJobs = async (req, res) => {
       .lean();
 
     // Load client details for each job (handle both clientId and client fields)
-    const uniqueClientIds = Array.from(
+    const uniqueClientIdStrings = Array.from(
       new Set(
         jobs
-          .map(j => j.clientId || j.client)
+          .map(j => normalizeId(j.clientId || j.client))
           .filter(id => id && mongoose.Types.ObjectId.isValid(String(id)))
       )
     );
 
     // Load freelancer details for each job (handle both assignedFreelancer.id and assignedFreelancer as string)
-    const uniqueFreelancerIds = Array.from(
+    const uniqueFreelancerIdStrings = Array.from(
       new Set(
         jobs
           .map(j =>
-            (j.assignedFreelancer && j.assignedFreelancer.id) ||
-            j.assignedFreelancer
+            normalizeId(
+              (j.assignedFreelancer && j.assignedFreelancer.id) ||
+              j.assignedFreelancer
+            )
           )
           .filter(id => id && mongoose.Types.ObjectId.isValid(String(id)))
       )
     );
 
     const clientsById = {};
-    if (uniqueClientIds.length > 0) {
-      const clients = await User.find({ _id: { $in: uniqueClientIds } })
+    if (uniqueClientIdStrings.length > 0) {
+      const clients = await User.find({ _id: { $in: uniqueClientIdStrings } })
         .select('_id fullName phoneNumber phone')
         .lean();
       clients.forEach(c => {
@@ -554,8 +575,8 @@ const getOpenJobs = async (req, res) => {
     }
 
     const freelancersById = {};
-    if (uniqueFreelancerIds.length > 0) {
-      const freelancers = await User.find({ _id: { $in: uniqueFreelancerIds } })
+    if (uniqueFreelancerIdStrings.length > 0) {
+      const freelancers = await User.find({ _id: { $in: uniqueFreelancerIdStrings } })
         .select('_id fullName phoneNumber phone profilePhoto freelancerId')
         .lean();
       freelancers.forEach(f => {
@@ -564,20 +585,16 @@ const getOpenJobs = async (req, res) => {
     }
 
     const result = jobs.map(job => {
-      const clientKey = String(job.clientId || job.client || '');
+      const clientKey = normalizeId(job.clientId || job.client) || '';
       const client = clientsById[clientKey] || {};
 
       // Normalize assignedFreelancer to always be an ID string when present
-      let freelancerRawId = null;
-      if (job.assignedFreelancer) {
-        if (typeof job.assignedFreelancer === 'object' && job.assignedFreelancer.id) {
-          freelancerRawId = job.assignedFreelancer.id;
-        } else {
-          freelancerRawId = job.assignedFreelancer;
-        }
-      }
+      const freelancerRawId = normalizeId(
+        (job.assignedFreelancer && job.assignedFreelancer.id) ||
+        job.assignedFreelancer
+      );
 
-      const freelancerKey = freelancerRawId ? String(freelancerRawId) : '';
+      const freelancerKey = freelancerRawId || '';
       const freelancerUser = freelancerKey ? freelancersById[freelancerKey] : null;
 
       return {
