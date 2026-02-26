@@ -478,7 +478,7 @@ const searchUsers = async (req, res) => {
   }
 };
 
-// Admin: get open/active jobs (optionally filter by client phone)
+// Admin: get open/active jobs (optionally filter by client or freelancer phone)
 const getOpenJobs = async (req, res) => {
   try {
     const { phoneNumber } = req.query;
@@ -487,7 +487,7 @@ const getOpenJobs = async (req, res) => {
     const activeStatuses = ['open', 'assigned', 'in-progress', 'work_done'];
     const jobFilter = { status: { $in: activeStatuses } };
 
-    let clientIds = null;
+    let matchedUserIds = null;
     if (phoneNumber && typeof phoneNumber === 'string' && phoneNumber.trim().length > 0) {
       // Find users whose phone/phoneNumber matches the query
       const rawPhoneQuery = phoneNumber.trim();
@@ -502,16 +502,19 @@ const getOpenJobs = async (req, res) => {
         .select('_id fullName phoneNumber phone')
         .lean();
 
-      clientIds = matchingUsers.map(u => u._id);
+      matchedUserIds = matchingUsers.map(u => u._id);
 
-      if (clientIds.length === 0) {
+      if (matchedUserIds.length === 0) {
         return res.json({ success: true, data: [] });
       }
 
-      // Support both schemas: jobs with clientId (ObjectId) and jobs with client (string id)
+      // Support both schemas and allow filtering by client OR freelancer
+      // jobs with clientId (ObjectId) or client (string id), and assignedFreelancer as id or object with id
       jobFilter.$or = [
-        { clientId: { $in: clientIds } },
-        { client: { $in: clientIds.map(id => String(id)) } }
+        { clientId: { $in: matchedUserIds } },
+        { client: { $in: matchedUserIds.map(id => String(id)) } },
+        { 'assignedFreelancer.id': { $in: matchedUserIds } },
+        { assignedFreelancer: { $in: matchedUserIds.map(id => String(id)) } }
       ];
     }
 
@@ -528,6 +531,18 @@ const getOpenJobs = async (req, res) => {
       )
     );
 
+    // Load freelancer details for each job (handle both assignedFreelancer.id and assignedFreelancer as string)
+    const uniqueFreelancerIds = Array.from(
+      new Set(
+        jobs
+          .map(j =>
+            (j.assignedFreelancer && j.assignedFreelancer.id) ||
+            j.assignedFreelancer
+          )
+          .filter(id => id && mongoose.Types.ObjectId.isValid(String(id)))
+      )
+    );
+
     const clientsById = {};
     if (uniqueClientIds.length > 0) {
       const clients = await User.find({ _id: { $in: uniqueClientIds } })
@@ -538,9 +553,26 @@ const getOpenJobs = async (req, res) => {
       });
     }
 
+    const freelancersById = {};
+    if (uniqueFreelancerIds.length > 0) {
+      const freelancers = await User.find({ _id: { $in: uniqueFreelancerIds } })
+        .select('_id fullName phoneNumber phone profilePhoto freelancerId')
+        .lean();
+      freelancers.forEach(f => {
+        freelancersById[String(f._id)] = f;
+      });
+    }
+
     const result = jobs.map(job => {
       const clientKey = String(job.clientId || job.client || '');
       const client = clientsById[clientKey] || {};
+      const freelancerRawId =
+        (job.assignedFreelancer && job.assignedFreelancer.id) ||
+        job.assignedFreelancer ||
+        null;
+      const freelancerKey = freelancerRawId ? String(freelancerRawId) : '';
+      const freelancerUser = freelancerKey ? freelancersById[freelancerKey] : null;
+
       return {
         id: job.id,
         mongoId: job._id,
@@ -558,6 +590,31 @@ const getOpenJobs = async (req, res) => {
           fullName: client.fullName || null,
           phoneNumber: client.phoneNumber || client.phone || null,
           phone: client.phone || client.phoneNumber || null
+        },
+        freelancer: freelancerRawId
+          ? {
+              id: freelancerRawId,
+              fullName:
+                (job.assignedFreelancer &&
+                  job.assignedFreelancer.fullName) ||
+                freelancerUser?.fullName ||
+                null,
+              phoneNumber:
+                freelancerUser?.phoneNumber || freelancerUser?.phone || null,
+              phone:
+                freelancerUser?.phone || freelancerUser?.phoneNumber || null,
+              profilePhoto:
+                freelancerUser?.profilePhoto ||
+                (job.assignedFreelancer &&
+                  job.assignedFreelancer.profilePhoto) ||
+                null,
+              freelancerId:
+                freelancerUser?.freelancerId ||
+                (job.assignedFreelancer &&
+                  job.assignedFreelancer.freelancerId) ||
+                null
+            }
+          : null
         }
       };
     });

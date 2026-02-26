@@ -353,9 +353,14 @@ const AdminDashboard = () => {
       if (!openJobsSearch.trim()) return openJobs;
       const query = openJobsSearch.trim().toLowerCase();
       return openJobs.filter((job) => {
-        const phone = (job.client?.phoneNumber || job.client?.phone || '').toLowerCase();
+        const clientPhone = (job.client?.phoneNumber || job.client?.phone || '').toLowerCase();
+        const freelancerPhone = (job.freelancer?.phoneNumber || job.freelancer?.phone || '').toLowerCase();
         const title = (job.title || '').toLowerCase();
-        return phone.includes(query) || title.includes(query);
+        return (
+          clientPhone.includes(query) ||
+          freelancerPhone.includes(query) ||
+          title.includes(query)
+        );
       });
     })();
 
@@ -454,15 +459,35 @@ const AdminDashboard = () => {
               <Card key={job.id} className="border border-gray-200">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="space-y-1">
                       <CardTitle className="text-lg text-gray-900">
                         {job.title}
                       </CardTitle>
                       <p className="text-sm text-gray-500 mt-1">
                         {job.category} • {job.gender || 'Any'}
                       </p>
+                      <p className="text-xs text-gray-500">
+                        Job ID: <span className="font-mono">{job.id}</span>
+                      </p>
                     </div>
                     <div className="text-right">
+                      <div className="mb-1">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                            job.status === 'open'
+                              ? 'bg-green-100 text-green-800'
+                              : job.status === 'assigned'
+                              ? 'bg-blue-100 text-blue-800'
+                              : job.status === 'in-progress'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : job.status === 'work_done'
+                              ? 'bg-purple-100 text-purple-800'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {job.status || 'unknown'}
+                        </span>
+                      </div>
                       <p className="text-sm font-semibold text-green-700">
                         ₹{job.budget}
                       </p>
@@ -487,16 +512,26 @@ const AdminDashboard = () => {
                       <span className="text-gray-500">- {job.pincode}</span>
                     )}
                   </div>
-                  <div className="flex items-center justify-between text-sm text-gray-600">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
                     <div>
                       <span className="font-medium">Client:</span>{' '}
                       {job.client?.fullName || 'Unknown'}
+                      <div className="text-xs text-gray-500">
+                        Phone:{' '}
+                        {job.client?.phoneNumber ||
+                          job.client?.phone ||
+                          'No phone'}
+                      </div>
                     </div>
                     <div>
-                      <span className="font-medium">Phone:</span>{' '}
-                      {job.client?.phoneNumber ||
-                        job.client?.phone ||
-                        'No phone'}
+                      <span className="font-medium">Freelancer:</span>{' '}
+                      {job.freelancer?.fullName || 'Not assigned'}
+                      <div className="text-xs text-gray-500">
+                        Phone:{' '}
+                        {job.freelancer?.phoneNumber ||
+                          job.freelancer?.phone ||
+                          (job.freelancer ? 'No phone' : '—')}
+                      </div>
                     </div>
                   </div>
                   <div className="pt-3 border-t flex justify-end">
