@@ -7,13 +7,10 @@ import { Button } from '../../components/common/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/common/Card';
 import { Label } from '../../components/common/Label';
 import { 
-  Shield, 
-  CheckCircle,
-  XCircle,
+  Shield,
   FileText,
   Search,
-  User,
-  AlertCircle
+  User
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -21,13 +18,7 @@ const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('verifications');
-  const [verificationFilter, setVerificationFilter] = useState('pending');
-  
-  // Verification data
-  const [pendingVerifications, setPendingVerifications] = useState([]);
-  const [verificationDetails, setVerificationDetails] = useState(null);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  const [activeTab, setActiveTab] = useState('open-jobs');
   
   // Search Users data
   const [allUsers, setAllUsers] = useState({ clients: [], freelancers: [] });
@@ -36,11 +27,6 @@ const AdminDashboard = () => {
   const [openJobs, setOpenJobs] = useState([]);
   const [openJobsSearch, setOpenJobsSearch] = useState('');
   const [openJobsLoading, setOpenJobsLoading] = useState(false);
-
-  useEffect(() => {
-    loadAdminData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [verificationFilter]);
 
   // Load users when search tab is activated
   useEffect(() => {
@@ -58,60 +44,6 @@ const AdminDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-
-  const loadAdminData = async () => {
-    try {
-      setLoading(true);
-      const verificationsRes = await adminService.getFreelancerVerifications(verificationFilter);
-      
-      console.log('📋 Verifications response:', verificationsRes);
-      console.log('📋 Verifications array:', verificationsRes.verifications);
-      
-      const verifications = verificationsRes.verifications || [];
-      console.log('📋 First verification object:', verifications[0]);
-      console.log('📋 First verification keys:', verifications[0] ? Object.keys(verifications[0]) : 'No verifications');
-      
-      setPendingVerifications(verifications);
-      
-      console.log('📋 Set pendingVerifications to:', verifications);
-    } catch (error) {
-      console.error('Error loading admin data:', error);
-      setError('Failed to load admin data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerificationAction = async (verificationId, action) => {
-    try {
-      setLoading(true);
-      
-      if (action === 'approve') {
-        await adminService.approveFreelancer(verificationId);
-      } else if (action === 'reject') {
-        const reason = prompt('Please provide a reason for rejection:');
-        if (reason) {
-          await adminService.rejectFreelancer(verificationId, reason);
-        } else {
-          setLoading(false);
-          return;
-        }
-      }
-      
-      // Update local state
-      setPendingVerifications(prev => 
-        prev.filter(v => v.id !== verificationId)
-      );
-      
-      setError('');
-    } catch (error) {
-      console.error('Error processing verification:', error);
-      setError('Failed to process verification');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleLogout = async () => {
     try {
       await authService.logout();
@@ -125,7 +57,6 @@ const AdminDashboard = () => {
   };
 
   const tabs = [
-    { id: 'verifications', label: 'Verifications', icon: Shield },
     { id: 'search', label: 'Search Users', icon: Search },
     { id: 'open-jobs', label: 'Open Jobs', icon: FileText }
   ];
@@ -588,198 +519,6 @@ const AdminDashboard = () => {
     );
   };
 
-  const renderVerifications = () => {
-    console.log('🎨 Rendering verifications, pendingVerifications:', pendingVerifications);
-    console.log('🎨 pendingVerifications.length:', pendingVerifications.length);
-    console.log('🎨 verificationFilter:', verificationFilter);
-    if (pendingVerifications.length > 0) {
-      console.log('🎨 First verification in render:', pendingVerifications[0]);
-      console.log('🎨 First verification keys:', Object.keys(pendingVerifications[0]));
-    }
-    
-    return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Freelancer Verifications</h2>
-        <div className="flex items-center space-x-3">
-          <select
-            value={verificationFilter}
-            onChange={(e) => setVerificationFilter(e.target.value)}
-            className="border rounded-md px-3 py-2 text-sm"
-          >
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
-          <Button onClick={loadAdminData} variant="outline">
-            Refresh
-          </Button>
-        </div>
-      </div>
-      
-      {pendingVerifications.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-          <div className="text-center py-12 px-6">
-            <CheckCircle className="w-16 h-16 mx-auto text-green-500 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
-            <p className="text-gray-500">No pending verifications at the moment</p>
-          </div>
-        </div>
-      ) : (
-        <div className="grid gap-6">
-          {pendingVerifications.map(verification => (
-            <div key={verification._id || verification.id} className="bg-white border border-gray-200 rounded-lg shadow-sm">
-              <div className="bg-gray-50 p-6 rounded-t-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div 
-                      className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 border cursor-zoom-in"
-                      onClick={() => verification.profilePhoto && setImagePreviewUrl(verification.profilePhoto)}
-                      title={verification.profilePhoto ? 'Click to preview' : ''}
-                    >
-                      {verification.profilePhoto ? (
-                        <img src={verification.profilePhoto} alt={verification.fullName} className="w-full h-full object-cover" />
-                      ) : (
-                        <User className="w-6 h-6 text-gray-500 m-3" />
-                      )}
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900">
-                      {verification.fullName || 'Unknown User'}
-                    </h3>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600 bg-blue-100 px-3 py-1 rounded-full">
-                      {verification.phoneNumber || verification.phone || 'No phone'}
-                    </span>
-                    <span className={`text-xs px-2 py-1 rounded-full ${((verification.verificationStatus || verification.status) === 'approved') ? 'bg-green-100 text-green-700' : ((verification.verificationStatus || verification.status) === 'rejected') ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {verification.verificationStatus || verification.status}
-                    </span>
-                  </div>
-                </div>
-                <p className="text-gray-600 mt-2">
-                  Submitted on {verification.updatedAt ? new Date(verification.updatedAt).toLocaleDateString() : verification.submittedAt ? new Date(verification.submittedAt).toLocaleDateString() : '—'}
-                </p>
-              </div>
-              <div className="p-6">
-                <div className="space-y-6">
-                  {/* Check if verification documents are missing */}
-                  {(!verification.verificationDocuments && 
-                    !verification.aadhaarFront && 
-                    !verification.aadhaarBack && 
-                    !verification.panCard && 
-                    !verification.dateOfBirth && 
-                    !verification.gender && 
-                    !verification.address) ? (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                      <div className="flex items-start">
-                        <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
-                        <div>
-                          <h4 className="text-sm font-semibold text-yellow-800 mb-1">
-                            Verification Documents Not Submitted
-                          </h4>
-                          <p className="text-sm text-yellow-700">
-                            This user has not submitted their verification documents yet. 
-                            The verification status is set to "pending" but no documents are available for review.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* Personal details */}
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4">Personal Details</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Date of Birth</p>
-                        <p className="font-medium text-gray-900">
-                          {verification.dateOfBirth 
-                            ? (verification.dateOfBirth instanceof Date 
-                                ? verification.dateOfBirth.toLocaleDateString() 
-                                : new Date(verification.dateOfBirth).toLocaleDateString())
-                            : <span className="text-gray-400 italic">Not provided</span>}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Gender</p>
-                        <p className="font-medium text-gray-900">
-                          {verification.gender || <span className="text-gray-400 italic">Not provided</span>}
-                        </p>
-                      </div>
-                      <div className="md:col-span-1">
-                        <p className="text-sm text-gray-500 mb-1">Address</p>
-                        <p className="font-medium text-gray-900 break-words">
-                          {verification.address || <span className="text-gray-400 italic">Not provided</span>}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Document previews */}
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4">Verification Documents</h4>
-                    <div className="grid grid-cols-3 gap-6">
-                      {[{label:'Aadhaar Front', key:'aadhaarFront'}, {label:'Aadhaar Back', key:'aadhaarBack'}, {label:'PAN Card', key:'panCard'}].map((doc) => (
-                        <div key={doc.key} className="text-center">
-                          <div className="w-24 h-24 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center mx-auto mb-3 overflow-hidden">
-                            {verification[doc.key] ? (
-                              <img 
-                                src={verification[doc.key]} 
-                                alt={doc.label} 
-                                className="w-full h-full object-cover cursor-zoom-in" 
-                                onClick={() => setImagePreviewUrl(verification[doc.key])}
-                              />
-                            ) : (
-                              <FileText className="w-8 h-8 text-gray-400" />
-                            )}
-                          </div>
-                          <p className="text-sm font-medium text-gray-700">{doc.label}</p>
-                          {!verification[doc.key] && (
-                            <p className="text-xs text-gray-400 mt-1">Not uploaded</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Action buttons - only show for pending verifications */}
-                  {(verification.verificationStatus || verification.status) === 'pending' ? (
-                    <div className="flex space-x-3">
-                      <button 
-                        onClick={() => handleVerificationAction(verification._id || verification.id, 'approve')}
-                        disabled={loading}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center"
-                      >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Approve
-                      </button>
-                      <button 
-                        onClick={() => handleVerificationAction(verification._id || verification.id, 'reject')}
-                        disabled={loading}
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center"
-                      >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Reject
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="text-center py-2">
-                      <span className="text-sm text-gray-500 font-medium">
-                        Decision already made
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-    );
-  };
-
-
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -849,63 +588,8 @@ const AdminDashboard = () => {
         )}
 
         {/* Tab Content */}
-        {activeTab === 'verifications' && renderVerifications()}
         {activeTab === 'search' && renderSearch()}
         {activeTab === 'open-jobs' && renderOpenJobs()}
-        {/* Details Modal */}
-        {verificationDetails && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl">
-              <div className="p-6 border-b">
-                <h3 className="text-xl font-semibold">Verification Details</h3>
-              </div>
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm text-gray-600">Full Name</Label>
-                    <div className="text-gray-900">{verificationDetails.fullName}</div>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-gray-600">Phone</Label>
-                    <div className="text-gray-900">{verificationDetails.phone}</div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  {[{label:'Aadhaar Front', key:'aadhaarFront'}, {label:'Aadhaar Back', key:'aadhaarBack'}, {label:'PAN Card', key:'panCard'}].map((doc) => (
-                    <div key={doc.key}>
-                      <Label className="text-sm text-gray-600">{doc.label}</Label>
-                      <div className="mt-2 w-full h-32 bg-gray-50 border rounded overflow-hidden flex items-center justify-center">
-                        {verificationDetails[doc.key] ? (
-                          <img src={verificationDetails[doc.key]} alt={doc.label} className="w-full h-full object-cover" />
-                        ) : (
-                          <FileText className="w-8 h-8 text-gray-400" />
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="p-6 border-t text-right">
-                <Button variant="outline" onClick={() => setVerificationDetails(null)}>Close</Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Image Preview Modal */}
-        {imagePreviewUrl && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" onClick={() => setImagePreviewUrl(null)}>
-            <div className="relative max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-white rounded-lg overflow-hidden shadow-2xl">
-                <img src={imagePreviewUrl} alt="Document preview" className="w-full h-auto max-h-[80vh] object-contain" />
-              </div>
-              <div className="mt-3 text-right">
-                <Button variant="outline" onClick={() => setImagePreviewUrl(null)}>Close</Button>
-              </div>
-            </div>
-          </div>
-        )}
-
       </div>
     </div>
   );
