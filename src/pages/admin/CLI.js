@@ -10,7 +10,8 @@ import {
   Shield,
   FileText,
   Search,
-  User
+  User,
+  X
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -24,9 +25,31 @@ const AdminDashboard = () => {
   const [allUsers, setAllUsers] = useState({ clients: [], freelancers: [] });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedUserSummary, setSelectedUserSummary] = useState(null);
+  const [selectedUserProfile, setSelectedUserProfile] = useState(null);
+  const [userProfileLoading, setUserProfileLoading] = useState(false);
+  const [userProfileError, setUserProfileError] = useState('');
   const [openJobs, setOpenJobs] = useState([]);
   const [openJobsSearch, setOpenJobsSearch] = useState('');
   const [openJobsLoading, setOpenJobsLoading] = useState(false);
+
+  const closeUserModal = () => {
+    setSelectedUserSummary(null);
+    setSelectedUserProfile(null);
+    setUserProfileLoading(false);
+    setUserProfileError('');
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape' && selectedUserSummary) {
+        closeUserModal();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedUserSummary]);
 
   // Load users when search tab is activated
   useEffect(() => {
@@ -116,6 +139,220 @@ const AdminDashboard = () => {
     }
   };
 
+  const openUserModal = async (userSummary) => {
+    const userId = userSummary?._id || userSummary?.id;
+    if (!userId) return;
+
+    setSelectedUserSummary(userSummary);
+    setSelectedUserProfile(null);
+    setUserProfileLoading(true);
+    setUserProfileError('');
+
+    try {
+      const result = await adminService.getUserProfile(userId);
+      if (result?.success) {
+        setSelectedUserProfile(result.data || null);
+      } else {
+        setUserProfileError(result?.message || 'Failed to load user details');
+      }
+    } catch (err) {
+      setUserProfileError(err?.message || 'Failed to load user details');
+    } finally {
+      setUserProfileLoading(false);
+    }
+  };
+
+  const getAgeFromDob = (dob) => {
+    if (!dob) return '';
+    const d = new Date(dob);
+    if (Number.isNaN(d.getTime())) return '';
+    const today = new Date();
+    let age = today.getFullYear() - d.getFullYear();
+    const m = today.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age -= 1;
+    return age >= 0 ? String(age) : '';
+  };
+
+  const renderUserDetailsModal = () => {
+    if (!selectedUserSummary) return null;
+
+    const profile = selectedUserProfile || {};
+    const role = profile.role || selectedUserSummary.role || (allUsers.freelancers?.some((u) => (u._id || u.id) === (selectedUserSummary._id || selectedUserSummary.id)) ? 'freelancer' : 'client');
+    const verificationStatus = profile.verificationStatus || selectedUserSummary.verificationStatus;
+
+    const verificationDocs = profile.verificationDocuments || profile.documents || {};
+    const profilePhotoUrl = profile.profilePhoto || selectedUserSummary.profilePhoto || verificationDocs.profilePhoto || null;
+
+    const phone = profile.phoneNumber || profile.phone || selectedUserSummary.phoneNumber || selectedUserSummary.phone || '';
+    const email = profile.email || '';
+
+    const dateOfBirth = verificationDocs.dateOfBirth || profile.dateOfBirth || profile.dob || '';
+    const gender = verificationDocs.gender || profile.gender || '';
+    const address = verificationDocs.address || profile.address || '';
+    const age = getAgeFromDob(dateOfBirth);
+
+    const aadhaarFront = verificationDocs.aadhaarFront || profile.aadhaarFront || profile.aadharFront || null;
+    const aadhaarBack = verificationDocs.aadhaarBack || profile.aadhaarBack || profile.aadharBack || null;
+    const panCard = verificationDocs.panCard || profile.panCard || null;
+
+    const aadhaarNumber = verificationDocs.aadhaarNumber || verificationDocs.aadharNumber || profile.aadhaarNumber || profile.aadharNumber || '';
+    const panNumber = verificationDocs.panNumber || profile.panNumber || '';
+
+    const formatDate = (value) => {
+      if (!value) return '';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return String(value);
+      return d.toLocaleDateString();
+    };
+
+    const renderImage = (label, url) => (
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">{label}</div>
+        {url ? (
+          <a href={url} target="_blank" rel="noreferrer" className="block">
+            <img
+              src={url}
+              alt={label}
+              className="w-full h-40 object-cover rounded-md border border-gray-200 hover:opacity-90 transition"
+            />
+            <div className="text-xs text-blue-600 mt-1">Open full image</div>
+          </a>
+        ) : (
+          <div className="h-40 rounded-md border border-dashed border-gray-300 flex items-center justify-center text-sm text-gray-500">
+            Not available
+          </div>
+        )}
+      </div>
+    );
+
+    return (
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) closeUserModal();
+        }}
+      >
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b">
+            <div className="flex items-center space-x-4 min-w-0">
+              <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {profilePhotoUrl ? (
+                  <img src={profilePhotoUrl} alt={profile.fullName || selectedUserSummary.fullName || 'User'} className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-7 h-7 text-blue-600" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <div className="text-xl font-semibold text-gray-900 truncate">
+                  {profile.fullName || selectedUserSummary.fullName || 'User'}
+                </div>
+                <div className="text-sm text-gray-600 truncate">
+                  {phone || 'No phone'} {role ? `• ${role}` : ''}
+                </div>
+                <div className="mt-1 flex items-center space-x-2">
+                  {verificationStatus && (
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      verificationStatus === 'approved' ? 'bg-green-100 text-green-700' :
+                      verificationStatus === 'rejected' ? 'bg-red-100 text-red-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {verificationStatus}
+                    </span>
+                  )}
+                  {profile._id && (
+                    <span className="text-xs text-gray-500 font-mono truncate">
+                      {profile._id}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <button onClick={closeUserModal} className="text-gray-400 hover:text-gray-600 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="p-6 space-y-6">
+            {userProfileLoading && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                Loading user details...
+              </div>
+            )}
+
+            {userProfileError && (
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
+                {userProfileError}
+              </div>
+            )}
+
+            {/* Personal details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="border border-gray-200">
+                <CardContent className="p-4 space-y-2">
+                  <div className="text-sm font-semibold text-gray-900">Personal Details</div>
+                  <div className="text-sm text-gray-700">
+                    <span className="font-medium">Mobile:</span> {phone || '—'}
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    <span className="font-medium">Email:</span> {email || '—'}
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    <span className="font-medium">DOB:</span> {formatDate(dateOfBirth) || '—'}
+                    {age ? <span className="text-gray-500"> ({age} yrs)</span> : null}
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    <span className="font-medium">Gender:</span> {gender || '—'}
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    <span className="font-medium">Address:</span> {address || '—'}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-gray-200">
+                <CardContent className="p-4 space-y-2">
+                  <div className="text-sm font-semibold text-gray-900">KYC Details</div>
+                  <div className="text-sm text-gray-700">
+                    <span className="font-medium">Aadhaar Number:</span> {aadhaarNumber || '—'}
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    <span className="font-medium">PAN Number:</span> {panNumber || '—'}
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    <span className="font-medium">Onboarded with docs:</span>{' '}
+                    {(aadhaarFront || aadhaarBack || panCard) ? 'Yes' : 'No'}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Document images below will show only if your backend stored URLs for them.
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Document images */}
+            <div className="space-y-3">
+              <div className="text-sm font-semibold text-gray-900">Document Images</div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {renderImage('Aadhaar (Front)', aadhaarFront)}
+                {renderImage('Aadhaar (Back)', aadhaarBack)}
+                {renderImage('PAN Card', panCard)}
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end space-x-3 p-6 border-t bg-gray-50">
+            <Button variant="outline" onClick={closeUserModal}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderSearch = () => {
     // Filter users based on search query
     const filterUsers = (users) => {
@@ -134,7 +371,19 @@ const AdminDashboard = () => {
     const totalFiltered = filteredClients.length + filteredFreelancers.length;
 
     const renderUserCard = (user) => (
-      <Card key={user._id || user.id} className="mb-3">
+      <Card
+        key={user._id || user.id}
+        className="mb-3 cursor-pointer hover:bg-gray-50 transition-colors"
+        role="button"
+        tabIndex={0}
+        onClick={() => openUserModal(user)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openUserModal(user);
+          }
+        }}
+      >
         <CardContent className="p-4">
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -174,6 +423,7 @@ const AdminDashboard = () => {
 
     return (
       <div className="space-y-6">
+        {renderUserDetailsModal()}
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">Search Users</h2>
           <Button onClick={loadAllUsers} variant="outline" disabled={searchLoading}>
