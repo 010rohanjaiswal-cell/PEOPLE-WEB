@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: people-web-backend
+    env: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://www.people.com.de,http://www.people.com.de,https://people.com.de,https://people-web-5hqi.onrender.com
+      - key: FRONTEND_URL
+        value: https://www.people.com.de
+      - key: PAYMENT_REDIRECT_URL
+        value: https://people-web-5hqi.onrender.com/payment/callback
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: PHONEPE_ENV
+        value: prod
+      - key: PHONEPE_CLIENT_ID
+        sync: false
+      - key: PHONEPE_CLIENT_SECRET
+        sync: false
+      - key: PHONEPE_MERCHANT_ID
+        sync: false
+

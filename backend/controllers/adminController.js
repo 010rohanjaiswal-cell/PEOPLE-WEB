@@ -1,0 +1,794 @@
+const mongoose = require('mongoose');
+const User = require('../models/User');
+const FreelancerVerification = require('../models/FreelancerVerification');
+const Job = require('../models/Job');
+const bulkpeService = require('../services/bulkpeService');
+
+// Get freelancer verifications
+const getFreelancerVerifications = async (req, res) => {
+  try {
+    const { status } = req.query;
+    
+    // Query the FreelancerVerification collection (primary source)
+    const verificationFilter = {};
+    if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+      verificationFilter.status = status;
+    }
+    
+    // Get verifications from the separate collection
+    const verificationsFromCollection = await FreelancerVerification.find(verificationFilter)
+      .populate('user', 'phoneNumber phone fullName profilePhoto')
+      .lean()
+      .sort({ updatedAt: -1 });
+    
+    // Also get users with verificationStatus for backward compatibility
+    const userFilter = { role: 'freelancer' };
+    if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+      userFilter.verificationStatus = status;
+    }
+
+    const usersWithVerification = await User.find(userFilter)
+      .select('_id fullName phoneNumber phone verificationStatus verificationDocuments profilePhoto createdAt updatedAt')
+      .lean()
+      .sort({ updatedAt: -1 });
+
+    // Combine verifications from both sources
+    const allVerifications = [];
+    
+    // Process verifications from FreelancerVerification collection
+    for (const verification of verificationsFromCollection) {
+      // Handle user field - could be populated object or ObjectId
+      let user = null;
+      let userId = null;
+      
+      if (verification.user) {
+        if (typeof verification.user === 'object' && verification.user._id) {
+          // Populated user object
+          user = verification.user;
+          userId = verification.user._id;
+        } else {
+          // ObjectId reference - fetch user
+          userId = verification.user;
+          try {
+            user = await User.findById(userId).select('phoneNumber phone fullName profilePhoto').lean();
+          } catch (err) {
+            console.error('Error fetching user for verification:', err);
+          }
+        }
+      }
+      
+      allVerifications.push({
+        _id: verification._id,
+        userId: userId || verification.user,
+        fullName: verification.fullName || (user?.fullName) || null,
+        phoneNumber: user?.phoneNumber || user?.phone || null,
+        phone: user?.phone || user?.phoneNumber || null,
+        verificationStatus: verification.status || 'pending',
+        verificationDocuments: {
+          aadhaarFront: verification.aadhaarFront || null,
+          aadhaarBack: verification.aadhaarBack || null,
+          panCard: verification.panCard || null,
+          address: verification.address || null,
+          dateOfBirth: verification.dob || null,
+          gender: verification.gender || null
+        },
+        profilePhoto: verification.profilePhoto || (user?.profilePhoto) || null,
+        createdAt: verification.createdAt,
+        updatedAt: verification.updatedAt || verification.createdAt
+      });
+    }
+    
+    // Process users with verificationDocuments (for backward compatibility)
+    usersWithVerification.forEach(user => {
+      // Skip if we already have this user from FreelancerVerification collection
+      const alreadyAdded = allVerifications.some(v => 
+        String(v.userId || v._id) === String(user._id)
+      );
+      
+      if (!alreadyAdded) {
+        // Handle verificationDocuments - check if it's an empty object
+        let verificationDocs = user.verificationDocuments;
+        
+        // If verificationDocuments exists but is an empty object or all values are null/undefined
+        if (verificationDocs && typeof verificationDocs === 'object') {
+          const hasValues = Object.values(verificationDocs).some(v => v !== null && v !== undefined && v !== '');
+          if (!hasValues) {
+            // Empty object with no actual data
+            verificationDocs = null;
+          }
+        } else if (!verificationDocs) {
+          verificationDocs = null;
+        }
+        
+        allVerifications.push({
+          _id: user._id,
+          userId: user._id,
+          fullName: user.fullName || null,
+          phoneNumber: user.phoneNumber || user.phone || null,
+          phone: user.phone || user.phoneNumber || null,
+          verificationStatus: user.verificationStatus || 'pending',
+          verificationDocuments: verificationDocs,
+          profilePhoto: user.profilePhoto || null,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt || user.createdAt
+        });
+      }
+    });
+    
+    // Sort by updatedAt descending
+    allVerifications.sort((a, b) => {
+      const dateA = new Date(a.updatedAt || a.createdAt);
+      const dateB = new Date(b.updatedAt || b.createdAt);
+      return dateB - dateA;
+    });
+    
+    const normalizedVerifications = allVerifications;
+
+    res.json({
+      success: true,
+      data: normalizedVerifications
+    });
+
+  } catch (error) {
+    console.error('Get verifications error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch verifications'
+    });
+  }
+};
+
+// Approve freelancer
+const approveFreelancer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    user.verificationStatus = 'approved';
+    // Assign freelancerId if not set: 5-9 digit numeric string
+    if (!user.freelancerId) {
+      // Helper to generate 5-9 digit numeric ID
+      const generateId = () => {
+        const length = Math.floor(Math.random() * 5) + 5; // 5 to 9
+        let s = '';
+        for (let i = 0; i < length; i++) {
+          s += Math.floor(Math.random() * 10).toString();
+        }
+        // Ensure it does not start with 0 for readability
+        if (s[0] === '0') s = '1' + s.slice(1);
+        return s;
+      };
+
+      let newId = generateId();
+      // Best-effort uniqueness check
+      let tries = 0;
+      while (tries < 5) {
+        // eslint-disable-next-line no-await-in-loop
+        const existing = await User.findOne({ freelancerId: newId });
+        if (!existing) break;
+        newId = generateId();
+        tries += 1;
+      }
+      user.freelancerId = newId;
+    }
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Freelancer approved successfully',
+      freelancerId: user.freelancerId
+    });
+
+  } catch (error) {
+    console.error('Approve freelancer error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to approve freelancer'
+    });
+  }
+};
+
+// Reject freelancer
+const rejectFreelancer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    user.verificationStatus = 'rejected';
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Freelancer rejected successfully'
+    });
+
+  } catch (error) {
+    console.error('Reject freelancer error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reject freelancer'
+    });
+  }
+};
+
+// Get withdrawal requests (pending)
+const Withdrawal = require('../models/Withdrawal');
+const getWithdrawalRequests = async (req, res) => {
+  try {
+    const items = await Withdrawal.find({ status: 'pending' })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+    res.json({ success: true, data: items });
+  } catch (error) {
+    console.error('Get withdrawal requests error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch withdrawal requests' });
+  }
+};
+
+// Approve withdrawal
+const approveWithdrawal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Find the withdrawal request
+    const withdrawal = await Withdrawal.findById(id);
+    if (!withdrawal) {
+      return res.status(404).json({
+        success: false,
+        message: 'Withdrawal request not found'
+      });
+    }
+
+    if (withdrawal.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Withdrawal request is not pending'
+      });
+    }
+
+    // Get user details for payout
+    const user = await User.findById(withdrawal.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if user has sufficient balance
+    if (!user.wallet || user.wallet.balance < withdrawal.amount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient balance'
+      });
+    }
+
+    console.log('🚀 Processing withdrawal payout via Bulkpe:', {
+      userId: user._id,
+      amount: withdrawal.amount,
+      upiId: withdrawal.upiId,
+      bankDetails: withdrawal.bankDetails
+    });
+
+    // Process payout via Bulkpe
+    const payoutResult = await bulkpeService.processWithdrawalRequest({
+      amount: withdrawal.amount,
+      upiId: withdrawal.upiId,
+      bankDetails: withdrawal.bankDetails,
+      beneficiaryName: user.fullName
+    });
+
+    if (payoutResult.success) {
+      // Update withdrawal status
+      withdrawal.status = 'processing';
+      withdrawal.bulkpeTransactionId = payoutResult.transactionId;
+      withdrawal.bulkpeReferenceId = payoutResult.referenceId;
+      withdrawal.approvedAt = new Date();
+      await withdrawal.save();
+
+      // Deduct amount from user's wallet
+      user.wallet.balance -= withdrawal.amount;
+      
+      // Add transaction record
+      if (!user.wallet.transactions) {
+        user.wallet.transactions = [];
+      }
+      
+      user.wallet.transactions.push({
+        type: 'withdrawal',
+        amount: -withdrawal.amount,
+        description: `Withdrawal payout - ${payoutResult.transactionId}`,
+        status: 'processing',
+        bulkpeTransactionId: payoutResult.transactionId,
+        createdAt: new Date()
+      });
+      
+      await user.save();
+
+      res.json({
+        success: true,
+        message: 'Withdrawal approved and payout initiated',
+        transactionId: payoutResult.transactionId,
+        status: payoutResult.status
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to process payout',
+        error: payoutResult.error
+      });
+    }
+
+  } catch (error) {
+    console.error('Approve withdrawal error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to approve withdrawal'
+    });
+  }
+};
+
+// Reject withdrawal
+const rejectWithdrawal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // In a real implementation, you'd update the withdrawal status
+    res.json({
+      success: true,
+      message: 'Withdrawal rejected successfully'
+    });
+
+  } catch (error) {
+    console.error('Reject withdrawal error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reject withdrawal'
+    });
+  }
+};
+
+// Search users by phone number (or get all users if no query)
+const searchUsers = async (req, res) => {
+  try {
+    const { phoneNumber } = req.query;
+    
+    console.log('🔍 Admin searchUsers called with phoneNumber:', phoneNumber);
+    
+    let query = {};
+    
+    // If phoneNumber is provided and not empty, filter by it
+    if (phoneNumber && typeof phoneNumber === 'string' && phoneNumber.trim().length > 0) {
+      query = {
+        $or: [
+          { phoneNumber: { $regex: phoneNumber.trim(), $options: 'i' } },
+          { phone: { $regex: phoneNumber.trim(), $options: 'i' } }
+        ]
+      };
+      console.log('🔍 Filtering users by phone number:', phoneNumber.trim());
+    } else {
+      console.log('📋 No phone number filter - returning all users');
+    }
+    // If no phoneNumber provided, get all users
+
+    // Search for users with matching phone number (supporting both phone and phoneNumber fields)
+    console.log('🔍 MongoDB query:', JSON.stringify(query, null, 2));
+    
+    const users = await User.find(query)
+    .select('_id fullName phoneNumber phone email role verificationStatus profilePhoto createdAt updatedAt wallet verificationDocuments')
+    .sort({ createdAt: -1 })
+    .lean(); // Use lean() for better performance and to ensure we get plain objects
+
+    console.log(`🔍 Search for phone: ${phoneNumber || '(all users)'}`);
+    console.log(`📊 Found ${users.length} users in database`);
+    
+    if (users.length > 0) {
+      console.log(`📊 Sample users:`, users.slice(0, 3).map(u => ({ 
+        id: u._id, 
+        name: u.fullName, 
+        role: u.role, 
+        phone: u.phoneNumber || u.phone 
+      })));
+    } else {
+      console.log('⚠️ No users found. Checking if User model is connected...');
+      const totalUsers = await User.countDocuments({});
+      console.log(`📊 Total users in database: ${totalUsers}`);
+    }
+
+    // For role-switching users, prioritize freelancer data and show in both tabs
+    const clients = [];
+    const freelancers = [];
+
+    users.forEach(user => {
+      // user is already a plain object due to .lean(), no need for toObject()
+      const userObj = user;
+      
+      // If user has freelancer data, show them in freelancer tab
+      if (userObj.verificationDocuments || userObj.verificationStatus || userObj.role === 'freelancer') {
+        freelancers.push({
+          ...userObj,
+          displayRole: 'freelancer',
+          isCurrentRole: userObj.role === 'freelancer'
+        });
+      }
+      
+      // If user has APPROVED freelancer data, also show in client tab with freelancer details
+      if (userObj.verificationDocuments && userObj.verificationStatus === 'approved') {
+        clients.push({
+          ...userObj,
+          displayRole: 'client',
+          isCurrentRole: userObj.role === 'client',
+          hasApprovedFreelancerData: true // Flag to indicate this user has approved freelancer data
+        });
+      } else {
+        // User only has client data or unapproved freelancer data, show only in client tab
+        clients.push({
+          ...userObj,
+          displayRole: 'client',
+          isCurrentRole: userObj.role === 'client',
+          hasApprovedFreelancerData: false
+        });
+      }
+    });
+
+    console.log(`👥 Clients: ${clients.length}, Freelancers: ${freelancers.length}`);
+
+    // Ensure we always return the correct format (object with clients, freelancers, total)
+    // Never return an array directly in data field
+    const responseData = {
+      clients: Array.isArray(clients) ? clients : [],
+      freelancers: Array.isArray(freelancers) ? freelancers : [],
+      total: typeof users.length === 'number' ? users.length : 0
+    };
+
+    console.log('📤 Sending response with format:', {
+      hasClients: Array.isArray(responseData.clients),
+      hasFreelancers: Array.isArray(responseData.freelancers),
+      clientsCount: responseData.clients.length,
+      freelancersCount: responseData.freelancers.length,
+      total: responseData.total
+    });
+
+    res.json({
+      success: true,
+      data: responseData
+    });
+
+  } catch (error) {
+    console.error('Search users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search users'
+    });
+  }
+};
+
+// Helper to normalize various ID representations (ObjectId, string, Buffer) to a string
+const normalizeId = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  // Mongoose ObjectId
+  if (typeof value.toHexString === 'function') {
+    return value.toHexString();
+  }
+  // Buffer representation of ObjectId
+  if (Buffer.isBuffer(value)) {
+    return value.toString('hex');
+  }
+  // Embedded document with _id
+  if (value._id) {
+    return normalizeId(value._id);
+  }
+  return String(value);
+};
+
+// Admin: get open/active jobs (optionally filter by client or freelancer phone)
+const getOpenJobs = async (req, res) => {
+  try {
+    const { phoneNumber } = req.query;
+
+    // Treat these statuses as "active" for admin view
+    const activeStatuses = ['open', 'assigned', 'in-progress', 'work_done'];
+    const jobFilter = { status: { $in: activeStatuses } };
+
+    let matchedUserIds = null;
+    if (phoneNumber && typeof phoneNumber === 'string' && phoneNumber.trim().length > 0) {
+      // Find users whose phone/phoneNumber matches the query
+      const rawPhoneQuery = phoneNumber.trim();
+      // Escape regex special characters to avoid invalid patterns (e.g. leading '+')
+      const phoneQuery = rawPhoneQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const matchingUsers = await User.find({
+        $or: [
+          { phoneNumber: { $regex: phoneQuery, $options: 'i' } },
+          { phone: { $regex: phoneQuery, $options: 'i' } }
+        ]
+      })
+        .select('_id fullName phoneNumber phone')
+        .lean();
+
+      matchedUserIds = matchingUsers.map(u => u._id);
+
+      if (matchedUserIds.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      // Support both schemas and allow filtering by client OR freelancer
+      // jobs with clientId (ObjectId) or client (string id), and assignedFreelancer as id or object with id
+      jobFilter.$or = [
+        { clientId: { $in: matchedUserIds } },
+        { client: { $in: matchedUserIds.map(id => String(id)) } },
+        { 'assignedFreelancer.id': { $in: matchedUserIds } },
+        { assignedFreelancer: { $in: matchedUserIds.map(id => String(id)) } }
+      ];
+    }
+
+    const jobs = await Job.find(jobFilter)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Load client details for each job (handle both clientId and client fields)
+    const uniqueClientIdStrings = Array.from(
+      new Set(
+        jobs
+          .map(j => normalizeId(j.clientId || j.client))
+          .filter(id => id && mongoose.Types.ObjectId.isValid(String(id)))
+      )
+    );
+
+    // Load freelancer details for each job (handle both assignedFreelancer.id and assignedFreelancer as string)
+    const uniqueFreelancerIdStrings = Array.from(
+      new Set(
+        jobs
+          .map(j =>
+            normalizeId(
+              (j.assignedFreelancer && j.assignedFreelancer.id) ||
+              j.assignedFreelancer
+            )
+          )
+          .filter(id => id && mongoose.Types.ObjectId.isValid(String(id)))
+      )
+    );
+
+    const clientsById = {};
+    if (uniqueClientIdStrings.length > 0) {
+      const clients = await User.find({ _id: { $in: uniqueClientIdStrings } })
+        .select('_id fullName phoneNumber phone')
+        .lean();
+      clients.forEach(c => {
+        clientsById[String(c._id)] = c;
+      });
+    }
+
+    const freelancersById = {};
+    if (uniqueFreelancerIdStrings.length > 0) {
+      const freelancers = await User.find({ _id: { $in: uniqueFreelancerIdStrings } })
+        .select('_id fullName phoneNumber phone profilePhoto freelancerId')
+        .lean();
+      freelancers.forEach(f => {
+        freelancersById[String(f._id)] = f;
+      });
+    }
+
+    const result = jobs.map(job => {
+      const clientKey = normalizeId(job.clientId || job.client) || '';
+      const client = clientsById[clientKey] || {};
+
+      // Normalize assignedFreelancer to always be an ID string when present
+      const freelancerRawId = normalizeId(
+        (job.assignedFreelancer && job.assignedFreelancer.id) ||
+        job.assignedFreelancer
+      );
+
+      const freelancerKey = freelancerRawId || '';
+      const freelancerUser = freelancerKey ? freelancersById[freelancerKey] : null;
+
+      return {
+        id: job.id,
+        mongoId: job._id,
+        title: job.title,
+        description: job.description,
+        address: job.address,
+        pincode: job.pincode,
+        budget: job.budget,
+        category: job.category,
+        gender: job.gender,
+        status: job.status,
+        createdAt: job.createdAt,
+        client: {
+          id: job.clientId || job.client || null,
+          fullName: client.fullName || null,
+          phoneNumber: client.phoneNumber || client.phone || null,
+          phone: client.phone || client.phoneNumber || null
+        },
+        freelancer: freelancerRawId
+          ? {
+              id: freelancerRawId,
+              fullName:
+                (job.assignedFreelancer &&
+                  job.assignedFreelancer.fullName) ||
+                freelancerUser?.fullName ||
+                null,
+              phoneNumber:
+                freelancerUser?.phoneNumber || freelancerUser?.phone || null,
+              phone:
+                freelancerUser?.phone || freelancerUser?.phoneNumber || null,
+              profilePhoto:
+                freelancerUser?.profilePhoto ||
+                (job.assignedFreelancer &&
+                  job.assignedFreelancer.profilePhoto) ||
+                null,
+              freelancerId:
+                freelancerUser?.freelancerId ||
+                (job.assignedFreelancer &&
+                  job.assignedFreelancer.freelancerId) ||
+                null
+            }
+          : null
+      };
+    });
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Get open jobs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch open jobs'
+    });
+  }
+};
+
+// Admin: hard delete a job (regardless of status)
+const deleteJobByAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const job = await Job.findOneAndDelete({ id });
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Job deleted successfully by admin'
+    });
+  } catch (error) {
+    console.error('Admin delete job error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete job'
+    });
+  }
+};
+
+// Admin: unassign freelancer from a job (only when status is open or assigned)
+const unassignFreelancerByAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Load job without modifying it yet to avoid triggering validation
+    const job = await Job.findOne({ id }).lean();
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found'
+      });
+    }
+
+    // Only allow unassign when status is open or assigned
+    if (!['open', 'assigned'].includes(job.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot unassign freelancer when job status is '${job.status}'`
+      });
+    }
+
+    if (!job.assignedFreelancer || !job.assignedFreelancer.id) {
+      // Nothing to unassign, but treat as success
+      return res.json({
+        success: true,
+        message: 'Job has no assigned freelancer',
+        data: {
+          id: job.id,
+          status: job.status,
+          assignedFreelancer: null
+        }
+      });
+    }
+
+    // Build an update that only touches assignment-related fields.
+    // We explicitly avoid re-validating the whole document so that
+    // older jobs with missing clientId or lowercase gender don't fail.
+    const update = {
+      $unset: {
+        assignedFreelancer: '',
+        assignedAt: ''
+      }
+    };
+
+    if (job.status === 'assigned') {
+      update.$set = { status: 'open' };
+    }
+
+    await Job.updateOne({ id }, update, { runValidators: false });
+
+    res.json({
+      success: true,
+      message: 'Freelancer unassigned successfully',
+      data: {
+        id: job.id,
+        status: job.status,
+        assignedFreelancer: null
+      }
+    });
+  } catch (error) {
+    console.error('Admin unassign freelancer error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to unassign freelancer from job'
+    });
+  }
+};
+
+// Get user profile by ID
+const getUserProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const user = await User.findById(id)
+      .select('-__v'); // Exclude version field
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user
+    });
+
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user profile'
+    });
+  }
+};
+
+module.exports = {
+  getFreelancerVerifications,
+  approveFreelancer,
+  rejectFreelancer,
+  getWithdrawalRequests,
+  approveWithdrawal,
+  rejectWithdrawal,
+  searchUsers,
+  getUserProfile,
+  getOpenJobs,
+  deleteJobByAdmin,
+  unassignFreelancerByAdmin
+};

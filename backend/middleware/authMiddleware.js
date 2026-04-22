@@ -1,0 +1,90 @@
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+
+// Verify JWT token
+const verifyToken = async (req, res, next) => {
+  try {
+    const rawAuthHeader = req.header('Authorization');
+    console.log('🔐 verifyToken middleware hit:', {
+      path: req.path,
+      method: req.method,
+      hasAuthHeader: !!rawAuthHeader,
+      authHeaderPrefix: rawAuthHeader ? rawAuthHeader.slice(0, 20) : null
+    });
+
+    const token = rawAuthHeader?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. No token provided.'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // If admin token, allow without DB lookup (adminLogin issues non-ObjectId userId)
+    if (decoded && decoded.role === 'admin') {
+      req.user = { _id: decoded.userId || 'admin', role: 'admin' };
+      return next();
+    }
+
+    const user = await User.findById(decoded.userId);
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token. User not found.'
+      });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error('Token verification error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Invalid token.'
+    });
+  }
+};
+
+// Verify admin role
+const verifyAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Admin role required.'
+    });
+  }
+  next();
+};
+
+// Verify freelancer role
+const verifyFreelancer = (req, res, next) => {
+  if (req.user.role !== 'freelancer') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Freelancer role required.'
+    });
+  }
+  next();
+};
+
+// Verify client role
+const verifyClient = (req, res, next) => {
+  if (req.user.role !== 'client') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Client role required.'
+    });
+  }
+  next();
+};
+
+module.exports = {
+  verifyToken,
+  verifyAdmin,
+  verifyFreelancer,
+  verifyClient
+};

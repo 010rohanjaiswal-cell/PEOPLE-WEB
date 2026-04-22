@@ -1,0 +1,21 @@
+const express = require('express');
+const router = express.Router();
+const freelancerController = require('../controllers/freelancerController');
+const authMiddleware = require('../middleware/authMiddleware');
+
+// Freelancer routes
+router.post('/submit-verification', authMiddleware.verifyToken, freelancerController.submitVerification);
+router.get('/verification-status', authMiddleware.verifyToken, freelancerController.getVerificationStatus);
+router.get('/wallet', authMiddleware.verifyToken, freelancerController.getWallet);
+router.post('/request-withdrawal', authMiddleware.verifyToken, freelancerController.requestWithdrawal);
+router.get('/withdrawal-history', authMiddleware.verifyToken, freelancerController.getWithdrawalHistory);
+router.get('/assigned-jobs', authMiddleware.verifyToken, freelancerController.getAssignedJobs);
+router.get('/orders', authMiddleware.verifyToken, freelancerController.getOrderHistory);
+router.post('/pickup-job/:jobId', authMiddleware.verifyToken, freelancerController.pickupJob);
+router.post('/make-offer/:jobId', authMiddleware.verifyToken, freelancerController.makeOffer);
+router.get('/cooldown-status/:jobId', authMiddleware.verifyToken, freelancerController.checkCooldownStatus);
+router.post('/mark-complete/:jobId', authMiddleware.verifyToken, freelancerController.markJobComplete);
+router.post('/mark-fully-complete/:jobId', authMiddleware.verifyToken, freelancerController.markJobFullyComplete);
+router.post('/pay-dues', authMiddleware.verifyToken, freelancerController.payDues);
+
+module.exports = router;

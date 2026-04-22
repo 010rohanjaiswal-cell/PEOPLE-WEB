@@ -1,0 +1,657 @@
+const { inMemoryJobs, saveJobsToFile } = require('./sharedJobsStore');
+const databaseService = require('../services/databaseService');
+
+// Lazy load payment service to avoid build issues
+let paymentService;
+let paymentServiceAvailable = false;
+
+const getPaymentService = () => {
+  if (!paymentService && !paymentServiceAvailable) {
+    try {
+      paymentService = require('../services/paymentService');
+      paymentServiceAvailable = true;
+      console.log('✅ Full payment service loaded successfully');
+    } catch (error) {
+      console.warn('⚠️ Full payment service not available, using minimal service:', error.message);
+      try {
+        paymentService = require('../services/paymentServiceMinimal');
+        paymentServiceAvailable = true;
+        console.log('✅ Minimal payment service loaded successfully');
+      } catch (minimalError) {
+        console.error('❌ Failed to load any payment service:', minimalError);
+        paymentServiceAvailable = false;
+        throw new Error('Payment service not available');
+      }
+    }
+  }
+  return paymentService;
+};
+
+// Async version for loading payment service
+const loadPaymentService = async () => {
+  if (!paymentService && !paymentServiceAvailable) {
+    try {
+      paymentService = require('../services/paymentService');
+      paymentServiceAvailable = true;
+      console.log('✅ Payment service dependencies loaded successfully');
+    } catch (error) {
+      console.warn('⚠️ Full payment service not available, using minimal service:', error.message);
+      try {
+        paymentService = require('../services/paymentServiceMinimal');
+        paymentServiceAvailable = true;
+        console.log('✅ Minimal payment service loaded successfully');
+      } catch (minimalError) {
+        console.error('❌ Failed to load any payment service:', minimalError);
+        paymentServiceAvailable = false;
+        throw new Error('Payment service not available');
+      }
+    }
+  }
+  return paymentService;
+};
+
+// Debug-only: create a fake UPI payment without hitting PG
+const createDebugUPIPayment = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    let job = await databaseService.getJobById(jobId);
+    if (!job) {
+      // Fallback to legacy file store
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const jobsFile = path.join(__dirname, '../../data/jobs.json');
+        if (fs.existsSync(jobsFile)) {
+          const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+          const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
+          job = jobs.find(j => (j.id || (j._id && String(j._id))) === jobId) || null;
+        }
+      } catch (_) {}
+    }
+    if (!job) return res.status(404).json({ success: false, message: 'Job not found' });
+
+    if (job.status !== 'work_done') {
+      return res.status(400).json({ success: false, message: 'Job must be marked as work done before payment' });
+    }
+
+    const totalAmount = Number(job.budget || 0);
+    if (!totalAmount || Number.isNaN(totalAmount)) {
+      return res.status(400).json({ success: false, message: 'Invalid job amount' });
+    }
+    const commission = Math.round(totalAmount * 0.1 * 100) / 100;
+    const freelancerAmount = Math.round((totalAmount - commission) * 100) / 100;
+
+    const orderId = `DEBUG_${job.id}_${Date.now()}`;
+    const paymentDetails = {
+      orderId,
+      paymentMethod: 'upi',
+      totalAmount,
+      commission,
+      freelancerAmount,
+      paymentUrl: `debug://upi/${orderId}`,
+      status: 'pending',
+      createdAt: new Date()
+    };
+
+    try { await databaseService.updateJob(jobId, { paymentDetails }); } catch (_) {}
+
+    return res.json({
+      success: true,
+      message: 'Debug payment created',
+      orderId,
+      paymentUrl: paymentDetails.paymentUrl,
+      data: { orderId, totalAmount, commission, freelancerAmount }
+    });
+  } catch (error) {
+    console.error('❌ createDebugUPIPayment error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to create debug payment' });
+  }
+};
+
+// Create UPI payment request
+const createUPIPayment = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
+
+    console.log('💳 createUPIPayment - jobId:', jobId);
+    console.log('💳 createUPIPayment - clientId:', clientId);
+    console.log('💳 createUPIPayment - user:', req.user);
+
+    // Load job from MongoDB first
+    let job = await databaseService.getJobById(jobId);
+    
+    // Fallback: support legacy jobs stored in file-based store so existing flows keep working
+    if (!job) {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const jobsFile = path.join(__dirname, '../../data/jobs.json');
+        if (fs.existsSync(jobsFile)) {
+          const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+          const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
+          const legacy = jobs.find(j => (j.id || (j._id && String(j._id))) === jobId);
+          if (legacy) {
+            console.log('↩️  Fallback: loaded job from file store');
+            job = legacy;
+          }
+        }
+      } catch (e) {
+        console.warn('Fallback file-store read failed:', e.message);
+      }
+    }
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+    
+    // Check if client owns the job (bypass for test jobs or debug mode)
+    const isDebugMode = process.env.NODE_ENV === 'development' || req.headers['x-debug-mode'] === 'true';
+    const isTestJob = job.id.startsWith('test-job-');
+    
+    if (String(job.clientId) !== String(clientId) && !isTestJob && !isDebugMode) {
+      return res.status(403).json({ success: false, message: 'You can only pay for your own jobs' });
+    }
+    
+    // Log when bypassing ownership check
+    if (isTestJob || isDebugMode) {
+      console.log('🧪 createUPIPayment - Bypassing ownership check:', {
+        jobId: job.id,
+        reason: isTestJob ? 'test job' : 'debug mode',
+        clientId: clientId,
+        jobClientId: job.clientId
+      });
+    }
+    
+    // Check if job is in work_done status
+    if (job.status !== 'work_done') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Job must be marked as work done before payment' 
+      });
+    }
+
+    // Load payment service
+    const paymentService = await loadPaymentService();
+    if (!paymentService) {
+      return res.status(503).json({
+        success: false,
+        message: 'Payment service not available'
+      });
+    }
+
+    // Debug: Test the payment service
+    console.log('🔍 createUPIPayment - testing payment service...');
+    let dependencyTest;
+    try {
+      dependencyTest = paymentService.testDependencies();
+      console.log('🔍 createUPIPayment - dependency test result:', dependencyTest);
+    } catch (testError) {
+      console.error('❌ createUPIPayment - dependency test threw error:', testError);
+      return res.status(503).json({
+        success: false,
+        message: 'Payment service dependency test failed',
+        error: testError.message
+      });
+    }
+    
+    if (!dependencyTest || !dependencyTest.success) {
+      console.error('❌ createUPIPayment - payment service dependency test failed:', dependencyTest);
+      return res.status(503).json({
+        success: false,
+        message: 'Payment service dependencies not available',
+        details: dependencyTest
+      });
+    }
+
+    // Calculate amounts
+    console.log('💳 createUPIPayment - calculating amounts for budget:', job.budget);
+    const amounts = paymentService.calculateAmounts(job.budget);
+    console.log('💳 createUPIPayment - calculated amounts:', amounts);
+    
+    // Generate unique order ID
+    const orderId = `ORDER_${jobId}_${Date.now()}`;
+    console.log('💳 createUPIPayment - generated orderId:', orderId);
+    
+    // Create payment request
+    console.log('💳 createUPIPayment - calling payment service...');
+    const paymentResult = await paymentService.createPaymentRequest(
+      amounts.totalAmount,
+      orderId,
+      clientId,
+      jobId,
+      job.title
+    );
+    console.log('💳 createUPIPayment - payment service result:', paymentResult);
+
+    if (!paymentResult.success) {
+      console.error('❌ createUPIPayment - payment service failed:', paymentResult);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to create payment request',
+        error: paymentResult.error,
+        details: paymentResult
+      });
+    }
+
+    // Store payment details in job
+    const paymentDetails = {
+      orderId,
+      paymentMethod: 'upi',
+      totalAmount: amounts.totalAmount,
+      commission: amounts.commission,
+      freelancerAmount: amounts.freelancerAmount,
+      paymentUrl: paymentResult.paymentUrl,
+      status: 'pending',
+      createdAt: new Date()
+    };
+
+    // Update job in MongoDB
+    await databaseService.updateJob(jobId, { paymentDetails });
+    console.log('💾 Job updated in MongoDB');
+
+    console.log('💳 createUPIPayment - payment request created:', orderId);
+    console.log('💳 createUPIPayment - amounts:', amounts);
+
+    res.json({
+      success: true,
+      message: 'Payment request created successfully',
+      paymentUrl: paymentResult.paymentUrl,
+      orderId,
+      amounts
+    });
+
+  } catch (error) {
+    console.error('❌ createUPIPayment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create payment request'
+    });
+  }
+};
+
+// Verify UPI payment
+const verifyUPIPayment = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    
+    console.log('🔍 verifyUPIPayment - orderId:', orderId);
+
+    // Load payment service
+    const paymentService = await loadPaymentService();
+    if (!paymentService) {
+      return res.status(503).json({
+        success: false,
+        message: 'Payment service not available'
+      });
+    }
+
+    // Verify payment with PhonePe
+    const verificationResult = await paymentService.verifyPayment(orderId);
+    
+    console.log('🔍 verifyUPIPayment - verification result:', verificationResult);
+    
+    if (!verificationResult.success) {
+      console.error('❌ verifyUPIPayment - verification failed:', verificationResult.error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to verify payment',
+        error: verificationResult.error
+      });
+    }
+
+    const paymentData = verificationResult.data;
+    console.log('🔍 verifyUPIPayment - payment data:', paymentData);
+    
+    const isSuccess = paymentData.state === 'COMPLETED' || paymentData.state === 'SUCCESS';
+    console.log('🔍 verifyUPIPayment - isSuccess:', isSuccess, 'state:', paymentData.state);
+
+    if (isSuccess) {
+      // Extract job ID from order ID (format: ORDER_jobId_timestamp)
+      const jobIdMatch = orderId.match(/ORDER_(.+)_\d+/);
+      if (!jobIdMatch) {
+        console.error('❌ Could not extract job ID from order ID:', orderId);
+        return res.json({ success: false, message: 'Invalid order ID format' });
+      }
+      const jobId = jobIdMatch[1];
+      console.log('📋 Extracted job ID:', jobId);
+
+      // Prefer MongoDB job
+      const job = await databaseService.getJobById(jobId);
+      if (!job) {
+        return res.json({ success: false, message: 'Job not found' });
+      }
+
+      // Update job state and payment details in DB
+      const updates = {
+        status: 'completed',
+        paymentMethod: 'upi',
+        paidAt: new Date(),
+        paymentOrderId: orderId,
+        paymentDetails: {
+          ...(job.paymentDetails || {}),
+          status: 'completed',
+          completedAt: new Date(),
+          transactionId: orderId
+        }
+      };
+      await databaseService.updateJob(jobId, updates);
+
+      // Credit freelancer wallet (idempotent-ish; based on orderId uniqueness)
+      try {
+        const User = require('../models/User');
+        const freelancerId = job.assignedFreelancer?.id;
+        const jobAmount = Number(job.budget || 0);
+        if (freelancerId && jobAmount > 0) {
+          const freelancer = await User.findById(freelancerId);
+          if (freelancer) {
+            const alreadyCredited = (freelancer.wallet?.transactions || []).some(t => t.paymentOrderId === orderId);
+            if (!alreadyCredited) {
+              const freelancerAmount = Math.round(jobAmount * 0.9 * 100) / 100;
+              freelancer.wallet = freelancer.wallet || { balance: 0, totalEarnings: 0, transactions: [] };
+              freelancer.wallet.balance = (freelancer.wallet.balance || 0) + freelancerAmount;
+              freelancer.wallet.totalEarnings = (freelancer.wallet.totalEarnings || 0) + freelancerAmount;
+              freelancer.wallet.transactions = freelancer.wallet.transactions || [];
+              freelancer.wallet.transactions.unshift({
+                id: 'txn-' + Date.now(),
+                type: 'credit',
+                amount: freelancerAmount,
+                description: `Payment for job: ${job.title}`,
+                clientName: job.clientName || 'Unknown Client',
+                jobId: job.id,
+                totalAmount: jobAmount,
+                commission: Math.round(jobAmount * 0.1 * 100) / 100,
+                paymentOrderId: orderId,
+                createdAt: new Date().toISOString()
+              });
+              await freelancer.save();
+              console.log('💰 verifyUPIPayment - wallet credited');
+            }
+          }
+        }
+      } catch (e) {
+        console.error('❌ verifyUPIPayment - wallet credit error (ignored):', e.message);
+      }
+    }
+
+    res.json({ success: true, isSuccess, paymentData, message: isSuccess ? 'Payment verified successfully' : 'Payment verification failed' });
+
+  } catch (error) {
+    console.error('❌ verifyUPIPayment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to verify payment'
+    });
+  }
+};
+
+// Get payment status
+const getPaymentStatus = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const clientId = req.user?._id || req.user?.id || req.user?.userId || 'client-dev';
+
+    // Find the job
+    const jobIndex = inMemoryJobs.findIndex(j => (j.id || (j._id && String(j._id))) === jobId);
+    if (jobIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+    
+    const job = inMemoryJobs[jobIndex];
+    
+    // Check if client owns the job
+    if (String(job.clientId) !== String(clientId)) {
+      return res.status(403).json({ success: false, message: 'You can only check payment for your own jobs' });
+    }
+
+    const paymentDetails = job.paymentDetails || {};
+    
+    res.json({
+      success: true,
+      paymentDetails: {
+        status: paymentDetails.status || 'not_initiated',
+        orderId: paymentDetails.orderId,
+        totalAmount: paymentDetails.totalAmount,
+        commission: paymentDetails.commission,
+        freelancerAmount: paymentDetails.freelancerAmount,
+        paymentMethod: paymentDetails.paymentMethod,
+        createdAt: paymentDetails.createdAt
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ getPaymentStatus error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get payment status'
+    });
+  }
+};
+
+// Test payment service availability
+const testPaymentService = async (req, res) => {
+  try {
+    console.log('🧪 Testing payment service availability...');
+    
+    // Test if dependencies are available
+    let axiosAvailable = false;
+    let cryptoAvailable = false;
+    
+    try {
+      require('axios');
+      axiosAvailable = true;
+      console.log('✅ axios is available');
+    } catch (e) {
+      console.log('❌ axios not available:', e.message);
+    }
+    
+    try {
+      require('crypto-js');
+      cryptoAvailable = true;
+      console.log('✅ crypto-js is available');
+    } catch (e) {
+      console.log('❌ crypto-js not available:', e.message);
+    }
+    
+    // Try to get payment service
+    let service = null;
+    let testAmounts = null;
+    let serviceInfo = null;
+    
+    try {
+      service = getPaymentService();
+      console.log('🧪 Payment service loaded successfully');
+      
+      // Test amount calculation
+      testAmounts = service.calculateAmounts(1000);
+      console.log('🧪 Test amounts calculation:', testAmounts);
+      
+      serviceInfo = {
+        merchantId: service.merchantId,
+        baseUrl: service.baseUrl,
+        redirectUrl: service.redirectUrl
+      };
+    } catch (serviceError) {
+      console.log('❌ Payment service not available:', serviceError.message);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Payment service test completed',
+      dependencies: {
+        axios: axiosAvailable,
+        cryptoJs: cryptoAvailable
+      },
+      paymentServiceAvailable: paymentServiceAvailable,
+      testAmounts,
+      serviceInfo
+    });
+    
+  } catch (error) {
+    console.error('❌ Payment service test failed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Payment service test failed',
+      error: error.message
+    });
+  }
+};
+
+// Simulate successful payment for testing (supports MongoDB and legacy file)
+const simulateSuccessfulPayment = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    
+    console.log('🧪 simulateSuccessfulPayment - orderId:', orderId);
+
+    // Extract job ID from order ID (supports DEBUG_ or ORDER_ prefixes)
+    const jobIdMatch = orderId.match(/(?:DEBUG_|ORDER_)(.+)_\d+/);
+    if (!jobIdMatch) {
+      console.error('❌ Could not extract job ID from order ID:', orderId);
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid order ID format' 
+      });
+    }
+    
+    const jobId = jobIdMatch[1];
+    console.log('📋 Extracted job ID:', jobId);
+
+    // Try MongoDB first
+    let job = await databaseService.getJobById(jobId);
+    let persistenceMode = 'mongo';
+    if (!job) {
+      // Fallback to file
+      const fs = require('fs');
+      const path = require('path');
+      const jobsFile = path.join(__dirname, '../../data/jobs.json');
+      if (!fs.existsSync(jobsFile)) {
+        console.error('❌ Jobs file not found');
+        return res.status(404).json({ success: false, message: 'Jobs data not found' });
+      }
+      const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+      const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
+      const jobIndex = jobs.findIndex(j => j.id === jobId);
+      if (jobIndex === -1) {
+        console.error('❌ Job not found:', jobId);
+        return res.status(404).json({ success: false, message: 'Job not found' });
+      }
+      job = jobs[jobIndex];
+      persistenceMode = 'file';
+    }
+    
+    // Update job status to completed
+    job.status = 'completed';
+    job.paymentMethod = 'upi';
+    job.paidAt = new Date().toISOString();
+    job.paymentOrderId = orderId;
+
+    // Credit freelancer's wallet (if freelancer is assigned)
+    const User = require('../models/User');
+    const freelancerId = job.assignedFreelancer?.id;
+    const jobAmount = job.budget;
+    
+    let walletCredited = false;
+    let walletMessage = 'No freelancer assigned to job';
+    
+    if (freelancerId) {
+      try {
+        const freelancer = await User.findById(freelancerId);
+        if (freelancer) {
+          // Calculate freelancer's portion (90% of job amount)
+          const freelancerAmount = Math.round(jobAmount * 0.9 * 100) / 100;
+          
+          // Update wallet balance
+          freelancer.wallet.balance = (freelancer.wallet.balance || 0) + freelancerAmount;
+          freelancer.wallet.totalEarnings = (freelancer.wallet.totalEarnings || 0) + freelancerAmount;
+          
+          // Add transaction record
+          if (!freelancer.wallet.transactions) {
+            freelancer.wallet.transactions = [];
+          }
+          
+          freelancer.wallet.transactions.unshift({
+            id: 'txn-' + Date.now(),
+            type: 'credit',
+            amount: freelancerAmount,
+            description: `Payment for job: ${job.title}`,
+            clientName: job.clientName || 'Unknown Client',
+            jobId: job.id,
+            totalAmount: jobAmount,
+            commission: Math.round(jobAmount * 0.1 * 100) / 100,
+            paymentOrderId: orderId,
+            createdAt: new Date().toISOString()
+          });
+          
+          await freelancer.save();
+          walletCredited = true;
+          walletMessage = `₹${freelancerAmount} credited to freelancer wallet (90% of ₹${jobAmount})`;
+          console.log('💰 simulateSuccessfulPayment - freelancer wallet credited:', { 
+            freelancerId, 
+            jobAmount, 
+            freelancerAmount, 
+            commission: Math.round(jobAmount * 0.1 * 100) / 100 
+          });
+        } else {
+          walletMessage = 'Freelancer not found in database';
+        }
+      } catch (walletError) {
+        console.error('❌ simulateSuccessfulPayment - wallet credit error:', walletError);
+        walletMessage = 'Wallet credit failed: ' + walletError.message;
+      }
+    }
+    
+    if (persistenceMode === 'mongo') {
+      await databaseService.updateJob(jobId, {
+        status: job.status,
+        paymentMethod: job.paymentMethod,
+        paidAt: job.paidAt,
+        paymentOrderId: job.paymentOrderId
+      });
+      console.log('💾 Job updated in MongoDB');
+    } else {
+      // Save updated jobs data for file mode
+      const fs = require('fs');
+      const path = require('path');
+      const jobsFile = path.join(__dirname, '../../data/jobs.json');
+      const jobsData = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+      const jobs = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || []);
+      const jobIndex = jobs.findIndex(j => j.id === jobId);
+      if (jobIndex !== -1) {
+        jobs[jobIndex] = job;
+        fs.writeFileSync(jobsFile, JSON.stringify(jobsData, null, 2));
+        console.log('💾 Jobs data saved (file mode)');
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Payment simulated successfully',
+      orderId,
+      jobId,
+      jobAmount,
+      freelancerAmount: Math.round(jobAmount * 0.9 * 100) / 100,
+      commission: Math.round(jobAmount * 0.1 * 100) / 100,
+      walletCredited,
+      walletMessage,
+      jobStatus: 'completed'
+    });
+
+  } catch (error) {
+    console.error('❌ simulateSuccessfulPayment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to simulate payment',
+      error: error.message
+    });
+  }
+};
+
+module.exports = {
+  createUPIPayment,
+  verifyUPIPayment,
+  getPaymentStatus,
+  testPaymentService,
+  simulateSuccessfulPayment,
+  createDebugUPIPayment
+};
+
