@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Freelance Platform - Connect clients with freelancers"
+    />
+    <title>Freelance Platform</title>
+    <script defer="defer" src="static/js/main.6cc9a41a.js"></script>
+    <link href="static/css/main.2638dde1.css" rel="stylesheet" />
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+
+    <script>
+      (function () {
+        // Keep this script extremely lightweight: it runs on every DOM mutation.
+
+        function getModalRoot() {
+          // The modal overlay is a fixed inset-0 container in this app.
+          return (
+            document.querySelector('div.fixed.inset-0') ||
+            document.querySelector('div.fixed.inset-0.bg-black') ||
+            null
+          );
+        }
+
+        function getApiBaseUrl() {
+          try {
+            var override = localStorage.getItem('apiBaseUrlOverride');
+            if (override) return override.replace(/\/+$/, '');
+          } catch (e) {}
+          return 'https://people-web-5hqi.onrender.com/api';
+        }
+
+        function getAuthToken() {
+          try {
+            return localStorage.getItem('authToken') || '';
+          } catch (e) {
+            return '';
+          }
+        }
+
+        var _cache = {
+          approvedAt: 0,
+          approved: null,
+        };
+
+        function fetchApprovedVerifications() {
+          var now = Date.now();
+          if (_cache.approved && now - _cache.approvedAt < 30000) {
+            return Promise.resolve(_cache.approved);
+          }
+
+          var token = getAuthToken();
+          if (!token) return Promise.resolve(null);
+
+          var url =
+            getApiBaseUrl() + '/admin/freelancer-verifications?status=approved';
+
+          return fetch(url, {
+            method: 'GET',
+            headers: {
+              Authorization: 'Bearer ' + token,
+              'Content-Type': 'application/json',
+            },
+          })
+            .then(function (r) {
+              return r.json();
+            })
+            .then(function (data) {
+              var arr = data && (data.verifications || data.data);
+              _cache.approved = Array.isArray(arr) ? arr : [];
+              _cache.approvedAt = Date.now();
+              return _cache.approved;
+            })
+            .catch(function () {
+              return null;
+            });
+        }
+
+        function extractUserIdFromModalText() {
+          // The modal header shows an id like: 69d2af...
+          // Grab the first 24-hex token we can find.
+          var modal = getModalRoot() || document;
+          var text = (modal.textContent || '').trim();
+          var m = text.match(/\b[a-f0-9]{24}\b/i);
+          return m ? m[0] : '';
+        }
+
+        function extractPhoneFromModal() {
+          var modal = getModalRoot() || document;
+          var text = (modal.textContent || '').trim();
+          // Match +91XXXXXXXXXX or similar
+          var m = text.match(/\+\d{1,3}\d{8,14}/);
+          return m ? m[0] : '';
+        }
+
+        function normalizeId(v) {
+          if (!v) return '';
+          if (typeof v === 'string') return v;
+          if (typeof v === 'object') return v._id || v.id || v.userId || '';
+          return '';
+        }
+
+        function computeAgeFromDob(dob) {
+          if (!dob) return '';
+          // Accept dd-mm-yyyy (as seen in API) or ISO
+          var d = null;
+          var m = String(dob).match(/^(\d{2})-(\d{2})-(\d{4})$/);
+          if (m) {
+            d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+          } else {
+            var parsed = new Date(dob);
+            if (!Number.isNaN(parsed.getTime())) d = parsed;
+          }
+          if (!d || Number.isNaN(d.getTime())) return '';
+
+          var now = new Date();
+          var age = now.getFullYear() - d.getFullYear();
+          var md = now.getMonth() - d.getMonth();
+          if (md < 0 || (md === 0 && now.getDate() < d.getDate())) age--;
+          return age >= 0 && age < 130 ? String(age) : '';
+        }
+
+        function setRowValue(labelWithColon, value) {
+          var root = getModalRoot();
+          if (!root) return;
+          var rows = root.querySelectorAll('div.text-sm.text-gray-700');
+          for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            var txt = (row.textContent || '').trim();
+            if (txt.indexOf(labelWithColon) !== 0) continue;
+
+            var val = value && String(value).trim() ? String(value).trim() : '—';
+            row.textContent = labelWithColon + ' ' + val;
+            return;
+          }
+        }
+
+        function renameEmailToAgeLabel() {
+          var root = getModalRoot();
+          if (!root) return;
+          var rows = root.querySelectorAll('div.text-sm.text-gray-700');
+          for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            var txt = (row.textContent || '').trim();
+            if (txt.indexOf('Email:') === 0) {
+              row.textContent = 'Age: —';
+            }
+          }
+        }
+
+        function updateModalContent() {
+          var root = getModalRoot();
+          if (!root) return;
+
+          // Prevent re-running heavy work once filled for this user.
+          // Stored on the overlay element to survive re-renders within the modal.
+          var lastKey = root.__peopleLastKey || '';
+
+          var headers = root.querySelectorAll(
+            'div.text-sm.font-semibold.text-gray-900'
+          );
+
+          for (var i = 0; i < headers.length; i++) {
+            var el = headers[i];
+            var text = (el.textContent || '').trim();
+
+            if (text === 'Personal Details') {
+              el.textContent = 'User Details';
+            }
+
+            if (text === 'KYC Details' || text === 'KYB Details') {
+              var card = el.closest('.border.border-gray-200');
+              if (card && card.parentNode) {
+                card.parentNode.removeChild(card);
+              }
+            }
+          }
+
+          // Change the label "Email" -> "Age"
+          renameEmailToAgeLabel();
+
+          // Populate Gender / Address / Age by fetching verification details.
+          var userId = extractUserIdFromModalText();
+          var phone = extractPhoneFromModal();
+          if (!userId && !phone) return;
+          var key = (userId || '') + '|' + (phone || '');
+          if (key && lastKey === key && root.__peopleFilled === true) return;
+          root.__peopleLastKey = key;
+
+          fetchApprovedVerifications().then(function (list) {
+            if (!Array.isArray(list) || !list.length) return;
+
+            var match = null;
+            for (var k = 0; k < list.length; k++) {
+              var u = list[k] || {};
+              var uId = normalizeId(u._id || u.id);
+              var uUserId = normalizeId(u.userId);
+              var uPhone = (u.phoneNumber || u.phone || '').trim();
+
+              if (
+                (userId && (uId === userId || uUserId === userId)) ||
+                (phone && uPhone === phone)
+              ) {
+                match = u;
+                break;
+              }
+            }
+            if (!match) return;
+
+            var vd = match.verificationDocuments || {};
+            var gender = match.gender || vd.gender;
+            var address = match.address || vd.address;
+            var dob = match.dateOfBirth || vd.dateOfBirth;
+            var age = computeAgeFromDob(dob);
+
+            if (gender) setRowValue('Gender:', gender);
+            if (address) setRowValue('Address:', address);
+            // Also update DOB if backend has it
+            if (dob) setRowValue('DOB:', dob);
+            setRowValue('Age:', age || '—');
+
+            // Mark as filled to avoid repeated updates.
+            root.__peopleFilled = true;
+          });
+        }
+
+        // Debounce updates: the MutationObserver can fire very frequently.
+        var scheduled = false;
+        function scheduleUpdate() {
+          if (scheduled) return;
+          scheduled = true;
+          setTimeout(function () {
+            scheduled = false;
+            updateModalContent();
+          }, 150);
+        }
+
+        scheduleUpdate();
+
+        var observer = new MutationObserver(function () {
+          scheduleUpdate();
+        });
+
+        observer.observe(document.documentElement, {
+          childList: true,
+          subtree: true,
+        });
+      })();
+    </script>
+
+    <script>
+      (function () {
+        function getApiBaseUrl() {
+          try {
+            var override = localStorage.getItem('apiBaseUrlOverride');
+            if (override) return override.replace(/\/+$/, '');
+          } catch (e) {}
+          return 'https://people-web-5hqi.onrender.com/api';
+        }
+
+        function getAuthToken() {
+          try {
+            return localStorage.getItem('authToken') || '';
+          } catch (e) {
+            return '';
+          }
+        }
+
+        function createAnalyzeOverlay() {
+          var existing = document.getElementById('peopleAnalyzeOverlay');
+          if (existing) return existing;
+
+          var el = document.createElement('div');
+          el.id = 'peopleAnalyzeOverlay';
+          el.style.cssText =
+            'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px;';
+
+          var card = document.createElement('div');
+          card.style.cssText =
+            'width:100%;max-width:900px;max-height:90vh;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 20px 40px rgba(0,0,0,.25);';
+
+          card.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid #e5e7eb;">' +
+            '<div style="font-weight:800;font-size:16px;color:#111827;">Analyze</div>' +
+            '<button id="peopleAnalyzeClose" style="border:0;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:#6b7280;">×</button>' +
+            '</div>' +
+            '<div style="padding:18px;">' +
+            '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;">' +
+            '<div style="color:#6b7280;font-size:13px;">Metrics summary from backend</div>' +
+            '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+            '<button id="peopleAnalyzeRefresh" style="background:#2563eb;color:#fff;border:0;border-radius:10px;padding:10px 12px;font-weight:700;cursor:pointer;">Refresh</button>' +
+            '<button id="peopleAnalyzeCopy" style="background:#f3f4f6;color:#111827;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-weight:700;cursor:pointer;">Copy JSON</button>' +
+            '</div>' +
+            '</div>' +
+            '<div id="peopleAnalyzeError" style="display:none;margin-top:12px;padding:12px;border-radius:10px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:13px;"></div>' +
+            '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px;">' +
+            '<div style="padding:14px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;">' +
+            '<div style="color:#6b7280;font-size:12px;">Total Amount Received</div>' +
+            '<div id="m_totalAmountReceived" style="font-size:22px;font-weight:900;margin-top:6px;color:#111827;">—</div>' +
+            '</div>' +
+            '<div style="padding:14px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;">' +
+            '<div style="color:#6b7280;font-size:12px;">Total Revenue</div>' +
+            '<div id="m_totalRevenue" style="font-size:22px;font-weight:900;margin-top:6px;color:#111827;">—</div>' +
+            '</div>' +
+            '<div style="padding:14px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;">' +
+            '<div style="color:#6b7280;font-size:12px;">Total Dues Pending</div>' +
+            '<div id="m_totalDuesPending" style="font-size:22px;font-weight:900;margin-top:6px;color:#111827;">—</div>' +
+            '</div>' +
+            '<div style="padding:14px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;">' +
+            '<div style="color:#6b7280;font-size:12px;">Online Paid (optional)</div>' +
+            '<div id="m_totalAmountReceivedOnline" style="font-size:22px;font-weight:900;margin-top:6px;color:#111827;">—</div>' +
+            '</div>' +
+            '</div>' +
+            '<div style="margin-top:14px;color:#6b7280;font-size:12px;">Endpoint tried: <span id="peopleAnalyzeUrl" style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \\'Liberation Mono\\', \\'Courier New\\', monospace;"></span></div>' +
+            '<pre id="peopleAnalyzeRaw" style="margin-top:12px;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.5;background:#0b1020;color:#eef2ff;padding:12px;border-radius:12px;overflow:auto;max-height:340px;"></pre>' +
+            '</div>';
+
+          el.appendChild(card);
+          document.body.appendChild(el);
+
+          el.querySelector('#peopleAnalyzeClose').onclick = function () {
+            el.style.display = 'none';
+          };
+          el.addEventListener('click', function (e) {
+            if (e.target === el) el.style.display = 'none';
+          });
+
+          return el;
+        }
+
+        function formatMoney(v) {
+          if (v === null || v === undefined || v === '') return '—';
+          try {
+            var n = Number(v);
+            if (Number.isNaN(n)) return String(v);
+            return '₹' + n.toLocaleString('en-IN');
+          } catch (e) {
+            return String(v);
+          }
+        }
+
+        function fetchMetrics() {
+          var token = getAuthToken();
+          var base = getApiBaseUrl();
+          // Preferred (proxy) endpoint should be on your admin backend.
+          // We try both variants to support either setup.
+          var urls = [
+            base + '/admin/metrics/summary',
+            base + '/admin/metrics-summary',
+          ];
+
+          var lastErr = null;
+
+          function tryUrl(i) {
+            if (i >= urls.length) return Promise.reject(lastErr || new Error('No endpoint succeeded'));
+            var url = urls[i];
+            return fetch(url, {
+              headers: {
+                Authorization: token ? 'Bearer ' + token : '',
+                'Content-Type': 'application/json',
+              },
+            }).then(function (r) {
+              if (!r.ok) {
+                lastErr = { status: r.status, url: url };
+                return tryUrl(i + 1);
+              }
+              return r.json().then(function (j) {
+                return { url: url, data: j };
+              });
+            });
+          }
+
+          return tryUrl(0);
+        }
+
+        function openAnalyze() {
+          var overlay = createAnalyzeOverlay();
+          overlay.style.display = 'flex';
+
+          var rawEl = overlay.querySelector('#peopleAnalyzeRaw');
+          var errEl = overlay.querySelector('#peopleAnalyzeError');
+          var urlEl = overlay.querySelector('#peopleAnalyzeUrl');
+
+          function setError(msg) {
+            errEl.style.display = 'block';
+            errEl.textContent = msg;
+          }
+
+          function clearError() {
+            errEl.style.display = 'none';
+            errEl.textContent = '';
+          }
+
+          function render(data) {
+            overlay.querySelector('#m_totalAmountReceived').textContent = formatMoney(
+              data.totalAmountReceived
+            );
+            overlay.querySelector('#m_totalRevenue').textContent = formatMoney(
+              data.totalRevenue
+            );
+            overlay.querySelector('#m_totalDuesPending').textContent = formatMoney(
+              data.totalDuesPending
+            );
+            overlay.querySelector('#m_totalAmountReceivedOnline').textContent =
+              data.totalAmountReceivedOnline === undefined
+                ? '—'
+                : formatMoney(data.totalAmountReceivedOnline);
+          }
+
+          function load() {
+            rawEl.textContent = 'Loading…';
+            clearError();
+
+            fetchMetrics()
+              .then(function (res) {
+                urlEl.textContent = res.url;
+                rawEl.textContent = JSON.stringify(res.data, null, 2);
+                render(res.data);
+              })
+              .catch(function (e) {
+                urlEl.textContent =
+                  getApiBaseUrl() + '/admin/metrics/summary (not found)';
+                rawEl.textContent = '';
+                setError(
+                  'Metrics endpoint is not reachable yet. Please ensure your backend proxy route is deployed. Last error: ' +
+                    (e && e.status ? e.status + ' ' + e.url : String(e))
+                );
+              });
+          }
+
+          overlay.querySelector('#peopleAnalyzeRefresh').onclick = load;
+          overlay.querySelector('#peopleAnalyzeCopy').onclick = function () {
+            try {
+              navigator.clipboard.writeText(rawEl.textContent || '');
+            } catch (e) {}
+          };
+
+          load();
+        }
+
+        function injectAnalyzeTab() {
+          // Insert a sidebar row next to existing tab buttons.
+          // We target the text labels visible in the sidebar.
+          var candidates = Array.prototype.slice.call(
+            document.querySelectorAll('button, a, div')
+          );
+
+          var anchorEl = null;
+          for (var i = 0; i < candidates.length; i++) {
+            var t = (candidates[i].textContent || '').trim();
+            if (t === 'Search Users' || t === 'Open Jobs') {
+              anchorEl = candidates[i];
+              break;
+            }
+          }
+          if (!anchorEl) return false;
+
+          // Avoid duplicate injection
+          if (document.getElementById('peopleAnalyzeTabBtn')) return true;
+
+          var btn = document.createElement('button');
+          btn.id = 'peopleAnalyzeTabBtn';
+          btn.type = 'button';
+          btn.textContent = 'Analyze';
+          btn.style.cssText =
+            'margin-top:8px;width:100%;text-align:left;padding:10px 12px;border-radius:10px;border:1px solid rgba(0,0,0,.12);background:#fff;cursor:pointer;font-weight:700;color:#111827;';
+          btn.onmouseenter = function () {
+            btn.style.background = '#f3f4f6';
+          };
+          btn.onmouseleave = function () {
+            btn.style.background = '#fff';
+          };
+          btn.onclick = function () {
+            openAnalyze();
+          };
+
+          var parent =
+            anchorEl.closest('div') ||
+            anchorEl.parentElement ||
+            document.body;
+          parent.appendChild(btn);
+          return true;
+        }
+
+        var injected = false;
+        var scheduled = false;
+        function schedule() {
+          if (scheduled) return;
+          scheduled = true;
+          setTimeout(function () {
+            scheduled = false;
+            if (injected) return;
+            injected = injectAnalyzeTab();
+          }, 300);
+        }
+
+        schedule();
+        var obs = new MutationObserver(function () {
+          schedule();
+        });
+        obs.observe(document.documentElement, { childList: true, subtree: true });
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Information - People App</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .business-section {
+            padding: 120px 0 80px;
+            background: linear-gradient(135deg, var(--light-blue) 0%, var(--light-green) 100%);
+        }
+
+        .business-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .business-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .business-header h1 {
+            font-size: 2.5rem;
+            color: var(--gray-900);
+            margin-bottom: 1rem;
+        }
+
+        .business-content {
+            background-color: var(--white);
+            padding: 3rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .info-section {
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 2px solid var(--gray-200);
+        }
+
+        .info-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .info-section h2 {
+            color: var(--primary-blue);
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .info-section h2 i {
+            color: var(--primary-green);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .info-item {
+            padding: 1.5rem;
+            background-color: var(--gray-50);
+            border-radius: 8px;
+        }
+
+        .info-item.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .info-item label {
+            display: block;
+            color: var(--gray-600);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-item .value {
+            color: var(--gray-900);
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .info-item .value a {
+            color: var(--primary-blue);
+            text-decoration: none;
+        }
+
+        .info-item .value a:hover {
+            text-decoration: underline;
+        }
+
+        .note-box {
+            background-color: var(--light-blue);
+            border-left: 4px solid var(--primary-blue);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 2rem;
+        }
+
+        .note-box p {
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .business-header h1 {
+                font-size: 2rem;
+            }
+
+            .business-content {
+                padding: 2rem 1.5rem;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <img src="people-app-logo.png" alt="People App Logo" style="height: 40px; width: auto; margin-right: 10px;">
+                <h2>People</h2>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="index.html" class="nav-link">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a href="services.html" class="nav-link">Use Cases</a>
+                </li>
+                <li class="nav-item">
+                    <a href="index.html#how-it-works" class="nav-link">How It Works</a>
+                </li>
+                <li class="nav-item">
+                    <a href="index.html#features" class="nav-link">Features</a>
+                </li>
+                <li class="nav-item">
+                    <a href="about.html" class="nav-link">About</a>
+                </li>
+                <li class="nav-item">
+                    <a href="contact.html" class="nav-link">Contact</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/login" class="nav-link">Admin</a>
+                </li>
+                <li class="nav-item">
+                    <a href="terms.html" class="nav-link">Terms</a>
+                </li>
+                <li class="nav-item">
+                    <a href="privacy.html" class="nav-link">Privacy</a>
+                </li>
+            </ul>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Business Information Section -->
+    <section class="business-section">
+        <div class="business-container">
+            <div class="business-header">
+                <h1>Business Information</h1>
+                <p>Legal and business details (also available on the <a href="about.html" style="color: var(--primary-blue); text-decoration: none; font-weight: 600;">About</a> page)</p>
+            </div>
+
+            <div class="business-content">
+                <div class="info-section">
+                    <h2><i class="fas fa-building"></i> Company Details</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Legal Business Name</label>
+                            <div class="value">PEOPLEFORE SOLUTIONS PRIVATE LIMITED</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Business Type</label>
+                            <div class="value">Private Limited Company (Startup)</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Industry</label>
+                            <div class="value">Software Solutions / Technology</div>
+                        </div>
+                        <div class="info-item full-width">
+                            <label>Business Description</label>
+                            <div class="value">PEOPLEFORE SOLUTIONS PRIVATE LIMITED is a startup that invents new ideas and brings new solutions to the market. We build software products and platforms—including People, our service marketplace where clients can buy services and freelancers can sell their services.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h2><i class="fas fa-id-card"></i> Registration & Legal</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>GSTIN (GST Identification Number)</label>
+                            <div class="value">27AAQCP6138B1ZA</div>
+                        </div>
+                        <div class="info-item">
+                            <label>PAN (Permanent Account Number)</label>
+                            <div class="value">AAQCP6138B</div>
+                        </div>
+                        <div class="info-item">
+                            <label>TAN (Tax Deduction and Collection Account Number)</label>
+                            <div class="value">MUMP55873G</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h2><i class="fas fa-map-marker-alt"></i> Registered Address</h2>
+                    <div class="info-grid">
+                        <div class="info-item full-width">
+                            <label>Complete Address</label>
+                            <div class="value">208, Grace Meadows, SN Dubey Road, Rawalpada, Dahisar East, Mumbai 400068, Maharashtra, India</div>
+                        </div>
+                        <div class="info-item">
+                            <label>City</label>
+                            <div class="value">Mumbai</div>
+                        </div>
+                        <div class="info-item">
+                            <label>State</label>
+                            <div class="value">Maharashtra</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Country</label>
+                            <div class="value">India</div>
+                        </div>
+                        <div class="info-item">
+                            <label>PIN Code</label>
+                            <div class="value">400068</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h2><i class="fas fa-user-tie"></i> Contact Information</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Email Address</label>
+                            <div class="value"><a href="mailto:rohanjaiswar2467@gmail.com">rohanjaiswar2467@gmail.com</a></div>
+                        </div>
+                        <div class="info-item">
+                            <label>Phone Number</label>
+                            <div class="value"><a href="tel:+917021098460">+91 7021098460</a></div>
+                        </div>
+                        <div class="info-item">
+                            <label>Website</label>
+                            <div class="value"><a href="https://www.people.com.de" id="websiteUrl">www.people.com.de</a></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h2><i class="fas fa-shield-alt"></i> Domain & Ownership</h2>
+                    <div class="info-grid">
+                        <div class="info-item full-width">
+                            <label>Domain Name</label>
+                            <div class="value">www.people.com.de</div>
+                        </div>
+                        <div class="info-item full-width">
+                            <label>Domain Ownership Verification</label>
+                            <div class="value">This domain (www.people.com.de) is owned and operated by PEOPLEFORE SOLUTIONS PRIVATE LIMITED.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="note-box">
+                    <p><strong>Note:</strong> All business information provided above is accurate and verified. This information is required for payment gateway verification and compliance purposes.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3><i class="fas fa-users"></i> Peoplefore Solutions</h3>
+                    <p>Connecting skilled professionals with clients who need their expertise.</p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="services.html">Services</a></li>
+                        <li><a href="index.html#how-it-works">How It Works</a></li>
+                        <li><a href="index.html#features">Features</a></li>
+                        <li><a href="index.html#about">About</a></li>
+                        <li><a href="contact.html">Contact Us</a></li>
+                        <li><a href="business.html">Business Info</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="terms.html">Terms & Conditions</a></li>
+                        <li><a href="privacy.html">Privacy Policy</a></li>
+                        <li><a href="refund.html">Refund Policy</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <ul>
+                        <li><i class="fas fa-envelope"></i> rohanjaiswar2467@gmail.com</li>
+                        <li><i class="fas fa-phone"></i> +91 7021098460</li>
+                        <li><i class="fas fa-map-marker-alt"></i> Mumbai, Maharashtra, India</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 PEOPLEFORE SOLUTIONS PRIVATE LIMITED. All rights reserved.</p>
+                <p style="margin-top: 0.5rem; font-size: 0.9rem; opacity: 0.9;">This website (people.com.de) is owned and operated by PEOPLEFORE SOLUTIONS PRIVATE LIMITED.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>People Admin Debug</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --card: #121a33;
+        --muted: #a9b3d1;
+        --text: #eef2ff;
+        --accent: #3b82f6;
+        --danger: #ef4444;
+        --border: rgba(255, 255, 255, 0.12);
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+          Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      }
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        background: radial-gradient(
+            1200px 800px at 20% 0%,
+            rgba(59, 130, 246, 0.25),
+            transparent 60%
+          ),
+          radial-gradient(
+            1000px 800px at 90% 10%,
+            rgba(168, 85, 247, 0.18),
+            transparent 55%
+          ),
+          var(--bg);
+        color: var(--text);
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 24px auto;
+        padding: 0 16px 48px;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 20px;
+        letter-spacing: 0.2px;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 18px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      @media (min-width: 920px) {
+        .grid {
+          grid-template-columns: 1.1fr 0.9fr;
+        }
+      }
+      .card {
+        background: rgba(18, 26, 51, 0.9);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .row:last-child {
+        border-bottom: none;
+      }
+      .k {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .v {
+        font-family: var(--mono);
+        font-size: 12px;
+        word-break: break-word;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      button {
+        background: rgba(59, 130, 246, 0.16);
+        border: 1px solid rgba(59, 130, 246, 0.35);
+        color: var(--text);
+        padding: 9px 11px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      button:hover {
+        background: rgba(59, 130, 246, 0.22);
+      }
+      button.danger {
+        background: rgba(239, 68, 68, 0.14);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+      }
+      button.danger:hover {
+        background: rgba(239, 68, 68, 0.2);
+      }
+      input,
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 10px 11px;
+        font-family: var(--mono);
+        font-size: 12px;
+        outline: none;
+      }
+      textarea {
+        min-height: 92px;
+        resize: vertical;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 8px;
+        line-height: 1.45;
+      }
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--danger);
+      }
+      .dot.ok {
+        background: #22c55e;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;">
+        <div>
+          <h1>People Admin Debug</h1>
+          <div class="sub">
+            Use this page to confirm token presence, backend responses, and which
+            fields exist for the selected user.
+          </div>
+        </div>
+        <div class="badge" id="tokenBadge">
+          <span class="dot" id="tokenDot"></span>
+          <span id="tokenText">Token: unknown</span>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="row">
+            <div class="k">API Base URL</div>
+            <div class="v" id="apiBase"></div>
+          </div>
+          <div class="row">
+            <div class="k">authToken prefix</div>
+            <div class="v" id="tokenPrefix"></div>
+          </div>
+          <div class="row">
+            <div class="k">Current URL</div>
+            <div class="v" id="curUrl"></div>
+          </div>
+
+          <div class="actions">
+            <button id="btnRefresh">Refresh status</button>
+            <button id="btnFetchApproved">Fetch approved verifications</button>
+            <button id="btnClear" class="danger">Clear localStorage auth</button>
+            <button id="btnGoAdmin">Go to /admin/dashboard</button>
+          </div>
+
+          <div class="hint">
+            Note: this page reads the same <code>localStorage.authToken</code>
+            that your admin panel uses. If token is missing here, it will also
+            be missing for any modal fetch.
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="font-weight:700;margin-bottom:8px;">Match a user</div>
+          <div class="hint" style="margin-top:0;">
+            Paste the modal text (or just the id/phone) to see what we can match
+            against the approved verifications list.
+          </div>
+          <div style="margin-top:10px;">
+            <textarea id="modalText" placeholder="Paste modal text here..."></textarea>
+          </div>
+          <div class="actions">
+            <button id="btnTryMatch">Try match</button>
+          </div>
+          <div class="hint" id="matchHint"></div>
+        </div>
+
+        <div class="card" style="grid-column:1/-1;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div style="font-weight:700;">Output</div>
+            <div class="hint" style="margin:0;">
+              Copy-paste this output back to chat if needed.
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <pre id="out">Ready.</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        function getApiBaseUrl() {
+          try {
+            var override = localStorage.getItem("apiBaseUrlOverride");
+            if (override) return override.replace(/\/+$/, "");
+          } catch (e) {}
+          return "https://people-web-5hqi.onrender.com/api";
+        }
+
+        function getToken() {
+          try {
+            return localStorage.getItem("authToken") || "";
+          } catch (e) {
+            return "";
+          }
+        }
+
+        function setOut(obj) {
+          var el = document.getElementById("out");
+          el.textContent =
+            typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
+        }
+
+        function refreshStatus() {
+          var api = getApiBaseUrl();
+          var token = getToken();
+          document.getElementById("apiBase").textContent = api;
+          document.getElementById("tokenPrefix").textContent = token
+            ? token.slice(0, 20) + "…"
+            : "(missing)";
+          document.getElementById("curUrl").textContent = location.href;
+
+          var badgeText = document.getElementById("tokenText");
+          var dot = document.getElementById("tokenDot");
+          if (token) {
+            badgeText.textContent = "Token: present";
+            dot.classList.add("ok");
+          } else {
+            badgeText.textContent = "Token: missing";
+            dot.classList.remove("ok");
+          }
+        }
+
+        var cache = { approved: null, at: 0 };
+        function fetchApproved() {
+          var now = Date.now();
+          if (cache.approved && now - cache.at < 30000) {
+            return Promise.resolve(cache.approved);
+          }
+          var token = getToken();
+          if (!token) return Promise.resolve(null);
+          var url = getApiBaseUrl() + "/admin/freelancer-verifications?status=approved";
+          return fetch(url, {
+            headers: {
+              Authorization: "Bearer " + token,
+              "Content-Type": "application/json",
+            },
+          })
+            .then(function (r) {
+              return r.json();
+            })
+            .then(function (data) {
+              var list = data && (data.verifications || data.data);
+              cache.approved = Array.isArray(list) ? list : [];
+              cache.at = Date.now();
+              return cache.approved;
+            })
+            .catch(function (e) {
+              return { __error: String(e && e.message ? e.message : e) };
+            });
+        }
+
+        function extractIdAndPhone(text) {
+          var t = String(text || "");
+          var idm = t.match(/\b[a-f0-9]{24}\b/i);
+          var phm = t.match(/\+\d{1,3}\d{8,14}/);
+          return { userId: idm ? idm[0] : "", phone: phm ? phm[0] : "" };
+        }
+
+        function normalizeId(v) {
+          if (!v) return "";
+          if (typeof v === "string") return v;
+          if (typeof v === "object") return v._id || v.id || "";
+          return "";
+        }
+
+        function tryMatch() {
+          var text = document.getElementById("modalText").value;
+          var parts = extractIdAndPhone(text);
+          document.getElementById("matchHint").textContent =
+            "Parsed userId=" +
+            (parts.userId || "(none)") +
+            " phone=" +
+            (parts.phone || "(none)");
+
+          return fetchApproved().then(function (list) {
+            if (!list) return setOut("No token or fetch failed.");
+            if (list.__error) return setOut(list);
+            var match = null;
+            for (var i = 0; i < list.length; i++) {
+              var u = list[i] || {};
+              var uId = normalizeId(u._id || u.id);
+              var uUserId = normalizeId(u.userId);
+              var uPhone = (u.phoneNumber || u.phone || "").trim();
+              if (
+                (parts.userId && (uId === parts.userId || uUserId === parts.userId)) ||
+                (parts.phone && uPhone === parts.phone)
+              ) {
+                match = u;
+                break;
+              }
+            }
+            if (!match) {
+              return setOut({
+                ok: false,
+                reason: "No match found in approved list.",
+                parsed: parts,
+                approvedCount: list.length,
+                sample: list[0] || null,
+              });
+            }
+            var vd = match.verificationDocuments || {};
+            return setOut({
+              ok: true,
+              matchedBy: parts.userId ? "userId" : "phone",
+              id: match._id || match.id,
+              userId: match.userId,
+              phone: match.phoneNumber || match.phone,
+              fullName: match.fullName,
+              gender: vd.gender || match.gender,
+              address: vd.address || match.address,
+              dateOfBirth: vd.dateOfBirth || match.dateOfBirth,
+              verificationDocumentsKeys: Object.keys(vd || {}),
+              raw: match,
+            });
+          });
+        }
+
+        document.getElementById("btnRefresh").addEventListener("click", function () {
+          refreshStatus();
+          setOut("Refreshed.");
+        });
+        document.getElementById("btnFetchApproved").addEventListener("click", function () {
+          refreshStatus();
+          fetchApproved().then(function (res) {
+            if (!res) return setOut("No token present.");
+            setOut({
+              approvedCount: res.__error ? 0 : res.length,
+              error: res.__error || null,
+              sample: res.__error ? null : res[0] || null,
+            });
+          });
+        });
+        document.getElementById("btnClear").addEventListener("click", function () {
+          try {
+            localStorage.removeItem("authToken");
+            localStorage.removeItem("userData");
+            localStorage.removeItem("currentRole");
+          } catch (e) {}
+          refreshStatus();
+          setOut("Cleared auth-related localStorage keys.");
+        });
+        document.getElementById("btnGoAdmin").addEventListener("click", function () {
+          location.href = "/admin/dashboard";
+        });
+        document.getElementById("btnTryMatch").addEventListener("click", function () {
+          refreshStatus();
+          tryMatch();
+        });
+
+        refreshStatus();
+      })();
+    </script>
+  </body>
+</html>
+
