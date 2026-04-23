@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const axios = require('axios');
 const adminController = require('../controllers/adminController');
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -19,5 +20,55 @@ router.get('/user-profile/:id', authMiddleware.verifyToken, authMiddleware.verif
 router.get('/open-jobs', authMiddleware.verifyToken, authMiddleware.verifyAdmin, adminController.getOpenJobs);
 router.delete('/jobs/:id', authMiddleware.verifyToken, authMiddleware.verifyAdmin, adminController.deleteJobByAdmin);
 router.post('/jobs/:id/unassign-freelancer', authMiddleware.verifyToken, authMiddleware.verifyAdmin, adminController.unassignFreelancerByAdmin);
+
+// Metrics proxy routes (calls People backend with X-Admin-API-Key)
+function requireEnv(name) {
+  const v = process.env[name];
+  return v && String(v).trim() ? String(v).trim() : '';
+}
+
+async function proxyPeopleMetrics(req, res, path) {
+  const base = requireEnv('PEOPLE_API_BASE_URL').replace(/\/+$/, '');
+  const key = requireEnv('ADMIN_PANEL_API_KEY');
+
+  if (!base || !key) {
+    return res.status(500).json({
+      success: false,
+      message:
+        'Missing backend env. Please set PEOPLE_API_BASE_URL and ADMIN_PANEL_API_KEY on this admin backend.',
+    });
+  }
+
+  const url = `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+
+  try {
+    const resp = await axios.get(url, {
+      headers: { 'X-Admin-API-Key': key },
+      timeout: 20000,
+      validateStatus: () => true,
+    });
+    return res.status(resp.status).json(resp.data);
+  } catch (e) {
+    return res.status(502).json({
+      success: false,
+      message: 'Failed to reach People backend',
+      error: e && e.message ? e.message : String(e),
+    });
+  }
+}
+
+router.get(
+  '/metrics/summary',
+  authMiddleware.verifyToken,
+  authMiddleware.verifyAdmin,
+  async (req, res) => proxyPeopleMetrics(req, res, '/api/admin/metrics/summary')
+);
+
+router.get(
+  '/red-ratings',
+  authMiddleware.verifyToken,
+  authMiddleware.verifyAdmin,
+  async (req, res) => proxyPeopleMetrics(req, res, '/api/admin/metrics/red-ratings')
+);
 
 module.exports = router;

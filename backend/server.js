@@ -79,7 +79,15 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-debug-mode']
+  // Must include custom headers used by the admin panel (preflight otherwise blocks requests).
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'x-debug-mode',
+    'X-Admin-API-Key',
+    'x-admin-api-key',
+  ],
 };
 
 // Enable CORS early (before any rate limiters or routes)

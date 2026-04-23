@@ -319,7 +319,7 @@
             '<div id="m_totalAmountReceivedOnline" style="font-size:22px;font-weight:900;margin-top:6px;color:#111827;">—</div>' +
             '</div>' +
             '</div>' +
-            '<div style="margin-top:14px;color:#6b7280;font-size:12px;">Endpoint tried: <span id="peopleAnalyzeUrl" style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \\'Liberation Mono\\', \\'Courier New\\', monospace;"></span></div>' +
+            '<div style="margin-top:14px;color:#6b7280;font-size:12px;">Endpoint tried: <span id="peopleAnalyzeUrl" style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;"></span></div>' +
             '<pre id="peopleAnalyzeRaw" style="margin-top:12px;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.5;background:#0b1020;color:#eef2ff;padding:12px;border-radius:12px;overflow:auto;max-height:340px;"></pre>' +
             '</div>';
 
@@ -348,37 +348,220 @@
         }
 
         function fetchMetrics() {
+          // Call admin-backend proxy (same origin as the admin UI API base) to avoid CORS + keep API key server-side.
+          var url = getApiBaseUrl() + '/admin/metrics/summary';
           var token = getAuthToken();
-          var base = getApiBaseUrl();
-          // Preferred (proxy) endpoint should be on your admin backend.
-          // We try both variants to support either setup.
-          var urls = [
-            base + '/admin/metrics/summary',
-            base + '/admin/metrics-summary',
-          ];
 
-          var lastErr = null;
-
-          function tryUrl(i) {
-            if (i >= urls.length) return Promise.reject(lastErr || new Error('No endpoint succeeded'));
-            var url = urls[i];
-            return fetch(url, {
-              headers: {
-                Authorization: token ? 'Bearer ' + token : '',
-                'Content-Type': 'application/json',
-              },
-            }).then(function (r) {
+          return fetch(url, {
+            method: 'GET',
+            headers: {
+              Authorization: token ? 'Bearer ' + token : '',
+              'Content-Type': 'application/json',
+            },
+          }).then(function (r) {
+            return r.json().then(function (j) {
               if (!r.ok) {
-                lastErr = { status: r.status, url: url };
-                return tryUrl(i + 1);
+                var err = new Error('HTTP ' + r.status);
+                err.status = r.status;
+                err.url = url;
+                err.body = j;
+                throw err;
               }
-              return r.json().then(function (j) {
-                return { url: url, data: j };
-              });
+              return { url: url, data: j };
             });
+          });
+        }
+
+        function createFreelancersReportsOverlay() {
+          var existing = document.getElementById('peopleFreelancersReportsOverlay');
+          if (existing) return existing;
+
+          var el = document.createElement('div');
+          el.id = 'peopleFreelancersReportsOverlay';
+          el.style.cssText =
+            'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px;';
+
+          var card = document.createElement('div');
+          card.style.cssText =
+            'width:100%;max-width:980px;max-height:90vh;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 20px 40px rgba(0,0,0,.25);';
+
+          card.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid #e5e7eb;">' +
+            '<div style="font-weight:900;font-size:16px;color:#111827;">Freelancers Reports</div>' +
+            '<button id="peopleFreelancersReportsClose" style="border:0;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:#6b7280;">×</button>' +
+            '</div>' +
+            '<div style="padding:18px;">' +
+            '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;">' +
+            '<div style="color:#6b7280;font-size:13px;">Red ratings (sorted by total red ratings)</div>' +
+            '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+            '<button id="peopleFreelancersReportsRefresh" style="background:#111827;color:#fff;border:0;border-radius:10px;padding:10px 12px;font-weight:800;cursor:pointer;">Refresh</button>' +
+            '<button id="peopleFreelancersReportsCopy" style="background:#f3f4f6;color:#111827;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-weight:800;cursor:pointer;">Copy JSON</button>' +
+            '</div>' +
+            '</div>' +
+            '<div id="peopleFreelancersReportsError" style="display:none;margin-top:12px;padding:12px;border-radius:10px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:13px;"></div>' +
+            '<div style="margin-top:14px;color:#6b7280;font-size:12px;">Endpoint tried: <span id="peopleFreelancersReportsUrl" style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;"></span></div>' +
+            '<div id="peopleFreelancersReportsList" style="margin-top:12px;"></div>' +
+            '<pre id="peopleFreelancersReportsRaw" style="margin-top:12px;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.5;background:#0b1020;color:#eef2ff;padding:12px;border-radius:12px;overflow:auto;max-height:320px;"></pre>' +
+            '</div>';
+
+          el.appendChild(card);
+          document.body.appendChild(el);
+
+          el.querySelector('#peopleFreelancersReportsClose').onclick = function () {
+            el.style.display = 'none';
+          };
+          el.addEventListener('click', function (e) {
+            if (e.target === el) el.style.display = 'none';
+          });
+
+          return el;
+        }
+
+        function fetchRedRatings() {
+          var url = getApiBaseUrl() + '/admin/red-ratings';
+          var token = getAuthToken();
+
+          return fetch(url, {
+            method: 'GET',
+            headers: {
+              Authorization: token ? 'Bearer ' + token : '',
+              'Content-Type': 'application/json',
+            },
+          }).then(function (r) {
+            return r.json().then(function (j) {
+              if (!r.ok) {
+                var err = new Error('HTTP ' + r.status);
+                err.status = r.status;
+                err.url = url;
+                err.body = j;
+                throw err;
+              }
+              return { url: url, data: j };
+            });
+          });
+        }
+
+        function openFreelancersReports() {
+          var overlay = createFreelancersReportsOverlay();
+          overlay.style.display = 'flex';
+
+          var rawEl = overlay.querySelector('#peopleFreelancersReportsRaw');
+          var listEl = overlay.querySelector('#peopleFreelancersReportsList');
+          var errEl = overlay.querySelector('#peopleFreelancersReportsError');
+          var urlEl = overlay.querySelector('#peopleFreelancersReportsUrl');
+
+          function setError(msg) {
+            errEl.style.display = 'block';
+            errEl.textContent = msg;
           }
 
-          return tryUrl(0);
+          function clearError() {
+            errEl.style.display = 'none';
+            errEl.textContent = '';
+          }
+
+          function escapeHtml(s) {
+            return String(s)
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/\"/g, '&quot;')
+              .replace(/'/g, '&#039;');
+          }
+
+          function renderList(items) {
+            if (!Array.isArray(items) || items.length === 0) {
+              listEl.innerHTML =
+                '<div style="padding:14px;border:1px solid #e5e7eb;border-radius:12px;color:#6b7280;">No red ratings found.</div>';
+              return;
+            }
+
+            var html = '';
+            for (var i = 0; i < items.length; i++) {
+              var it = items[i] || {};
+              var name = it.fullName || '—';
+              var phone = it.phone || '—';
+              var total = it.totalRedRatings == null ? 0 : it.totalRedRatings;
+              var reasons = Array.isArray(it.reasons) ? it.reasons : [];
+
+              html +=
+                '<details style="border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;margin-bottom:10px;background:#fff;">' +
+                '<summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;list-style:none;">' +
+                '<div style="display:flex;flex-direction:column;gap:2px;min-width:0;">' +
+                '<div style="font-weight:900;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+                escapeHtml(name) +
+                '</div>' +
+                '<div style="color:#6b7280;font-size:12px;">' +
+                escapeHtml(phone) +
+                '</div>' +
+                '</div>' +
+                '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">' +
+                '<span style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:999px;padding:6px 10px;font-weight:900;font-size:12px;">Red: ' +
+                escapeHtml(total) +
+                '</span>' +
+                '<span style="color:#6b7280;font-size:12px;">Details</span>' +
+                '</div>' +
+                '</summary>';
+
+              if (reasons.length) {
+                html += '<div style="margin-top:12px;">';
+                html +=
+                  '<div style="font-weight:900;color:#111827;font-size:13px;margin-bottom:8px;">Reasons</div>';
+                for (var r = 0; r < reasons.length; r++) {
+                  var rr = reasons[r] || {};
+                  html +=
+                    '<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:8px;background:#f9fafb;">' +
+                    '<div style="color:#111827;font-size:13px;min-width:0;">' +
+                    escapeHtml(rr.reason || '—') +
+                    '</div>' +
+                    '<div style="font-weight:900;color:#111827;">' +
+                    escapeHtml(rr.count == null ? 0 : rr.count) +
+                    '</div>' +
+                    '</div>';
+                }
+                html += '</div>';
+              } else {
+                html +=
+                  '<div style="margin-top:12px;color:#6b7280;font-size:13px;">No reasons breakdown available.</div>';
+              }
+
+              html += '</details>';
+            }
+
+            listEl.innerHTML = html;
+          }
+
+          function load() {
+            rawEl.textContent = 'Loading…';
+            listEl.innerHTML = '';
+            clearError();
+
+            fetchRedRatings()
+              .then(function (res) {
+                urlEl.textContent = res.url;
+                rawEl.textContent = JSON.stringify(res.data, null, 2);
+                // Backend can return either {success,data:[...]} or directly [...]
+                var payload = res.data && res.data.data !== undefined ? res.data.data : res.data;
+                renderList(payload);
+              })
+              .catch(function (e) {
+                urlEl.textContent = getApiBaseUrl() + '/admin/red-ratings';
+                rawEl.textContent = '';
+                setError(
+                  'Red ratings endpoint is not reachable yet. Ensure admin backend proxy and People backend are deployed. Last error: ' +
+                    (e && e.status ? e.status + ' ' + e.url : String(e))
+                );
+              });
+          }
+
+          overlay.querySelector('#peopleFreelancersReportsRefresh').onclick = load;
+          overlay.querySelector('#peopleFreelancersReportsCopy').onclick = function () {
+            try {
+              navigator.clipboard.writeText(rawEl.textContent || '');
+            } catch (e) {}
+          };
+
+          load();
         }
 
         function openAnalyze() {
@@ -446,65 +629,100 @@
           load();
         }
 
-        function injectAnalyzeTab() {
-          // Insert a sidebar row next to existing tab buttons.
-          // We target the text labels visible in the sidebar.
-          var candidates = Array.prototype.slice.call(
-            document.querySelectorAll('button, a, div')
-          );
+        // Marker so we can confirm this script is running on the deployed page.
+        (function ensureMarker() {
+          if (document.getElementById('peopleAnalyzeScriptMarker')) return;
+          var m = document.createElement('div');
+          m.id = 'peopleAnalyzeScriptMarker';
+          m.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;';
+          m.textContent = 'analyze-script-active';
+          document.body.appendChild(m);
+        })();
 
-          var anchorEl = null;
+        function normText(s) {
+          return String(s || '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+        }
+
+        function findOpenJobsTab() {
+          // Try to find an element in the top tab row whose visible label is "Open Jobs".
+          var candidates = document.querySelectorAll('a,button,[role="tab"]');
           for (var i = 0; i < candidates.length; i++) {
-            var t = (candidates[i].textContent || '').trim();
-            if (t === 'Search Users' || t === 'Open Jobs') {
-              anchorEl = candidates[i];
-              break;
-            }
+            var el = candidates[i];
+            if (!el || !el.textContent) continue;
+            if (normText(el.textContent) === 'open jobs') return el;
           }
-          if (!anchorEl) return false;
+          return null;
+        }
 
-          // Avoid duplicate injection
-          if (document.getElementById('peopleAnalyzeTabBtn')) return true;
+        function createTabLike(elToClone, id, label, onClick) {
+          var clone = elToClone.cloneNode(true);
+          clone.id = id;
 
-          var btn = document.createElement('button');
-          btn.id = 'peopleAnalyzeTabBtn';
-          btn.type = 'button';
-          btn.textContent = 'Analyze';
-          btn.style.cssText =
-            'margin-top:8px;width:100%;text-align:left;padding:10px 12px;border-radius:10px;border:1px solid rgba(0,0,0,.12);background:#fff;cursor:pointer;font-weight:700;color:#111827;';
-          btn.onmouseenter = function () {
-            btn.style.background = '#f3f4f6';
-          };
-          btn.onmouseleave = function () {
-            btn.style.background = '#fff';
-          };
-          btn.onclick = function () {
-            openAnalyze();
+          // Remove navigation attributes so it behaves like a button.
+          try {
+            clone.removeAttribute('href');
+          } catch (e) {}
+          try {
+            clone.removeAttribute('to');
+          } catch (e) {}
+
+          clone.setAttribute('type', 'button');
+          clone.setAttribute('role', 'tab');
+          clone.style.cursor = 'pointer';
+          clone.onclick = function (e) {
+            try {
+              e.preventDefault();
+              e.stopPropagation();
+            } catch (_) {}
+            onClick();
           };
 
-          var parent =
-            anchorEl.closest('div') ||
-            anchorEl.parentElement ||
-            document.body;
-          parent.appendChild(btn);
+          // Set visible label (best-effort: last text node).
+          clone.textContent = label;
+          return clone;
+        }
+
+        function ensureTabs() {
+          var openJobsEl = findOpenJobsTab();
+          if (!openJobsEl) return false;
+          var parent = openJobsEl.parentElement;
+          if (!parent) return false;
+
+          var analyzeId = 'peopleAnalyzeTabBtn';
+          var reportsId = 'peopleFreelancersReportsTabBtn';
+
+          var analyzeEl = document.getElementById(analyzeId);
+          var reportsEl = document.getElementById(reportsId);
+
+          if (!analyzeEl) {
+            analyzeEl = createTabLike(openJobsEl, analyzeId, 'Analyze', openAnalyze);
+            if (openJobsEl.nextSibling) parent.insertBefore(analyzeEl, openJobsEl.nextSibling);
+            else parent.appendChild(analyzeEl);
+          } else if (analyzeEl.parentElement !== parent) {
+            if (openJobsEl.nextSibling) parent.insertBefore(analyzeEl, openJobsEl.nextSibling);
+            else parent.appendChild(analyzeEl);
+          }
+
+          if (!reportsEl) {
+            reportsEl = createTabLike(openJobsEl, reportsId, 'Freelancers Reports', openFreelancersReports);
+            if (analyzeEl.nextSibling) parent.insertBefore(reportsEl, analyzeEl.nextSibling);
+            else parent.appendChild(reportsEl);
+          } else if (reportsEl.parentElement !== parent) {
+            if (analyzeEl.nextSibling) parent.insertBefore(reportsEl, analyzeEl.nextSibling);
+            else parent.appendChild(reportsEl);
+          }
+
           return true;
         }
 
-        var injected = false;
-        var scheduled = false;
-        function schedule() {
-          if (scheduled) return;
-          scheduled = true;
-          setTimeout(function () {
-            scheduled = false;
-            if (injected) return;
-            injected = injectAnalyzeTab();
-          }, 300);
-        }
+        // Try once now, then keep it resilient to React re-renders.
+        ensureTabs();
 
-        schedule();
         var obs = new MutationObserver(function () {
-          schedule();
+          ensureTabs();
         });
         obs.observe(document.documentElement, { childList: true, subtree: true });
       })();
